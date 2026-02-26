@@ -1,10 +1,41 @@
 import { useState } from 'react';
 import { useSessionStore } from '@/stores/useSessionStore';
-import { Mic, ChevronDown, Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star } from 'lucide-react';
+import { useNoteGeneration } from '@/hooks/useNoteGeneration';
+import { Mic, ChevronDown, Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+const defaultNote = `C/O acute vomiting since yesterday afternoon. 4 episodes total — liquid/yellowish/foamy initially, last bile only. Anorexic since yesterday morning. Drinking, keeping water down. Lethargic, shaky on standing. Last normal faeces yesterday morning.
+
+CE: Lethargic, mild dehydration ~5–7%. HR 120 bpm, RR 30/min, panting. Temp 39.5°C. MM pink, tacky, CRT <2 secs. Cranial abdominal pain on deep palpation, no masses or FB palpable. Peripheral LN NAD. Thoracic auscultation clear.
+
+Adv DDx: acute gastroenteritis, pancreatitis, possible obstruction.
+
+Plan: In-house haematology and biochemistry. Abdominal ultrasound. IVFT if bloods confirm dehydration/inflammation. Anti-emetics. Hospitalisation min 24 hrs for monitoring. NBM 12 hrs, continue offering small amounts water frequently. Return immediately if further vomiting or increased lethargy.
+
+Estimate to be prepared for bloods, ultrasound, hospitalisation.`;
 
 export default function NotesPanel() {
-  const { peIncludeInNotes, togglePEInNotes, selectedTemplate } = useSessionStore();
+  const { peIncludeInNotes, togglePEInNotes, selectedTemplate, peData, peEnabled, transcript } = useSessionStore();
+  const { generatedNote, isGenerating, generateNote, setGeneratedNote } = useNoteGeneration();
   const [editing, setEditing] = useState(false);
+  const { toast } = useToast();
+
+  const displayNote = generatedNote || defaultNote;
+
+  const handleRegenerate = async () => {
+    if (!transcript.trim()) {
+      toast({ title: 'No transcript', description: 'Record a session or add transcript text first.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await generateNote(transcript, peEnabled ? peData : undefined);
+      toast({ title: 'Notes generated', description: 'Clinical notes have been generated from the transcript.' });
+    } catch (err: any) {
+      toast({ title: 'Generation failed', description: err.message || 'Could not generate notes.', variant: 'destructive' });
+    }
+  };
+
+  const peText = `PE: Temp ${peData.vitals.temp}°C, HR ${peData.vitals.hr} bpm, RR ${peData.vitals.rr}/min. BCS ${peData.bcs}/9. ${peData.mentation}${peData.demeanour ? ', ' + peData.demeanour : ''}. Eyes ${peData.eyes}, Ears ${peData.ears}, Nose ${peData.nose}, Oral ${peData.oral}, PLNs ${peData.plns}. MM ${peData.mmColor}${peData.mmMoisture ? ', ' + peData.mmMoisture : ''}, CRT ${peData.crt}s. Heart ${peData.heart}, Lungs ${peData.lungs}, Pulses ${peData.pulses}.${peData.hydration ? ' ' + peData.hydration : ''}${peData.abdoPalp ? ', ' + peData.abdoPalp : ''}, skin/coat ${peData.skinCoat}.`;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -35,7 +66,14 @@ export default function NotesPanel() {
           <div className="w-px h-5 bg-border mx-1" />
           <ToolBtn title="Undo"><Undo2 size={16} /></ToolBtn>
           <ToolBtn title="Redo"><Redo2 size={16} /></ToolBtn>
-          <ToolBtn title="Regenerate"><RefreshCw size={16} /></ToolBtn>
+          <button
+            title="Regenerate with AI"
+            onClick={handleRegenerate}
+            disabled={isGenerating}
+            className="w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-text-muted bg-transparent border-none hover:bg-sand hover:text-text-primary transition-all duration-100 disabled:opacity-50"
+          >
+            {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+          </button>
           <div className="w-px h-5 bg-border mx-1" />
           {editing && (
             <span className="flex items-center gap-1 text-[11px] text-forest font-semibold">
@@ -50,6 +88,12 @@ export default function NotesPanel() {
 
       {/* Note content */}
       <div className="flex-1 overflow-y-auto p-6">
+        {isGenerating && (
+          <div className="flex items-center gap-2 mb-3 text-xs text-forest font-semibold">
+            <Loader2 size={14} className="animate-spin" />
+            Generating clinical notes...
+          </div>
+        )}
         <div
           className="max-w-[720px] text-sm leading-[1.85] text-text-primary outline-none rounded-md p-1 transition-colors duration-150 hover:bg-bark/[0.02] focus:bg-card focus:shadow-[0_0_0_2px_hsl(var(--sand-deeper))]"
           contentEditable
@@ -58,30 +102,20 @@ export default function NotesPanel() {
           onFocus={() => setEditing(true)}
           onBlur={() => setEditing(false)}
         >
-          <p className="mb-3.5">
-            C/O acute vomiting since yesterday afternoon. 4 episodes total — liquid/yellowish/foamy initially, last bile
-            only. Anorexic since yesterday morning. Drinking, keeping water down. Lethargic, shaky on standing. Last
-            normal faeces yesterday morning.
-          </p>
-          <p className="mb-3.5">
-            <span className="text-etv-olive font-bold">CE:</span> Lethargic, mild dehydration ~5–7%. HR 120 bpm, RR
-            30/min, panting. Temp 39.5°C. MM pink, tacky, CRT &lt;2 secs. Cranial abdominal pain on deep palpation, no
-            masses or FB palpable. Peripheral LN NAD. Thoracic auscultation clear.
-          </p>
-          <p className="mb-3.5">Adv DDx: acute gastroenteritis, pancreatitis, possible obstruction.</p>
-          <p className="mb-3.5">
-            <span className="text-etv-olive font-bold">Plan:</span> In-house haematology and biochemistry. Abdominal
-            ultrasound. IVFT if bloods confirm dehydration/inflammation. Anti-emetics. Hospitalisation min 24 hrs for
-            monitoring. NBM 12 hrs, continue offering small amounts water frequently. Return immediately if further
-            vomiting or increased lethargy.
-          </p>
-          <p className="mb-3.5">Estimate to be prepared for bloods, ultrasound, hospitalisation.</p>
-          {peIncludeInNotes && (
+          {displayNote.split('\n\n').map((para, i) => (
+            <p key={i} className="mb-3.5">
+              {para.startsWith('CE:') || para.startsWith('Plan:') ? (
+                <>
+                  <span className="text-etv-olive font-bold">{para.split(':')[0]}:</span>
+                  {para.substring(para.indexOf(':') + 1)}
+                </>
+              ) : para}
+            </p>
+          ))}
+          {peIncludeInNotes && peEnabled && (
             <div className="border-t border-dashed border-border pt-3 mt-1.5">
               <p>
-                <span className="text-etv-olive font-bold">PE:</span> Temp 39.5°C, HR 120 bpm, RR 30/min. BCS 5/9. QAR,
-                anxious. Eyes NAD, Ears NAD, Nose NAD, Oral NAD, PLNs WNL. MM pink, tacky, CRT &lt;2s. Heart N, Lungs
-                clr, Pulses strong. Dehydrated ~5–7%, cranial abdominal pain on deep palpation, skin/coat NAD.
+                <span className="text-etv-olive font-bold">PE:</span> {peText.substring(3)}
               </p>
             </div>
           )}
