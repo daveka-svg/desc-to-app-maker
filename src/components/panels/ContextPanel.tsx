@@ -1,9 +1,16 @@
-import { useState } from 'react';
 import { useSessionStore } from '@/stores/useSessionStore';
+import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import PEForm from '@/components/pe-form/PEForm';
 
 export default function ContextPanel() {
   const { peEnabled, togglePE } = useSessionStore();
+  const { isRecording, isPaused, timerSeconds, waveformData, startRecording, pauseRecording, resumeRecording, stopRecording } = useAudioRecorder();
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  };
 
   return (
     <div className="p-5 overflow-y-auto flex-1">
@@ -12,26 +19,45 @@ export default function ContextPanel() {
         <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted mb-2.5">Recording</div>
         <div className="flex flex-col items-center gap-3">
           <div className="font-mono text-[32px] font-semibold text-bark tracking-wide flex items-center gap-2.5">
-            <span className="w-[9px] h-[9px] rounded-full bg-error animate-pulse-dot" />
-            04:32
+            {isRecording && !isPaused && <span className="w-[9px] h-[9px] rounded-full bg-error animate-pulse-dot" />}
+            {isPaused && <span className="w-[9px] h-[9px] rounded-full bg-warning" />}
+            {!isRecording && <span className="w-[9px] h-[9px] rounded-full bg-text-muted" />}
+            {formatTime(timerSeconds)}
           </div>
           {/* Waveform */}
           <div className="flex items-center justify-center gap-[1.5px] h-7 w-full max-w-[360px]">
-            {Array.from({ length: 50 }).map((_, i) => (
+            {waveformData.map((h, i) => (
               <div
                 key={i}
-                className="w-[2.5px] rounded-sm bg-etv-olive opacity-45 animate-waveform"
-                style={{ animationDelay: `${(i * 0.05) % 0.7}s`, height: `${4 + Math.random() * 20}px` }}
+                className={`w-[2.5px] rounded-sm transition-all duration-75 ${isRecording && !isPaused ? 'bg-etv-olive opacity-70' : 'bg-text-muted opacity-20'}`}
+                style={{ height: `${Math.min(h, 28)}px` }}
               />
             ))}
           </div>
           <div className="flex gap-2.5">
-            <button className="inline-flex items-center justify-center gap-1.5 px-[18px] py-[7px] rounded-md text-[13px] font-semibold border border-sand-deeper bg-sand text-warning cursor-pointer hover:bg-sand-dark transition-all duration-[120ms]">
-              ⏸ Pause
-            </button>
-            <button className="inline-flex items-center justify-center gap-1.5 px-[18px] py-[7px] rounded-md text-[13px] font-semibold border border-sand-deeper bg-sand text-error cursor-pointer hover:bg-sand-dark transition-all duration-[120ms]">
-              ⏹ End session
-            </button>
+            {!isRecording ? (
+              <button
+                onClick={startRecording}
+                className="inline-flex items-center justify-center gap-1.5 px-[18px] py-[7px] rounded-md text-[13px] font-semibold border border-forest bg-forest text-primary-foreground cursor-pointer hover:bg-forest-dark transition-all duration-[120ms]"
+              >
+                🎙 Start Recording
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={isPaused ? resumeRecording : pauseRecording}
+                  className="inline-flex items-center justify-center gap-1.5 px-[18px] py-[7px] rounded-md text-[13px] font-semibold border border-sand-deeper bg-sand text-warning cursor-pointer hover:bg-sand-dark transition-all duration-[120ms]"
+                >
+                  {isPaused ? '▶ Resume' : '⏸ Pause'}
+                </button>
+                <button
+                  onClick={stopRecording}
+                  className="inline-flex items-center justify-center gap-1.5 px-[18px] py-[7px] rounded-md text-[13px] font-semibold border border-sand-deeper bg-sand text-error cursor-pointer hover:bg-sand-dark transition-all duration-[120ms]"
+                >
+                  ⏹ End session
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

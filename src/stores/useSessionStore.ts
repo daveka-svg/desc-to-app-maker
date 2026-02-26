@@ -34,10 +34,11 @@ interface SessionStore {
   togglePEInNotes: () => void;
   tasksOpen: boolean;
   toggleTasks: () => void;
-  isRecording: boolean;
-  timerSeconds: number;
   peData: PEData;
   setPEField: (field: string, value: any) => void;
+  transcript: string;
+  setTranscript: (t: string) => void;
+  appendTranscript: (t: string) => void;
 }
 
 const defaultPE: PEData = {
@@ -57,6 +58,12 @@ const defaultPE: PEData = {
   skinCoat: 'NAD', skinCoatDetail: '',
 };
 
+const defaultTranscript = `So the owner reports that Bella has been off her food since yesterday morning, completely anorexic. She started vomiting yesterday afternoon, about four episodes total. Initially liquid, yellowish, foamy material, and the last episode was just bile.
+
+She's still drinking water and keeping it down. The owner describes her as lethargic and a bit shaky when she stands. Last normal faeces was yesterday morning. No access to toxins, no dietary indiscretion reported.
+
+Vaccinations are up to date. She's normally a very active dog, so this lethargy is quite out of character for her...`;
+
 export const useSessionStore = create<SessionStore>((set) => ({
   activeTab: 'notes',
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -68,10 +75,11 @@ export const useSessionStore = create<SessionStore>((set) => ({
   togglePEInNotes: () => set((s) => ({ peIncludeInNotes: !s.peIncludeInNotes })),
   tasksOpen: true,
   toggleTasks: () => set((s) => ({ tasksOpen: !s.tasksOpen })),
-  isRecording: true,
-  timerSeconds: 272,
   peData: defaultPE,
   setPEField: (field, value) => set((s) => ({
     peData: { ...s.peData, [field]: value },
   })),
+  transcript: defaultTranscript,
+  setTranscript: (t) => set({ transcript: t }),
+  appendTranscript: (t) => set((s) => ({ transcript: s.transcript + t })),
 }));
