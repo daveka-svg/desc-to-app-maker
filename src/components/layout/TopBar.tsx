@@ -74,7 +74,7 @@ export default function TopBar() {
       }
 
       pauseRecording();
-      setIsRecording(true);
+      setIsRecording(false);
       toast({ title: 'Recording paused', description: 'Recording is paused. Click resume to continue.' });
     } catch (err: any) {
       toast({
