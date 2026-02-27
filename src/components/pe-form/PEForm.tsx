@@ -38,18 +38,9 @@ const abdomenFields: PillField[] = [
 ];
 
 export default function PEForm() {
-  const { peData, setPEField } = useSessionStore();
-
-  const applyNormal = () => {
-    const normals: Record<string, string | number> = {
-      mentation: 'BAR', demeanour: 'calm', bcs: 5,
-      eyes: 'NAD', ears: 'NAD', nose: 'NAD', oral: 'NAD', plns: 'WNL',
-      mmColor: 'pink', mmMoisture: 'moist', crt: '<2',
-      heart: 'N', lungs: 'clr', pulses: 'strong',
-      hydration: 'eu', abdoPalp: 'NAD', skinCoat: 'NAD',
-    };
-    Object.entries(normals).forEach(([k, v]) => setPEField(k, v));
-  };
+  const peData = useSessionStore((s) => s.peData);
+  const setPEField = useSessionStore((s) => s.setPEField);
+  const applyNormal = useSessionStore((s) => s.applyNormalPE);
 
   return (
     <div>

@@ -1,100 +1,53 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import { streamMercuryChat, type ChatMessage } from '@/lib/mercury';
+import { SYSTEM_PROMPT, TEMPLATES, compilePEReport } from '@/lib/prompts';
+import { useSessionStore } from '@/stores/useSessionStore';
 
-const GENERATE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-notes`;
+export function useNoteGeneration() {
+  const transcript = useSessionStore((s) => s.transcript);
+  const peData = useSessionStore((s) => s.peData);
+  const peEnabled = useSessionStore((s) => s.peEnabled);
+  const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
+  const notes = useSessionStore((s) => s.notes);
+  const setNotes = useSessionStore((s) => s.setNotes);
+  const isGeneratingNotes = useSessionStore((s) => s.isGeneratingNotes);
+  const setIsGeneratingNotes = useSessionStore((s) => s.setIsGeneratingNotes);
 
-interface UseNoteGenerationReturn {
-  generatedNote: string;
-  isGenerating: boolean;
-  generateNote: (transcript: string, peData?: any, templatePrompt?: string) => Promise<void>;
-  setGeneratedNote: (note: string) => void;
-}
+  const generateNote = useCallback(async () => {
+    if (!transcript.trim()) throw new Error('No transcript available');
 
-export function useNoteGeneration(): UseNoteGenerationReturn {
-  const [generatedNote, setGeneratedNote] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const generateNote = useCallback(async (transcript: string, peData?: any, templatePrompt?: string) => {
-    setIsGenerating(true);
-    setGeneratedNote('');
-    let noteSoFar = '';
+    setIsGeneratingNotes(true);
+    setNotes('');
 
     try {
-      const resp = await fetch(GENERATE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ transcript, peData, templatePrompt }),
-      });
+      const templatePrompt = TEMPLATES[selectedTemplate] || TEMPLATES['General Consult'];
+      const peReport = peEnabled ? compilePEReport(peData) : 'No structured physical examination recorded.';
 
-      if (!resp.ok || !resp.body) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || `Failed to generate notes (${resp.status})`);
+      const abnDetails: string[] = [];
+      for (const f of ['eyes', 'ears', 'nose', 'oral', 'plns', 'heart', 'lungs', 'hydration', 'abdoPalp', 'skinCoat'] as const) {
+        const detail = (peData as any)[`${f}Detail`];
+        if (detail) abnDetails.push(`${f}: ${detail}`);
       }
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = '';
-      let streamDone = false;
+      const userContent = `${templatePrompt}\n\n1. Session: ${selectedTemplate} - ${new Date().toLocaleDateString('en-GB')}\n\n2. Structured PE:\n${peReport}${abnDetails.length ? `\n\nAbnormal details:\n${abnDetails.join('\n')}` : ''}\n\n3. Full transcript:\n${transcript}`;
 
-      while (!streamDone) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
+      const messages: ChatMessage[] = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userContent },
+      ];
 
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') { streamDone = true; break; }
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              noteSoFar += content;
-              setGeneratedNote(noteSoFar);
-            }
-          } catch {
-            textBuffer = line + '\n' + textBuffer;
-            break;
-          }
-        }
-      }
-
-      // Flush remaining
-      if (textBuffer.trim()) {
-        for (let raw of textBuffer.split('\n')) {
-          if (!raw) continue;
-          if (raw.endsWith('\r')) raw = raw.slice(0, -1);
-          if (raw.startsWith(':') || raw.trim() === '') continue;
-          if (!raw.startsWith('data: ')) continue;
-          const jsonStr = raw.slice(6).trim();
-          if (jsonStr === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              noteSoFar += content;
-              setGeneratedNote(noteSoFar);
-            }
-          } catch { /* ignore */ }
-        }
+      let noteSoFar = '';
+      for await (const chunk of streamMercuryChat(messages)) {
+        noteSoFar += chunk;
+        setNotes(noteSoFar);
       }
     } catch (err) {
       console.error('Note generation error:', err);
       throw err;
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingNotes(false);
     }
-  }, []);
+  }, [transcript, peData, peEnabled, selectedTemplate, setNotes, setIsGeneratingNotes]);
 
-  return { generatedNote, isGenerating, generateNote, setGeneratedNote };
+  return { notes, isGeneratingNotes, generateNote, setNotes };
 }
