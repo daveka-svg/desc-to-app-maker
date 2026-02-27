@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Mic, Info, Send, Loader2 } from 'lucide-react';
 import { useAskETV } from '@/hooks/useAskETV';
 import { useSessionStore } from '@/stores/useSessionStore';
+import { useToast } from '@/hooks/use-toast';
 
 export default function BottomBar() {
   const [input, setInput] = useState('');
@@ -9,6 +10,8 @@ export default function BottomBar() {
   const chatMessages = useSessionStore((s) => s.chatMessages);
   const [showChat, setShowChat] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,6 +28,53 @@ export default function BottomBar() {
   const handleQuickAction = async (action: string) => {
     setShowChat(true);
     await sendMessage(`Generate a ${action} for the current consultation.`);
+  };
+
+  const handleMicInput = () => {
+    type SpeechCtor = new () => {
+      lang: string;
+      interimResults: boolean;
+      maxAlternatives: number;
+      onresult: ((event: any) => void) | null;
+      onerror: ((event: any) => void) | null;
+      onend: (() => void) | null;
+      start: () => void;
+    };
+
+    const win = window as Window & {
+      SpeechRecognition?: SpeechCtor;
+      webkitSpeechRecognition?: SpeechCtor;
+    };
+
+    const Recognition = win.SpeechRecognition || win.webkitSpeechRecognition;
+    if (!Recognition) {
+      inputRef.current?.focus();
+      toast({
+        title: 'Voice input unavailable',
+        description: 'This browser does not support speech recognition.',
+      });
+      return;
+    }
+
+    const recognition = new Recognition();
+    recognition.lang = 'en-GB';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event) => {
+      const transcript = event?.results?.[0]?.[0]?.transcript?.trim?.() || '';
+      if (!transcript) return;
+      setInput((prev) => `${prev}${prev ? ' ' : ''}${transcript}`);
+      inputRef.current?.focus();
+    };
+    recognition.onerror = () => {
+      toast({
+        title: 'Voice input failed',
+        description: 'Could not capture speech. Please try again.',
+        variant: 'destructive',
+      });
+    };
+    recognition.onend = () => inputRef.current?.focus();
+    recognition.start();
   };
 
   return (
@@ -75,6 +125,7 @@ export default function BottomBar() {
         </div>
         <div className="flex-1">
           <input
+            ref={inputRef}
             className="w-full px-3.5 py-2.5 border border-border rounded-md text-[13px] outline-none bg-sand text-text-primary placeholder:text-text-muted focus:border-bark-muted focus:bg-card transition-colors"
             placeholder="Ask ETV to do anything..."
             value={input}
@@ -92,7 +143,10 @@ export default function BottomBar() {
             {isChatStreaming ? <Loader2 size={16} className="text-primary-foreground animate-spin" /> : <Send size={16} className="text-primary-foreground" />}
           </button>
         ) : (
-          <button className="w-[34px] h-[34px] rounded-full bg-sand border border-border flex items-center justify-center cursor-pointer hover:bg-etv-pink hover:border-etv-pink transition-all duration-150">
+          <button
+            onClick={handleMicInput}
+            className="w-[34px] h-[34px] rounded-full bg-sand border border-border flex items-center justify-center cursor-pointer hover:bg-etv-pink hover:border-etv-pink transition-all duration-150"
+          >
             <Mic size={16} className="text-text-secondary" />
           </button>
         )}

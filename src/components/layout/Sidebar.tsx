@@ -1,14 +1,39 @@
 import { Pen, ClipboardList, Book, Settings } from 'lucide-react';
 import { useSessionStore } from '@/stores/useSessionStore';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Sidebar() {
   const tasksOpen = useSessionStore((s) => s.tasksOpen);
   const toggleTasks = useSessionStore((s) => s.toggleTasks);
+  const setActiveTab = useSessionStore((s) => s.setActiveTab);
   const sessions = useSessionStore((s) => s.sessions);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const loadSession = useSessionStore((s) => s.loadSession);
   const newSession = useSessionStore((s) => s.newSession);
   const tasks = useSessionStore((s) => s.tasks);
+  const { toast } = useToast();
+
+  const handleTemplates = () => {
+    setActiveTab('notes');
+    toast({
+      title: 'Templates',
+      description: 'Use the template selector in the Notes tab.',
+    });
+  };
+
+  const handleSettings = () => {
+    const shouldClear = window.confirm(
+      'Clear saved local sessions for this browser? This cannot be undone.',
+    );
+    if (!shouldClear) return;
+
+    localStorage.removeItem('etv-scribe-sessions');
+    useSessionStore.setState({ sessions: [], activeSessionId: null });
+    toast({
+      title: 'Session history cleared',
+      description: 'Local saved sessions have been removed.',
+    });
+  };
 
   const grouped = sessions.reduce<Record<string, typeof sessions>>((acc, s) => {
     const d = new Date(s.createdAt).toLocaleDateString('en-GB');
@@ -66,8 +91,18 @@ export default function Sidebar() {
       <div className="border-t border-border-light">
         <nav className="px-2 pb-1">
           <div className="text-[10px] font-bold uppercase tracking-[0.8px] text-text-muted px-2.5 pt-3 pb-1">Library</div>
-          <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand transition-all duration-100"><Book size={17} className="opacity-65 shrink-0" /> Templates</div>
-          <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand transition-all duration-100"><Settings size={17} className="opacity-65 shrink-0" /> Settings</div>
+          <div
+            onClick={handleTemplates}
+            className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand transition-all duration-100"
+          >
+            <Book size={17} className="opacity-65 shrink-0" /> Templates
+          </div>
+          <div
+            onClick={handleSettings}
+            className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand transition-all duration-100"
+          >
+            <Settings size={17} className="opacity-65 shrink-0" /> Settings
+          </div>
         </nav>
         <div className="px-3.5 py-3 border-t border-border-light flex items-center gap-2.5 cursor-pointer hover:bg-sand">
           <div className="w-[30px] h-[30px] rounded-full bg-lavender flex items-center justify-center text-[11px] font-bold text-primary-foreground">VE</div>

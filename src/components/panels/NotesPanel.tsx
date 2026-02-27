@@ -6,6 +6,18 @@ import { compilePEReport } from '@/lib/prompts';
 import { Mic, ChevronDown, Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+function toBriefNotes(rawText: string): string {
+  const paragraphs = rawText
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const priority = paragraphs.filter((p) => /^(CE:|Plan:|Adv)/i.test(p));
+  const other = paragraphs.filter((p) => !/^(CE:|Plan:|Adv)/i.test(p)).slice(0, 2);
+
+  return [...priority, ...other].join('\n\n');
+}
+
 export default function NotesPanel() {
   const peIncludeInNotes = useSessionStore((s) => s.peIncludeInNotes);
   const togglePEInNotes = useSessionStore((s) => s.togglePEInNotes);
@@ -16,25 +28,39 @@ export default function NotesPanel() {
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
   const { generateNote, isGeneratingNotes } = useNoteGeneration();
-  const { extractTasks, isExtractingTasks } = useTaskExtraction();
+  const { extractTasks } = useTaskExtraction();
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isBriefMode, setIsBriefMode] = useState(false);
+  const [fullNoteSnapshot, setFullNoteSnapshot] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const { toast } = useToast();
   const noteRef = useRef<HTMLDivElement>(null);
+
+  const getCurrentNoteText = () => noteRef.current?.innerText || notes;
+
+  const syncNoteText = (nextText: string) => {
+    setNotes(nextText);
+    if (noteRef.current) noteRef.current.innerText = nextText;
+  };
 
   const handleRegenerate = async () => {
     try {
       await generateNote();
       toast({ title: 'Notes generated', description: 'Clinical notes have been generated from the transcript.' });
-      // Auto-extract tasks
-      try { await extractTasks(); } catch {}
+      try {
+        await extractTasks();
+      } catch {
+        // task extraction errors are non-critical for notes generation
+      }
     } catch (err: any) {
       toast({ title: 'Generation failed', description: err.message || 'Could not generate notes.', variant: 'destructive' });
     }
   };
 
   const handleCopy = async () => {
-    const text = noteRef.current?.innerText || notes;
+    const text = getCurrentNoteText();
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -45,17 +71,141 @@ export default function NotesPanel() {
     }
   };
 
-  const peText = peEnabled ? compilePEReport(peData) : '';
-
   const handleNoteInput = () => {
-    if (noteRef.current) {
-      setNotes(noteRef.current.innerText);
-    }
+    if (noteRef.current) setNotes(noteRef.current.innerText);
   };
+
+  const handleBriefToggle = () => {
+    const current = getCurrentNoteText().trim();
+    if (!current) {
+      toast({ title: 'No notes yet', description: 'Generate or type notes first.' });
+      return;
+    }
+
+    if (!isBriefMode) {
+      const brief = toBriefNotes(current);
+      if (!brief) return;
+      setFullNoteSnapshot(current);
+      syncNoteText(brief);
+      setIsBriefMode(true);
+      toast({ title: 'Brief mode enabled', description: 'Notes condensed for quick review.' });
+      return;
+    }
+
+    if (fullNoteSnapshot) syncNoteText(fullNoteSnapshot);
+    setIsBriefMode(false);
+    setFullNoteSnapshot(null);
+    toast({ title: 'Brief mode disabled', description: 'Full note content restored.' });
+  };
+
+  const handleInsertStructure = () => {
+    const current = getCurrentNoteText();
+    const next = `${current}${current ? '\n\n' : ''}Assessment:\n\nPlan:\n`;
+    syncNoteText(next);
+    setShowMenu(false);
+    toast({ title: 'Structure inserted', description: 'Assessment and Plan headings added.' });
+  };
+
+  const handleClearNote = () => {
+    syncNoteText('');
+    setIsBriefMode(false);
+    setFullNoteSnapshot(null);
+    setShowMenu(false);
+    toast({ title: 'Note cleared', description: 'Current note content has been removed.' });
+  };
+
+  const handleDictate = () => {
+    type SpeechCtor = new () => {
+      lang: string;
+      interimResults: boolean;
+      maxAlternatives: number;
+      onresult: ((event: any) => void) | null;
+      onerror: ((event: any) => void) | null;
+      start: () => void;
+    };
+
+    const win = window as Window & {
+      SpeechRecognition?: SpeechCtor;
+      webkitSpeechRecognition?: SpeechCtor;
+    };
+
+    const Recognition = win.SpeechRecognition || win.webkitSpeechRecognition;
+    if (!Recognition) {
+      toast({
+        title: 'Dictation unavailable',
+        description: 'Speech recognition is not supported in this browser.',
+      });
+      return;
+    }
+
+    const recognition = new Recognition();
+    recognition.lang = 'en-GB';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event) => {
+      const transcript = event?.results?.[0]?.[0]?.transcript?.trim?.() || '';
+      if (!transcript) return;
+      const current = getCurrentNoteText();
+      syncNoteText(`${current}${current ? '\n' : ''}${transcript}`);
+      noteRef.current?.focus();
+    };
+    recognition.onerror = () => {
+      toast({
+        title: 'Dictation failed',
+        description: 'Could not process voice input.',
+        variant: 'destructive',
+      });
+    };
+    recognition.start();
+  };
+
+  const handleAudioToggle = () => {
+    const synthesis = window.speechSynthesis;
+    if (!synthesis) {
+      toast({
+        title: 'Audio unavailable',
+        description: 'Speech playback is not supported in this browser.',
+      });
+      return;
+    }
+
+    if (isSpeaking) {
+      synthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const text = getCurrentNoteText().trim();
+    if (!text) {
+      toast({ title: 'No notes yet', description: 'Add notes before playing audio.' });
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-GB';
+    utterance.rate = 1;
+    utterance.onend = () => setIsSpeaking(false);
+    synthesis.cancel();
+    synthesis.speak(utterance);
+    setIsSpeaking(true);
+  };
+
+  const handleUndo = () => {
+    noteRef.current?.focus();
+    document.execCommand('undo');
+    handleNoteInput();
+  };
+
+  const handleRedo = () => {
+    noteRef.current?.focus();
+    document.execCommand('redo');
+    handleNoteInput();
+  };
+
+  const peText = peEnabled ? compilePEReport(peData) : '';
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Toolbar */}
       <div className="flex items-center justify-between px-5 py-2.5 bg-card border-b border-border-light shrink-0">
         <div className="flex items-center gap-1.5">
           <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-sand border border-border rounded-md text-[13px] font-semibold text-bark cursor-pointer hover:bg-sand-dark">
@@ -65,17 +215,45 @@ export default function NotesPanel() {
             {selectedTemplate}
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 12l2 2 4-4" /></svg>
           </div>
-          <button className="flex items-center gap-[5px] px-3 py-1.5 bg-card border border-border rounded-md text-[13px] font-medium text-text-secondary cursor-pointer hover:bg-sand hover:text-bark">
+          <button
+            onClick={handleBriefToggle}
+            className={`flex items-center gap-[5px] px-3 py-1.5 bg-card border rounded-md text-[13px] font-medium cursor-pointer hover:bg-sand hover:text-bark ${
+              isBriefMode ? 'border-forest text-forest' : 'border-border text-text-secondary'
+            }`}
+          >
             <Pen size={13} /> Brief
           </button>
-          <button className="w-8 h-8 flex items-center justify-center border border-border rounded-md cursor-pointer text-text-muted bg-card hover:bg-sand text-base">···</button>
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu((v) => !v)}
+              className="w-8 h-8 flex items-center justify-center border border-border rounded-md cursor-pointer text-text-muted bg-card hover:bg-sand text-base"
+            >
+              ...
+            </button>
+            {showMenu && (
+              <div className="absolute top-9 right-0 z-20 min-w-[150px] bg-card border border-border rounded-md shadow-lg p-1">
+                <button
+                  onClick={handleInsertStructure}
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-text-primary hover:bg-sand rounded"
+                >
+                  Insert structure
+                </button>
+                <button
+                  onClick={handleClearNote}
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-error hover:bg-sand rounded"
+                >
+                  Clear note
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1">
-          <ToolBtn title="Dictate"><Mic size={16} /></ToolBtn>
-          <ToolBtn title="Audio"><ChevronDown size={16} /></ToolBtn>
+          <ToolBtn title="Dictate" onClick={handleDictate}><Mic size={16} /></ToolBtn>
+          <ToolBtn title={isSpeaking ? 'Stop audio' : 'Play audio'} onClick={handleAudioToggle} active={isSpeaking}><ChevronDown size={16} /></ToolBtn>
           <div className="w-px h-5 bg-border mx-1" />
-          <ToolBtn title="Undo"><Undo2 size={16} /></ToolBtn>
-          <ToolBtn title="Redo"><Redo2 size={16} /></ToolBtn>
+          <ToolBtn title="Undo" onClick={handleUndo}><Undo2 size={16} /></ToolBtn>
+          <ToolBtn title="Redo" onClick={handleRedo}><Redo2 size={16} /></ToolBtn>
           <button
             title="Regenerate with AI"
             onClick={handleRegenerate}
@@ -97,7 +275,6 @@ export default function NotesPanel() {
         </div>
       </div>
 
-      {/* Note content */}
       <div className="flex-1 overflow-y-auto p-6">
         {isGeneratingNotes && (
           <div className="flex items-center gap-2 mb-3 text-xs text-forest font-semibold">
@@ -135,7 +312,6 @@ export default function NotesPanel() {
         )}
       </div>
 
-      {/* Footer */}
       <div className="px-5 py-2.5 bg-card border-t border-border-light flex items-center justify-between text-xs text-text-muted shrink-0">
         <div className="flex items-center gap-3.5">
           <span className="flex items-center gap-1 text-[11px]"><ClipboardList size={13} className="opacity-50" /> Include PE findings</span>
@@ -155,9 +331,25 @@ export default function NotesPanel() {
   );
 }
 
-function ToolBtn({ children, title }: { children: React.ReactNode; title: string }) {
+function ToolBtn({
+  children,
+  title,
+  onClick,
+  active = false,
+}: {
+  children: React.ReactNode;
+  title: string;
+  onClick?: () => void;
+  active?: boolean;
+}) {
   return (
-    <button title={title} className="w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-text-muted bg-transparent border-none hover:bg-sand hover:text-text-primary transition-all duration-100">
+    <button
+      title={title}
+      onClick={onClick}
+      className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer bg-transparent border-none hover:bg-sand hover:text-text-primary transition-all duration-100 ${
+        active ? 'text-forest' : 'text-text-muted'
+      }`}
+    >
       {children}
     </button>
   );

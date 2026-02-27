@@ -4,19 +4,19 @@ import { TASK_EXTRACTION_PROMPT } from '@/lib/prompts';
 import { useSessionStore, type Task } from '@/stores/useSessionStore';
 
 export function useTaskExtraction() {
-  const notes = useSessionStore((s) => s.notes);
   const setTasks = useSessionStore((s) => s.setTasks);
   const isExtractingTasks = useSessionStore((s) => s.isExtractingTasks);
   const setIsExtractingTasks = useSessionStore((s) => s.setIsExtractingTasks);
 
   const extractTasks = useCallback(async () => {
-    if (!notes.trim()) throw new Error('No notes to extract tasks from');
+    const currentNotes = useSessionStore.getState().notes;
+    if (!currentNotes.trim()) throw new Error('No notes to extract tasks from');
 
     setIsExtractingTasks(true);
     try {
       const messages: ChatMessage[] = [
         { role: 'system', content: 'You are a veterinary task extraction assistant. Extract tasks from clinical notes and return them as JSON.' },
-        { role: 'user', content: `${TASK_EXTRACTION_PROMPT}\n\nClinical Notes:\n${notes}` },
+        { role: 'user', content: `${TASK_EXTRACTION_PROMPT}\n\nClinical Notes:\n${currentNotes}` },
       ];
 
       const response = await mercuryChat(messages);
@@ -52,7 +52,7 @@ export function useTaskExtraction() {
     } finally {
       setIsExtractingTasks(false);
     }
-  }, [notes, setTasks, setIsExtractingTasks]);
+  }, [setTasks, setIsExtractingTasks]);
 
   return { extractTasks, isExtractingTasks };
 }

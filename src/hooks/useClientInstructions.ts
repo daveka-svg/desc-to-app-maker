@@ -4,13 +4,12 @@ import { CLIENT_INSTRUCTIONS_PROMPT } from '@/lib/prompts';
 import { useSessionStore } from '@/stores/useSessionStore';
 
 export function useClientInstructions() {
-  const notes = useSessionStore((s) => s.notes);
-  const transcript = useSessionStore((s) => s.transcript);
   const setClientInstructions = useSessionStore((s) => s.setClientInstructions);
   const isGeneratingCI = useSessionStore((s) => s.isGeneratingCI);
   const setIsGeneratingCI = useSessionStore((s) => s.setIsGeneratingCI);
 
   const generateInstructions = useCallback(async () => {
+    const { notes, transcript } = useSessionStore.getState();
     if (!notes.trim() && !transcript.trim()) throw new Error('No notes or transcript available');
 
     setIsGeneratingCI(true);
@@ -41,7 +40,7 @@ export function useClientInstructions() {
     } finally {
       setIsGeneratingCI(false);
     }
-  }, [notes, transcript, setClientInstructions, setIsGeneratingCI]);
+  }, [setClientInstructions, setIsGeneratingCI]);
 
   return { generateInstructions, isGeneratingCI };
 }

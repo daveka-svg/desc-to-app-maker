@@ -10,10 +10,16 @@ export default function TopBar() {
   const patientName = useSessionStore((s) => s.patientName);
   const setPatientName = useSessionStore((s) => s.setPatientName);
   const setActiveTab = useSessionStore((s) => s.setActiveTab);
-  const isRecording = useSessionStore((s) => s.isRecording);
   const setIsRecording = useSessionStore((s) => s.setIsRecording);
   const saveCurrentSession = useSessionStore((s) => s.saveCurrentSession);
-  const { isRecording: audioRecording, timerSeconds, startRecording, stopRecording } = useAudioRecorder();
+  const {
+    isRecording: audioRecording,
+    isPaused,
+    timerSeconds,
+    startRecording,
+    pauseRecording,
+    resumeRecording,
+  } = useAudioRecorder();
   const { generateNote, isGeneratingNotes } = useNoteGeneration();
   const { extractTasks } = useTaskExtraction();
   const { generateInstructions } = useClientInstructions();
@@ -46,6 +52,36 @@ export default function TopBar() {
       saveCurrentSession();
     } catch (err: any) {
       toast({ title: 'Generation failed', description: err.message || 'Could not generate notes.', variant: 'destructive' });
+    }
+  };
+
+  const handleResume = async () => {
+    try {
+      setActiveTab('context');
+
+      if (!audioRecording) {
+        await startRecording();
+        setIsRecording(true);
+        toast({ title: 'Recording started', description: 'Microphone recording is now active.' });
+        return;
+      }
+
+      if (isPaused) {
+        resumeRecording();
+        setIsRecording(true);
+        toast({ title: 'Recording resumed', description: 'Microphone recording has resumed.' });
+        return;
+      }
+
+      pauseRecording();
+      setIsRecording(true);
+      toast({ title: 'Recording paused', description: 'Recording is paused. Click resume to continue.' });
+    } catch (err: any) {
+      toast({
+        title: 'Recording unavailable',
+        description: err?.message || 'Could not access microphone.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -98,11 +134,14 @@ export default function TopBar() {
           )}
         </button>
 
-        <button className="bg-sand text-bark border border-border px-4 py-[7px] rounded-md text-[13px] font-semibold cursor-pointer flex items-center gap-1.5 hover:bg-sand-dark transition-colors">
+        <button
+          onClick={handleResume}
+          className="bg-sand text-bark border border-border px-4 py-[7px] rounded-md text-[13px] font-semibold cursor-pointer flex items-center gap-1.5 hover:bg-sand-dark transition-colors"
+        >
           <div className="flex gap-[1.5px] items-center">
             {[1,2,3,4].map(i => (<span key={i} className="w-[3px] h-[10px] bg-bark rounded-sm" />))}
           </div>
-          Resume
+          {!audioRecording ? 'Start' : isPaused ? 'Resume' : 'Pause'}
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
         </button>
       </div>
