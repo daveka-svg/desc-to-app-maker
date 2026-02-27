@@ -44,20 +44,6 @@ export default function ContextPanel() {
     }
   };
 
-  const handleStart = async () => {
-    await startRecording();
-    setIsRecording(true);
-  };
-
-  const handleStop = async () => {
-    const blob = await stopRecording();
-    setIsRecording(false);
-    // Audio blob is available for future transcription
-    if (blob) {
-      console.log('Recording stopped. Audio blob size:', blob.size);
-    }
-  };
-
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
