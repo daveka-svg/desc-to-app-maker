@@ -1,53 +1,35 @@
-import { FormProvider, useFormContext } from "@/contexts/FormContext";
-import FormStepper from "@/components/FormStepper";
-import IntroStep from "@/components/steps/IntroStep";
-import OwnerDetailsStep from "@/components/steps/OwnerDetailsStep";
-import PetTransportStep from "@/components/steps/PetTransportStep";
-import AuthorisedPersonStep from "@/components/steps/AuthorisedPersonStep";
-import PetInfoStep from "@/components/steps/PetInfoStep";
-import TravelInfoStep from "@/components/steps/TravelInfoStep";
-import RabiesVaccinationStep from "@/components/steps/RabiesVaccinationStep";
-import UploadDocumentsStep from "@/components/steps/UploadDocumentsStep";
-import DeclarationStep from "@/components/steps/DeclarationStep";
-import ReviewStep from "@/components/steps/ReviewStep";
-import ConfirmationStep from "@/components/steps/ConfirmationStep";
-
-const STEP_COMPONENTS: Record<string, React.FC> = {
-  intro: IntroStep,
-  owner: OwnerDetailsStep,
-  transport: PetTransportStep,
-  authorised: AuthorisedPersonStep,
-  pet: PetInfoStep,
-  travel: TravelInfoStep,
-  rabies: RabiesVaccinationStep,
-  uploads: UploadDocumentsStep,
-  declaration: DeclarationStep,
-  review: ReviewStep,
-  confirmation: ConfirmationStep,
-};
-
-const FormContent = () => {
-  const { steps, currentStep, isSubmitted } = useFormContext();
-  if (isSubmitted) return <ConfirmationStep />;
-  const currentStepConfig = steps[currentStep];
-  if (!currentStepConfig) return null;
-  const StepComponent = STEP_COMPONENTS[currentStepConfig.id];
-  if (!StepComponent) return null;
-  return <StepComponent />;
-};
+import Sidebar from '@/components/layout/Sidebar';
+import TopBar from '@/components/layout/TopBar';
+import BottomBar from '@/components/layout/BottomBar';
+import CenterTabs from '@/components/layout/CenterTabs';
+import ContextPanel from '@/components/panels/ContextPanel';
+import TranscriptPanel from '@/components/panels/TranscriptPanel';
+import NotesPanel from '@/components/panels/NotesPanel';
+import ClientInstructionsPanel from '@/components/panels/ClientInstructionsPanel';
+import TasksSidebar from '@/components/tasks/TasksSidebar';
+import { useSessionStore } from '@/stores/useSessionStore';
 
 const Index = () => {
+  const { activeTab, tasksOpen, toggleTasks } = useSessionStore();
+
   return (
-    <FormProvider>
-      <div className="min-h-screen bg-background flex flex-col">
-        <FormStepper />
-        <main className="flex-1 flex justify-center">
-          <div className="w-full max-w-2xl px-6 py-8">
-            <FormContent />
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <TopBar />
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0 bg-cream">
+            <CenterTabs />
+            {activeTab === 'context' && <ContextPanel />}
+            {activeTab === 'transcript' && <TranscriptPanel />}
+            {activeTab === 'notes' && <NotesPanel />}
+            {activeTab === 'client' && <ClientInstructionsPanel />}
           </div>
-        </main>
+          {tasksOpen && <TasksSidebar onClose={toggleTasks} />}
+        </div>
+        <BottomBar />
       </div>
-    </FormProvider>
+    </div>
   );
 };
 

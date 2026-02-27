@@ -14,520 +14,197 @@ export type Database = {
   }
   public: {
     Tables: {
-      ahc_template_mappings: {
+      note_templates: {
         Row: {
           created_at: string
-          field_catalog_json: Json | null
           id: string
-          mapping_json: Json
-          template_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          field_catalog_json?: Json | null
-          id?: string
-          mapping_json?: Json
-          template_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          field_catalog_json?: Json | null
-          id?: string
-          mapping_json?: Json
-          template_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ahc_template_mappings_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: true
-            referencedRelation: "ahc_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ahc_templates: {
-        Row: {
-          created_at: string
-          first_country_entry: string
-          id: string
-          is_acroform: boolean
-          is_active: boolean
-          language_pair: string
-          storage_bucket: string
-          storage_path: string
-          template_code: string
-        }
-        Insert: {
-          created_at?: string
-          first_country_entry: string
-          id?: string
-          is_acroform?: boolean
-          is_active?: boolean
-          language_pair?: string
-          storage_bucket?: string
-          storage_path: string
-          template_code: string
-        }
-        Update: {
-          created_at?: string
-          first_country_entry?: string
-          id?: string
-          is_acroform?: boolean
-          is_active?: boolean
-          language_pair?: string
-          storage_bucket?: string
-          storage_path?: string
-          template_code?: string
-        }
-        Relationships: []
-      }
-      attachments: {
-        Row: {
-          created_at: string
-          filename: string
-          id: string
-          submission_id: string
-          type: Database["public"]["Enums"]["attachment_type"]
-          url: string
-        }
-        Insert: {
-          created_at?: string
-          filename: string
-          id?: string
-          submission_id: string
-          type?: Database["public"]["Enums"]["attachment_type"]
-          url: string
-        }
-        Update: {
-          created_at?: string
-          filename?: string
-          id?: string
-          submission_id?: string
-          type?: Database["public"]["Enums"]["attachment_type"]
-          url?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "attachments_submission_id_fkey"
-            columns: ["submission_id"]
-            isOneToOne: false
-            referencedRelation: "submissions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      audit_log: {
-        Row: {
-          action: Database["public"]["Enums"]["audit_action"]
-          created_at: string
-          details_json: Json | null
-          id: string
-          submission_id: string | null
+          is_default: boolean | null
+          name: string
+          system_prompt: string | null
           user_id: string | null
         }
         Insert: {
-          action: Database["public"]["Enums"]["audit_action"]
           created_at?: string
-          details_json?: Json | null
           id?: string
-          submission_id?: string | null
+          is_default?: boolean | null
+          name: string
+          system_prompt?: string | null
           user_id?: string | null
         }
         Update: {
-          action?: Database["public"]["Enums"]["audit_action"]
           created_at?: string
-          details_json?: Json | null
           id?: string
-          submission_id?: string | null
+          is_default?: boolean | null
+          name?: string
+          system_prompt?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      notes: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          session_id: string
+          transcript: string | null
+          updated_at: string
+          user_id: string
+          version: number | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          session_id: string
+          transcript?: string | null
+          updated_at?: string
+          user_id: string
+          version?: number | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          session_id?: string
+          transcript?: string | null
+          updated_at?: string
+          user_id?: string
+          version?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "audit_log_submission_id_fkey"
-            columns: ["submission_id"]
+            foreignKeyName: "notes_session_id_fkey"
+            columns: ["session_id"]
             isOneToOne: false
-            referencedRelation: "submissions"
+            referencedRelation: "sessions"
             referencedColumns: ["id"]
           },
         ]
-      }
-      clinics: {
-        Row: {
-          address_line1: string | null
-          address_line2: string | null
-          city: string | null
-          country: string | null
-          created_at: string
-          email: string | null
-          id: string
-          name: string
-          phone: string | null
-          postal_code: string | null
-          updated_at: string
-        }
-        Insert: {
-          address_line1?: string | null
-          address_line2?: string | null
-          city?: string | null
-          country?: string | null
-          created_at?: string
-          email?: string | null
-          id?: string
-          name: string
-          phone?: string | null
-          postal_code?: string | null
-          updated_at?: string
-        }
-        Update: {
-          address_line1?: string | null
-          address_line2?: string | null
-          city?: string | null
-          country?: string | null
-          created_at?: string
-          email?: string | null
-          id?: string
-          name?: string
-          phone?: string | null
-          postal_code?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      document_templates: {
-        Row: {
-          active: boolean
-          created_at: string
-          first_country_of_entry: string
-          id: string
-          mapping_schema_json: Json | null
-          name: string
-          second_language_code: string
-          storage_bucket: string
-          storage_path: string | null
-          template_pdf_url: string
-          updated_at: string
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          first_country_of_entry: string
-          id?: string
-          mapping_schema_json?: Json | null
-          name: string
-          second_language_code: string
-          storage_bucket?: string
-          storage_path?: string | null
-          template_pdf_url: string
-          updated_at?: string
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          first_country_of_entry?: string
-          id?: string
-          mapping_schema_json?: Json | null
-          name?: string
-          second_language_code?: string
-          storage_bucket?: string
-          storage_path?: string | null
-          template_pdf_url?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
       profiles: {
         Row: {
-          clinic_id: string
+          avatar_url: string | null
           created_at: string
-          email: string
+          display_name: string | null
+          email: string | null
           id: string
-          name: string
+          role: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          clinic_id: string
+          avatar_url?: string | null
           created_at?: string
-          email: string
+          display_name?: string | null
+          email?: string | null
           id?: string
-          name: string
+          role?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
-          clinic_id?: string
+          avatar_url?: string | null
           created_at?: string
-          email?: string
+          display_name?: string | null
+          email?: string | null
           id?: string
-          name?: string
+          role?: string | null
           updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_clinic_id_fkey"
-            columns: ["clinic_id"]
-            isOneToOne: false
-            referencedRelation: "clinics"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      submissions: {
-        Row: {
-          certificate_number: string | null
-          clinic_id: string
-          correction_fields: Json | null
-          correction_message: string | null
-          created_at: string
-          created_by_user_id: string | null
-          data_json: Json
-          entry_date: string | null
-          final_ahc_pdf_path: string | null
-          final_ahc_pdf_url: string | null
-          final_destination: string | null
-          first_country_of_entry: string | null
-          id: string
-          intake_pdf_url: string | null
-          intake_upload_path: string | null
-          issue_datetime: string | null
-          issue_place: string | null
-          issuing_practice_id: string | null
-          issuing_vet_id: string | null
-          owner_email: string | null
-          owner_name: string | null
-          pets_count: number | null
-          public_token: string
-          selected_template_id: string | null
-          source: string
-          status: Database["public"]["Enums"]["submission_status"]
-          submitted_at: string | null
-          updated_at: string
-        }
-        Insert: {
-          certificate_number?: string | null
-          clinic_id: string
-          correction_fields?: Json | null
-          correction_message?: string | null
-          created_at?: string
-          created_by_user_id?: string | null
-          data_json?: Json
-          entry_date?: string | null
-          final_ahc_pdf_path?: string | null
-          final_ahc_pdf_url?: string | null
-          final_destination?: string | null
-          first_country_of_entry?: string | null
-          id?: string
-          intake_pdf_url?: string | null
-          intake_upload_path?: string | null
-          issue_datetime?: string | null
-          issue_place?: string | null
-          issuing_practice_id?: string | null
-          issuing_vet_id?: string | null
-          owner_email?: string | null
-          owner_name?: string | null
-          pets_count?: number | null
-          public_token?: string
-          selected_template_id?: string | null
-          source?: string
-          status?: Database["public"]["Enums"]["submission_status"]
-          submitted_at?: string | null
-          updated_at?: string
-        }
-        Update: {
-          certificate_number?: string | null
-          clinic_id?: string
-          correction_fields?: Json | null
-          correction_message?: string | null
-          created_at?: string
-          created_by_user_id?: string | null
-          data_json?: Json
-          entry_date?: string | null
-          final_ahc_pdf_path?: string | null
-          final_ahc_pdf_url?: string | null
-          final_destination?: string | null
-          first_country_of_entry?: string | null
-          id?: string
-          intake_pdf_url?: string | null
-          intake_upload_path?: string | null
-          issue_datetime?: string | null
-          issue_place?: string | null
-          issuing_practice_id?: string | null
-          issuing_vet_id?: string | null
-          owner_email?: string | null
-          owner_name?: string | null
-          pets_count?: number | null
-          public_token?: string
-          selected_template_id?: string | null
-          source?: string
-          status?: Database["public"]["Enums"]["submission_status"]
-          submitted_at?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "submissions_clinic_id_fkey"
-            columns: ["clinic_id"]
-            isOneToOne: false
-            referencedRelation: "clinics"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "submissions_issuing_practice_id_fkey"
-            columns: ["issuing_practice_id"]
-            isOneToOne: false
-            referencedRelation: "vet_practices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "submissions_issuing_vet_id_fkey"
-            columns: ["issuing_vet_id"]
-            isOneToOne: false
-            referencedRelation: "vets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "submissions_selected_template_id_fkey"
-            columns: ["selected_template_id"]
-            isOneToOne: false
-            referencedRelation: "ahc_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_roles: {
-        Row: {
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
       }
-      vet_practices: {
+      sessions: {
         Row: {
-          address_line_1: string
-          address_line_2: string | null
-          city: string
-          clinic_id: string
-          country: string
+          audio_url: string | null
           created_at: string
-          email: string | null
+          duration_seconds: number | null
           id: string
-          ov_practice_id: string | null
-          phone: string | null
-          postcode: string
-          practice_name: string
-          rcvs_premises_ref: string | null
-          trading_name: string | null
+          patient_name: string | null
+          pe_data: Json | null
+          pe_enabled: boolean | null
+          session_type: string | null
+          status: string | null
+          template_id: string | null
           updated_at: string
+          user_id: string
         }
         Insert: {
-          address_line_1?: string
-          address_line_2?: string | null
-          city?: string
-          clinic_id: string
-          country?: string
+          audio_url?: string | null
           created_at?: string
-          email?: string | null
+          duration_seconds?: number | null
           id?: string
-          ov_practice_id?: string | null
-          phone?: string | null
-          postcode?: string
-          practice_name: string
-          rcvs_premises_ref?: string | null
-          trading_name?: string | null
+          patient_name?: string | null
+          pe_data?: Json | null
+          pe_enabled?: boolean | null
+          session_type?: string | null
+          status?: string | null
+          template_id?: string | null
           updated_at?: string
+          user_id: string
         }
         Update: {
-          address_line_1?: string
-          address_line_2?: string | null
-          city?: string
-          clinic_id?: string
-          country?: string
+          audio_url?: string | null
           created_at?: string
-          email?: string | null
+          duration_seconds?: number | null
           id?: string
-          ov_practice_id?: string | null
-          phone?: string | null
-          postcode?: string
-          practice_name?: string
-          rcvs_premises_ref?: string | null
-          trading_name?: string | null
+          patient_name?: string | null
+          pe_data?: Json | null
+          pe_enabled?: boolean | null
+          session_type?: string | null
+          status?: string | null
+          template_id?: string | null
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "vet_practices_clinic_id_fkey"
-            columns: ["clinic_id"]
+            foreignKeyName: "sessions_template_id_fkey"
+            columns: ["template_id"]
             isOneToOne: false
-            referencedRelation: "clinics"
+            referencedRelation: "note_templates"
             referencedColumns: ["id"]
           },
         ]
       }
-      vets: {
+      tasks: {
         Row: {
-          clinic_id: string
+          assignee: string | null
+          category: string | null
           created_at: string
-          email: string | null
-          full_name: string
+          done: boolean | null
           id: string
-          phone: string | null
-          rcvs_number: string | null
-          role_title: string | null
-          signature_image_url: string | null
-          signature_text: string | null
-          stamp_image_url: string | null
-          updated_at: string
+          session_id: string
+          text: string
+          user_id: string
         }
         Insert: {
-          clinic_id: string
+          assignee?: string | null
+          category?: string | null
           created_at?: string
-          email?: string | null
-          full_name: string
+          done?: boolean | null
           id?: string
-          phone?: string | null
-          rcvs_number?: string | null
-          role_title?: string | null
-          signature_image_url?: string | null
-          signature_text?: string | null
-          stamp_image_url?: string | null
-          updated_at?: string
+          session_id: string
+          text: string
+          user_id: string
         }
         Update: {
-          clinic_id?: string
+          assignee?: string | null
+          category?: string | null
           created_at?: string
-          email?: string | null
-          full_name?: string
+          done?: boolean | null
           id?: string
-          phone?: string | null
-          rcvs_number?: string | null
-          role_title?: string | null
-          signature_image_url?: string | null
-          signature_text?: string | null
-          stamp_image_url?: string | null
-          updated_at?: string
+          session_id?: string
+          text?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "vets_clinic_id_fkey"
-            columns: ["clinic_id"]
+            foreignKeyName: "tasks_session_id_fkey"
+            columns: ["session_id"]
             isOneToOne: false
-            referencedRelation: "clinics"
+            referencedRelation: "sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -537,43 +214,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_user_clinic_id: { Args: { _user_id: string }; Returns: string }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      is_member_of_clinic: {
-        Args: { _clinic_id: string; _user_id: string }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
-      app_role: "admin" | "staff"
-      attachment_type: "rabies_evidence" | "authorisation_letter" | "other"
-      audit_action:
-        | "created"
-        | "saved_draft"
-        | "submitted"
-        | "correction_requested"
-        | "corrected"
-        | "template_selected"
-        | "generated"
-        | "approved"
-        | "downloaded"
-      submission_status:
-        | "Draft"
-        | "Submitted"
-        | "NeedsCorrection"
-        | "UnderReview"
-        | "ReadyToGenerate"
-        | "Generated"
-        | "Approved"
-        | "Downloaded"
-        | "Cancelled"
-        | "Archived"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -700,32 +344,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "staff"],
-      attachment_type: ["rabies_evidence", "authorisation_letter", "other"],
-      audit_action: [
-        "created",
-        "saved_draft",
-        "submitted",
-        "correction_requested",
-        "corrected",
-        "template_selected",
-        "generated",
-        "approved",
-        "downloaded",
-      ],
-      submission_status: [
-        "Draft",
-        "Submitted",
-        "NeedsCorrection",
-        "UnderReview",
-        "ReadyToGenerate",
-        "Generated",
-        "Approved",
-        "Downloaded",
-        "Cancelled",
-        "Archived",
-      ],
-    },
+    Enums: {},
   },
 } as const

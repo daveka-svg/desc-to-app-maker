@@ -1,1 +1,0 @@
-ALTER TYPE public.submission_status ADD VALUE IF NOT EXISTS 'Archived';
