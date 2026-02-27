@@ -1,4 +1,10 @@
-project_id = "nrbylcwsghuanxyodlrp"
+project_id = "mwiadwyxzggoqnwqtkck"
 
-[functions.generate-notes]
+[functions.intake-api]
+verify_jwt = false
+
+[functions.extract-intake]
+verify_jwt = false
+
+[functions.serve-pdf]
 verify_jwt = false

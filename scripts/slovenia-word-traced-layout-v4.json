@@ -1,0 +1,933 @@
+{
+  "1": [
+    {
+      "pageIdx": 1,
+      "x": 132.0,
+      "y": 405.361,
+      "w": 93.524,
+      "h": 0.6,
+      "text": "(1)either/bodisi [the owner;] / [lastnik;]",
+      "lineIndex": 33
+    }
+  ],
+  "2": [
+    {
+      "pageIdx": 1,
+      "x": 141.78,
+      "y": 417.661,
+      "w": 403.968,
+      "h": 0.6,
+      "text": "[the natural person who has authorisation in writing from the owner to carry out the non-commercial movement",
+      "lineIndex": 34
+    },
+    {
+      "pageIdx": 1,
+      "x": 141.78,
+      "y": 428.039,
+      "w": 403.99,
+      "h": 0.6,
+      "text": "of the animals on behalf of the owner;] / [fizična oseba, ki ima pisno dovoljenje lastnika, da opravi netrgovski",
+      "lineIndex": 36
+    },
+    {
+      "pageIdx": 1,
+      "x": 141.789,
+      "y": 438.416,
+      "w": 115.016,
+      "h": 0.6,
+      "text": "premik živali v imenu lastnika;]",
+      "lineIndex": 37
+    }
+  ],
+  "3": [
+    {
+      "pageIdx": 1,
+      "x": 141.783,
+      "y": 450.721,
+      "w": 404.028,
+      "h": 0.6,
+      "text": "[the natural person designated by a carrier contracted by the owner to carry out the non-commercial movement",
+      "lineIndex": 38
+    },
+    {
+      "pageIdx": 1,
+      "x": 141.792,
+      "y": 461.044,
+      "w": 403.969,
+      "h": 0.6,
+      "text": "of the animals on behalf of the owner;] / [fizična oseba, ki jo določi prevoznik, s katerim je lastnik sklenil pogodbo",
+      "lineIndex": 40
+    },
+    {
+      "pageIdx": 1,
+      "x": 141.792,
+      "y": 471.484,
+      "w": 222.214,
+      "h": 0.6,
+      "text": "za opravljanje netrgovskega premika živali v imenu lastnika;]",
+      "lineIndex": 41
+    }
+  ],
+  "4": [
+    {
+      "pageIdx": 1,
+      "x": 132.0,
+      "y": 496.141,
+      "w": 413.786,
+      "h": 0.6,
+      "text": "(1) either/bodisi [II.2. the animals described in Box I.28 are moved in a number of five or less;] / [gre za premik pet ali manj živali iz",
+      "lineIndex": 42
+    },
+    {
+      "pageIdx": 1,
+      "x": 141.771,
+      "y": 506.518,
+      "w": 48.047,
+      "h": 0.6,
+      "text": "rubrike I.28;]",
+      "lineIndex": 43
+    }
+  ],
+  "5": [
+    {
+      "pageIdx": 1,
+      "x": 132.0,
+      "y": 518.822,
+      "w": 413.859,
+      "h": 0.6,
+      "text": "(1) or/ bodisi [II.2. the animals described in Box I.28 are moved in a number of more than five, are more than six months old and",
+      "lineIndex": 44
+    },
+    {
+      "pageIdx": 1,
+      "x": 141.777,
+      "y": 529.145,
+      "w": 403.903,
+      "h": 0.6,
+      "text": "are going to participate in competitions, exhibitions or sporting events or in training for those events, and the",
+      "lineIndex": 45
+    },
+    {
+      "pageIdx": 1,
+      "x": 141.777,
+      "y": 539.583,
+      "w": 388.67,
+      "h": 0.6,
+      "text": "owner or the natural person referred to in point II.1 has provided evidence(3) that the animals are registered /",
+      "lineIndex": 46
+    },
+    {
+      "pageIdx": 1,
+      "x": 142.974,
+      "y": 551.884,
+      "w": 402.859,
+      "h": 0.6,
+      "text": "gre za premik več kot pet živali iz rubrike I.28, ki so starejše od šest mesecev in se bodo udeležile tekmovanj,",
+      "lineIndex": 47
+    },
+    {
+      "pageIdx": 1,
+      "x": 141.777,
+      "y": 562.207,
+      "w": 404.0,
+      "h": 0.6,
+      "text": "razstav ali športnih prireditev ali usposabljanja za navedene dogodke, lastnik ali fizična oseba iz točke II.1 pa je",
+      "lineIndex": 48
+    },
+    {
+      "pageIdx": 1,
+      "x": 141.777,
+      "y": 572.644,
+      "w": 206.667,
+      "h": 0.6,
+      "text": "predložil oz. predložila dokaze(3), da so živali registrirane",
+      "lineIndex": 49
+    }
+  ],
+  "6": [
+    {
+      "pageIdx": 1,
+      "x": 132.0,
+      "y": 584.941,
+      "w": 235.654,
+      "h": 0.6,
+      "text": "(1) either/bodisi [to attend such an event;] / [za udeležbo na takšnem dogodku;]",
+      "lineIndex": 50
+    }
+  ],
+  "7": [
+    {
+      "pageIdx": 1,
+      "x": 141.78,
+      "y": 597.301,
+      "w": 333.65,
+      "h": 0.6,
+      "text": "[with an association organising such events;] / [pri združenju, ki takšne dogodke organizira;]",
+      "lineIndex": 51
+    }
+  ],
+  "8": [
+    {
+      "pageIdx": 1,
+      "x": 170.1,
+      "y": 632.281,
+      "w": 375.747,
+      "h": 0.6,
+      "text": "the animals described in Box I.28 are less than 12 weeks old and have not received an anti-rabies",
+      "lineIndex": 56
+    },
+    {
+      "pageIdx": 1,
+      "x": 132.903,
+      "y": 642.658,
+      "w": 412.908,
+      "h": 0.6,
+      "text": "vaccination, or are between 12 and 16 weeks old and have received an anti-rabies vaccination, but 21 days at least",
+      "lineIndex": 58
+    },
+    {
+      "pageIdx": 1,
+      "x": 132.903,
+      "y": 652.981,
+      "w": 412.842,
+      "h": 0.6,
+      "text": "have not elapsed since the completion of the primary vaccination against rabies carried out in accordance with the",
+      "lineIndex": 59
+    },
+    {
+      "pageIdx": 1,
+      "x": 132.903,
+      "y": 663.36,
+      "w": 412.898,
+      "h": 0.6,
+      "text": "validity requirements set out in Annex III to Regulation (EU) No 576/2013(4), and / živali iz rubrike I.28 so mlajše",
+      "lineIndex": 60
+    },
+    {
+      "pageIdx": 1,
+      "x": 132.903,
+      "y": 673.684,
+      "w": 412.967,
+      "h": 0.6,
+      "text": "od 12 tednov in niso cepljene proti steklini ali so stare med 12 in 16 tednov in so bile cepljene proti steklini, vendar",
+      "lineIndex": 61
+    },
+    {
+      "pageIdx": 1,
+      "x": 132.903,
+      "y": 684.061,
+      "w": 412.969,
+      "h": 0.6,
+      "text": "ni minilo vsaj 21 dni od zaključka primarnega cepljenja proti steklini, ki se opravlja v skladu z zahtevami o",
+      "lineIndex": 62
+    },
+    {
+      "pageIdx": 1,
+      "x": 132.903,
+      "y": 694.44,
+      "w": 209.751,
+      "h": 0.6,
+      "text": "veljavnosti iz Priloge III k Uredbi (EU) št. 576/2013(4), ter",
+      "lineIndex": 63
+    }
+  ],
+  "9": [
+    {
+      "pageIdx": 2,
+      "x": 206.1,
+      "y": 279.061,
+      "w": 331.371,
+      "h": 0.6,
+      "text": "the attached declaration(5) of the owner or the natural person referred to in point II.1 stating",
+      "lineIndex": 23
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 291.364,
+      "w": 377.551,
+      "h": 0.6,
+      "text": "that from birth until the time of the non-commercial movement the animals have had no contact with wild",
+      "lineIndex": 25
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 301.741,
+      "w": 377.573,
+      "h": 0.6,
+      "text": "animals of species susceptible to rabies;] / priložena izjava(5) lastnika ali fizične osebe iz točke II.1, v",
+      "lineIndex": 26
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 312.064,
+      "w": 377.48,
+      "h": 0.6,
+      "text": "kateri je navedeno, da živali od rojstva do trenutka netrgovskega premika niso bile v stiku z divjimi",
+      "lineIndex": 27
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 322.504,
+      "w": 145.775,
+      "h": 0.6,
+      "text": "živalmi vrst, ki so dovzetne za steklino;]",
+      "lineIndex": 28
+    }
+  ],
+  "10": [
+    {
+      "pageIdx": 2,
+      "x": 132.0,
+      "y": 344.822,
+      "w": 413.818,
+      "h": 0.6,
+      "text": "(1) either/bodisi [II.3.2 their mother, on whom they still depend, and it can be established that the mother received before",
+      "lineIndex": 29
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.306,
+      "y": 355.145,
+      "w": 377.499,
+      "h": 0.6,
+      "text": "their birth an anti-rabies vaccination which complied with the validity requirements set out in Annex III",
+      "lineIndex": 30
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.306,
+      "y": 365.464,
+      "w": 377.484,
+      "h": 0.6,
+      "text": "to Regulation (EU) No 576/2013;] / njihova mati, od katere so še vedno odvisne, in je mogoče ugotoviti,",
+      "lineIndex": 31
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 375.841,
+      "w": 377.454,
+      "h": 0.6,
+      "text": "da je mati bila cepljena proti steklini pred njihovim rojstvom s cepivom, ki izpolnjuje zahteve glede",
+      "lineIndex": 32
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 386.221,
+      "w": 197.18,
+      "h": 0.6,
+      "text": "veljavnosti iz Priloge III k Uredbi (EU) št. 576/2013;]]",
+      "lineIndex": 33
+    }
+  ],
+  "11": [
+    {
+      "pageIdx": 2,
+      "x": 132.0,
+      "y": 483.301,
+      "w": 413.823,
+      "h": 0.6,
+      "text": "(1) either/bodisi [II.3.1 the animals described in Box I.28 come from a territory or a third country listed in Annex II to",
+      "lineIndex": 42
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.309,
+      "y": 493.678,
+      "w": 377.497,
+      "h": 0.6,
+      "text": "Implementing Regulation (EU) No 577/2013, either directly, through a territory or a third country listed",
+      "lineIndex": 43
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.309,
+      "y": 504.001,
+      "w": 377.527,
+      "h": 0.6,
+      "text": "in Annex II to Implementing Regulation (EU) No 577/2013 or through a territory or a third country other",
+      "lineIndex": 44
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.309,
+      "y": 514.379,
+      "w": 377.606,
+      "h": 0.6,
+      "text": "than those listed in Annex II to Implementing Regulation (EU) No 577/2013 in accordance with point (c)",
+      "lineIndex": 45
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.309,
+      "y": 524.702,
+      "w": 377.522,
+      "h": 0.6,
+      "text": "of Article 12(1) of Regulation (EU) No 576/2013(7), and the details of the current anti-rabies vaccination",
+      "lineIndex": 46
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 535.078,
+      "w": 377.58,
+      "h": 0.6,
+      "text": "are provided in the table below;] / živali iz rubrike I.28 prihajajo z ozemlja ali iz tretje države s seznama",
+      "lineIndex": 47
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.309,
+      "y": 545.401,
+      "w": 377.619,
+      "h": 0.6,
+      "text": "v Prilogi II k Izvedbeni uredbi (EU) št. 577/2013 bodisi neposredno ali preko ozemlja ali tretje države s",
+      "lineIndex": 48
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.309,
+      "y": 555.779,
+      "w": 377.64,
+      "h": 0.6,
+      "text": "seznama v Prilogi II k Izvedbeni uredbi (EU) št. 577/2013 ali prek ozemlja ali tretje države, ki ni na",
+      "lineIndex": 49
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.309,
+      "y": 566.102,
+      "w": 377.573,
+      "h": 0.6,
+      "text": "seznamu v Prilogi II k Izvedbeni uredbi (EU) št. 577/2013, v skladu s točko (c) člena 12(1) Uredbe (EU)",
+      "lineIndex": 50
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.309,
+      "y": 576.541,
+      "w": 348.129,
+      "h": 0.6,
+      "text": "št. 576/2013(7), podrobnosti o trenutnem cepljenju proti steklini pa so navedene v spodnji tabeli;]",
+      "lineIndex": 51
+    }
+  ],
+  "12": [
+    {
+      "pageIdx": 2,
+      "x": 206.1,
+      "y": 588.781,
+      "w": 339.718,
+      "h": 0.6,
+      "text": "the animals described in Box I.28 come from, or are scheduled to transit through, a territory or",
+      "lineIndex": 53
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 599.158,
+      "w": 377.518,
+      "h": 0.6,
+      "text": "third country other than those listed in Annex II to Implementing Regulation (EU) No 577/2013 and a",
+      "lineIndex": 55
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 609.481,
+      "w": 377.577,
+      "h": 0.6,
+      "text": "rabies antibody titration test(8), carried out on a blood sample taken by the veterinarian authorised by the",
+      "lineIndex": 56
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.303,
+      "y": 619.858,
+      "w": 377.493,
+      "h": 0.6,
+      "text": "competent authority on the date indicated in the table below not less than 30 days after the preceding",
+      "lineIndex": 57
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.303,
+      "y": 630.181,
+      "w": 377.544,
+      "h": 0.6,
+      "text": "vaccination and at least three months prior to the date of issue of this certificate, proved an antibody titre",
+      "lineIndex": 58
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.303,
+      "y": 640.56,
+      "w": 377.436,
+      "h": 0.6,
+      "text": "equal to or greater than 0.5 IU/ml(9) and any subsequent revaccination was carried out within the period",
+      "lineIndex": 59
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.297,
+      "y": 650.883,
+      "w": 377.511,
+      "h": 0.6,
+      "text": "of validity of the preceding vaccination(6), and the details of the current anti-rabies vaccination and the",
+      "lineIndex": 60
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 661.26,
+      "w": 377.574,
+      "h": 0.6,
+      "text": "date of sampling for testing the immune response are provided in the table below: / živali iz rubrike I.28",
+      "lineIndex": 61
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.303,
+      "y": 671.585,
+      "w": 377.497,
+      "h": 0.6,
+      "text": "prihajajo z ozemlja ali iz tretje države ali so načrtovane za tranzit preko ozemlja ali tretje države, ki ni na",
+      "lineIndex": 62
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.303,
+      "y": 681.962,
+      "w": 377.547,
+      "h": 0.6,
+      "text": "seznamu v Prilogi II k Izvedbeni uredbi (EU) št. 577/2013, s testom titracije protiteles proti steklini(8),",
+      "lineIndex": 63
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 692.285,
+      "w": 377.54,
+      "h": 0.6,
+      "text": "opravljenem na vzorcu krvi, ki ga je veterinar, pooblaščen s strani pristojnega organa, odvzel na datum,",
+      "lineIndex": 64
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 702.661,
+      "w": 377.529,
+      "h": 0.6,
+      "text": "naveden v spodnji tabeli, ne manj kot 30 dni po predhodnem cepljenju in najmanj tri mesece pred",
+      "lineIndex": 65
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 712.983,
+      "w": 377.482,
+      "h": 0.6,
+      "text": "datumom izdaje tega spričevala, je bil dokazan titer protiteles v višini vsaj 0,5 IE/ml(9), vsakršno poznejše",
+      "lineIndex": 66
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.291,
+      "y": 723.36,
+      "w": 377.586,
+      "h": 0.6,
+      "text": "ponovno cepljenje je bilo opravljeno v obdobju veljavnosti predhodnega cepljenja(6), podrobnosti o",
+      "lineIndex": 67
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 733.681,
+      "w": 377.569,
+      "h": 0.6,
+      "text": "trenutnem cepljenju proti steklini in datum vzorčenja za testiranje imunskega odziva pa so navedeni v",
+      "lineIndex": 68
+    },
+    {
+      "pageIdx": 2,
+      "x": 168.3,
+      "y": 744.121,
+      "w": 51.279,
+      "h": 0.6,
+      "text": "spodnji tabeli:",
+      "lineIndex": 69
+    }
+  ],
+  "13": [
+    {
+      "pageIdx": 2,
+      "x": 132.0,
+      "y": 398.521,
+      "w": 413.916,
+      "h": 0.6,
+      "text": "(1) and/or/ bodisi/in [II.3.the animals described in Box I.28 were at least 12 weeks old at the time of vaccination against rabies",
+      "lineIndex": 34
+    },
+    {
+      "pageIdx": 2,
+      "x": 166.926,
+      "y": 408.843,
+      "w": 378.866,
+      "h": 0.6,
+      "text": "and at least 21 days have elapsed since the completion of the primary anti-rabies vaccination(4) carried out",
+      "lineIndex": 35
+    },
+    {
+      "pageIdx": 2,
+      "x": 166.914,
+      "y": 419.219,
+      "w": 378.824,
+      "h": 0.6,
+      "text": "in accordance with the validity requirements set out in Annex III to Regulation (EU) No 576/2013 and any",
+      "lineIndex": 36
+    },
+    {
+      "pageIdx": 2,
+      "x": 166.914,
+      "y": 429.542,
+      "w": 378.906,
+      "h": 0.6,
+      "text": "subsequent revaccination was carried out within the period of validity of the preceding vaccination(6); and",
+      "lineIndex": 37
+    },
+    {
+      "pageIdx": 2,
+      "x": 166.923,
+      "y": 439.919,
+      "w": 378.887,
+      "h": 0.6,
+      "text": "/ živali iz rubrike I.28 so stare vsaj 12 tednov v trenutku cepljenja proti steklini in je minilo najmanj 21",
+      "lineIndex": 38
+    },
+    {
+      "pageIdx": 2,
+      "x": 166.923,
+      "y": 450.242,
+      "w": 378.909,
+      "h": 0.6,
+      "text": "dni od zaključka primarnega cepljenja proti steklini(4), opravljenega v skladu z zahtevami o veljavnosti iz",
+      "lineIndex": 39
+    },
+    {
+      "pageIdx": 2,
+      "x": 166.917,
+      "y": 460.618,
+      "w": 378.84,
+      "h": 0.6,
+      "text": "Priloge III k Uredbi (EU) št. 576/2013, vsa nadaljnja ponovna cepljenja pa so bila opravljena v obdobju",
+      "lineIndex": 40
+    },
+    {
+      "pageIdx": 2,
+      "x": 166.917,
+      "y": 470.999,
+      "w": 144.237,
+      "h": 0.6,
+      "text": "veljavnosti predhodnega cepljenja(6); ter",
+      "lineIndex": 41
+    }
+  ],
+  "14": [
+    {
+      "pageIdx": 3,
+      "x": 132.9,
+      "y": 435.96,
+      "w": 21.0,
+      "h": 0.6,
+      "text": "[II.4.",
+      "lineIndex": 0
+    },
+    {
+      "pageIdx": 3,
+      "x": 170.1,
+      "y": 439.08,
+      "w": 377.986,
+      "h": 0.6,
+      "text": "the dogs described in Box I.28 are destined for a Member State listed in the Annex to Commission",
+      "lineIndex": 1
+    },
+    {
+      "pageIdx": 3,
+      "x": 132.903,
+      "y": 449.403,
+      "w": 415.195,
+      "h": 0.6,
+      "text": "Implementing Regulation (EU) 2018/878 and have been treated against Echinococcus multilocularis, and the details",
+      "lineIndex": 2
+    },
+    {
+      "pageIdx": 3,
+      "x": 132.903,
+      "y": 459.78,
+      "w": 415.176,
+      "h": 0.6,
+      "text": "of the treatment carried out by the administering veterinarian in accordance with Article 6 of Commission Delegated",
+      "lineIndex": 3
+    },
+    {
+      "pageIdx": 3,
+      "x": 132.903,
+      "y": 470.1,
+      "w": 415.16,
+      "h": 0.6,
+      "text": "Regulation (EU) 2018/772 (11)(12)(13) are provided in the table below.",
+      "lineIndex": 4
+    },
+    {
+      "pageIdx": 3,
+      "x": 132.903,
+      "y": 480.477,
+      "w": 415.193,
+      "h": 0.6,
+      "text": "... Slovenian equivalent line ...",
+      "lineIndex": 5
+    },
+    {
+      "pageIdx": 3,
+      "x": 132.9,
+      "y": 490.8,
+      "w": 415.153,
+      "h": 0.6,
+      "text": "... Slovenian equivalent line ...",
+      "lineIndex": 6
+    },
+    {
+      "pageIdx": 3,
+      "x": 132.9,
+      "y": 501.24,
+      "w": 215.667,
+      "h": 0.6,
+      "text": "(EU) 2018/772 ... spodnji tabeli.]",
+      "lineIndex": 7
+    }
+  ],
+  "15": [
+    {
+      "pageIdx": 3,
+      "x": 132.9,
+      "y": 510.36,
+      "w": 21.0,
+      "h": 0.6,
+      "text": "[II.4.",
+      "lineIndex": 0
+    },
+    {
+      "pageIdx": 3,
+      "x": 170.1,
+      "y": 513.48,
+      "w": 377.98,
+      "h": 0.6,
+      "text": "the dogs described in Box I.28 have not been treated against Echinococcus multilocularis(11).",
+      "lineIndex": 1
+    },
+    {
+      "pageIdx": 3,
+      "x": 132.9,
+      "y": 523.92,
+      "w": 258.933,
+      "h": 0.6,
+      "text": "... Slovenian equivalent line ...",
+      "lineIndex": 2
+    }
+  ],
+  "16": [
+    {
+      "pageIdx": 8,
+      "x": 124.91,
+      "y": 155.28,
+      "w": 397.381,
+      "h": 0.6,
+      "text": "... natural person ...",
+      "lineIndex": 0
+    },
+    {
+      "pageIdx": 8,
+      "x": 204.29,
+      "y": 169.376,
+      "w": 313.113,
+      "h": 0.6,
+      "text": "... authorised person Slovenian continuation ...",
+      "lineIndex": 1
+    },
+    {
+      "pageIdx": 8,
+      "x": 344.17,
+      "y": 221.901,
+      "w": 183.186,
+      "h": 0.6,
+      "text": "... owner or the natural person ...",
+      "lineIndex": 2
+    },
+    {
+      "pageIdx": 8,
+      "x": 192.54,
+      "y": 637.225,
+      "w": 334.788,
+      "h": 0.6,
+      "text": "Signature of the owner or natural person ...",
+      "lineIndex": 3
+    },
+    {
+      "pageIdx": 8,
+      "x": 394.74,
+      "y": 650.287,
+      "w": 132.6,
+      "h": 0.6,
+      "text": "... fizine osebe ...",
+      "lineIndex": 4
+    }
+  ],
+  "17": [
+    {
+      "pageIdx": 8,
+      "x": 127.97,
+      "y": 169.376,
+      "w": 31.76,
+      "h": 0.6,
+      "text": "owner(1)",
+      "lineIndex": 0
+    },
+    {
+      "pageIdx": 8,
+      "x": 166.79,
+      "y": 172.2,
+      "w": 24.06,
+      "h": 0.6,
+      "text": "lastnik",
+      "lineIndex": 1
+    },
+    {
+      "pageIdx": 8,
+      "x": 283.63,
+      "y": 221.901,
+      "w": 28.68,
+      "h": 0.6,
+      "text": "owner",
+      "lineIndex": 2
+    },
+    {
+      "pageIdx": 8,
+      "x": 148.36,
+      "y": 235.1,
+      "w": 28.8,
+      "h": 0.6,
+      "text": "owner",
+      "lineIndex": 3
+    },
+    {
+      "pageIdx": 8,
+      "x": 147.96,
+      "y": 637.225,
+      "w": 28.8,
+      "h": 0.6,
+      "text": "owner",
+      "lineIndex": 4
+    },
+    {
+      "pageIdx": 8,
+      "x": 313.91,
+      "y": 650.287,
+      "w": 37.54,
+      "h": 0.6,
+      "text": "owner(1)",
+      "lineIndex": 5
+    }
+  ],
+  "18": [
+    {
+      "pageIdx": 8,
+      "x": 142.922,
+      "y": 477.668,
+      "w": 172.614,
+      "h": 0.6,
+      "text": "[the owner] / [lastnik]",
+      "lineIndex": 0
+    }
+  ],
+  "19": [
+    {
+      "pageIdx": 8,
+      "x": 142.922,
+      "y": 497.059,
+      "w": 384.368,
+      "h": 0.6,
+      "text": "[the natural person who has authorisation in writing ...",
+      "lineIndex": 0
+    },
+    {
+      "pageIdx": 8,
+      "x": 142.922,
+      "y": 510.319,
+      "w": 384.404,
+      "h": 0.6,
+      "text": "non-commercial movement ...",
+      "lineIndex": 1
+    },
+    {
+      "pageIdx": 8,
+      "x": 142.911,
+      "y": 523.521,
+      "w": 319.68,
+      "h": 0.6,
+      "text": "... imenu lastnika].",
+      "lineIndex": 2
+    }
+  ],
+  "20": [
+    {
+      "pageIdx": 8,
+      "x": 142.922,
+      "y": 542.719,
+      "w": 381.49,
+      "h": 0.6,
+      "text": "[the natural person designated by the carrier ...",
+      "lineIndex": 0
+    },
+    {
+      "pageIdx": 8,
+      "x": 142.922,
+      "y": 555.979,
+      "w": 384.412,
+      "h": 0.6,
+      "text": "commercial movement on behalf of the owner ...",
+      "lineIndex": 1
+    },
+    {
+      "pageIdx": 8,
+      "x": 142.922,
+      "y": 569.181,
+      "w": 384.417,
+      "h": 0.6,
+      "text": "prevoznik ...",
+      "lineIndex": 2
+    },
+    {
+      "pageIdx": 8,
+      "x": 142.922,
+      "y": 582.42,
+      "w": 384.538,
+      "h": 0.6,
+      "text": "(insert name of the carrier ...)",
+      "lineIndex": 3
+    },
+    {
+      "pageIdx": 8,
+      "x": 142.92,
+      "y": 596.22,
+      "w": 168.996,
+      "h": 0.6,
+      "text": "{{transport.transporter}}",
+      "lineIndex": 4
+    }
+  ]
+}
