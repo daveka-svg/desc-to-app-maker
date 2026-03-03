@@ -1,6 +1,10 @@
 import { useSessionStore } from '@/stores/useSessionStore';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useTranscription } from '@/hooks/useTranscription';
+import { useNoteGeneration } from '@/hooks/useNoteGeneration';
+import { useTaskExtraction } from '@/hooks/useTaskExtraction';
+import { useClientInstructions } from '@/hooks/useClientInstructions';
+import { useToast } from '@/hooks/use-toast';
 import PEForm from '@/components/pe-form/PEForm';
 
 const templates = ['General Consult', 'Surgical Notes', 'Emergency', 'Vaccination', 'Dental', 'Post-op Check'];
@@ -13,8 +17,14 @@ export default function ContextPanel() {
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const setIsRecording = useSessionStore((s) => s.setIsRecording);
+  const saveCurrentSession = useSessionStore((s) => s.saveCurrentSession);
+  const setActiveTab = useSessionStore((s) => s.setActiveTab);
   const { isRecording, isPaused, timerSeconds, waveformData, startRecording, pauseRecording, resumeRecording, stopRecording } = useAudioRecorder();
   const { isTranscribing, interimText, isSupported, startTranscription, stopTranscription, pauseTranscription, resumeTranscription } = useTranscription();
+  const { generateNote, isGeneratingNotes } = useNoteGeneration();
+  const { extractTasks } = useTaskExtraction();
+  const { generateInstructions } = useClientInstructions();
+  const { toast } = useToast();
 
   const handleStart = async () => {
     await startRecording();
@@ -41,6 +51,31 @@ export default function ContextPanel() {
     stopTranscription();
     if (blob) {
       console.log('Recording stopped. Audio blob size:', blob.size);
+    }
+
+    // Auto-trigger the full pipeline: notes → tasks → client instructions → save
+    const transcript = useSessionStore.getState().transcript;
+    if (!transcript.trim()) {
+      toast({ title: 'No transcript', description: 'No speech was detected during recording.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      toast({ title: 'Generating...', description: 'Creating clinical notes from transcript.' });
+      setActiveTab('notes');
+      await generateNote();
+      toast({ title: 'Notes generated', description: 'Extracting tasks...' });
+
+      try { await extractTasks(); } catch { /* non-critical */ }
+      try { await generateInstructions(); } catch { /* non-critical */ }
+
+      await saveCurrentSession();
+      toast({ title: 'Session saved', description: 'Notes, tasks, and instructions saved.' });
+
+      // Dispatch custom event so sidebar can refresh
+      window.dispatchEvent(new Event('session-saved'));
+    } catch (err: any) {
+      toast({ title: 'Generation failed', description: err.message || 'Could not generate notes.', variant: 'destructive' });
     }
   };
 

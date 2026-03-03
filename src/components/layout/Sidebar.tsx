@@ -38,6 +38,10 @@ export default function Sidebar() {
   useEffect(() => {
     fetchSessions();
     fetchProfile();
+
+    const handleRefresh = () => fetchSessions();
+    window.addEventListener('session-saved', handleRefresh);
+    return () => window.removeEventListener('session-saved', handleRefresh);
   }, []);
 
   const fetchSessions = async () => {
@@ -114,7 +118,7 @@ export default function Sidebar() {
         <span className="text-[9px] font-bold bg-sand text-bark-muted px-1.5 py-0.5 rounded tracking-wide uppercase">Scribe</span>
       </div>
 
-      <button onClick={newSession} className="mx-3 mb-3 py-2.5 px-4 bg-forest text-primary-foreground border-none rounded-md text-[13px] font-semibold cursor-pointer flex items-center justify-center gap-2 hover:bg-forest-dark transition-colors duration-150">
+      <button onClick={() => { newSession(); }} className="mx-3 mb-3 py-2.5 px-4 bg-forest text-primary-foreground border-none rounded-md text-[13px] font-semibold cursor-pointer flex items-center justify-center gap-2 hover:bg-forest-dark transition-colors duration-150">
         <Plus size={16} /> New session
       </button>
 
