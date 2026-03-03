@@ -6,14 +6,17 @@ import { supabase } from '@/integrations/supabase/client';
 /**
  * Real-time speech-to-text using ElevenLabs Scribe (scribe_v2_realtime).
  * Uses WebSocket-based transcription with VAD for automatic commit.
+ * Prefixes each committed segment with speaker labels.
  */
 
 export function useTranscription() {
   const appendTranscript = useSessionStore((s) => s.appendTranscript);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [interimText, setInterimText] = useState('');
-  const [isSupported] = useState(true); // ElevenLabs works in all browsers
+  const [isSupported] = useState(true);
   const connectedRef = useRef(false);
+  const segmentCountRef = useRef(0);
+  const lastSpeakerRef = useRef<string>('');
 
   const scribe = useScribe({
     modelId: 'scribe_v2_realtime',
@@ -23,9 +26,16 @@ export function useTranscription() {
     },
     onCommittedTranscript: (data) => {
       if (data.text.trim()) {
+        segmentCountRef.current += 1;
+        const segNum = segmentCountRef.current;
+        // Alternate speakers heuristically - odd segments = Speaker 1, even = Speaker 2
+        // The AI model will later determine who is vet vs patient
+        const speaker = segNum % 2 === 1 ? 'Speaker 1' : 'Speaker 2';
+        
         const existing = useSessionStore.getState().transcript;
-        const separator = existing && !existing.endsWith('\n') && !existing.endsWith(' ') ? ' ' : '';
-        appendTranscript(separator + data.text.trim());
+        const prefix = existing ? '\n\n' : '';
+        appendTranscript(`${prefix}**${speaker}:** ${data.text.trim()}`);
+        lastSpeakerRef.current = speaker;
       }
       setInterimText('');
     },
@@ -38,6 +48,9 @@ export function useTranscription() {
         console.error('Failed to get scribe token:', error);
         return;
       }
+
+      segmentCountRef.current = 0;
+      lastSpeakerRef.current = '';
 
       await scribe.connect({
         token: data.token,
@@ -63,7 +76,6 @@ export function useTranscription() {
   }, [scribe]);
 
   const pauseTranscription = useCallback(() => {
-    // ElevenLabs doesn't have pause — disconnect
     if (connectedRef.current) {
       scribe.disconnect();
       connectedRef.current = false;

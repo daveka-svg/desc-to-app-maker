@@ -21,7 +21,7 @@ export default function Sidebar() {
   const tasks = useSessionStore((s) => s.tasks);
   const newSession = useSessionStore((s) => s.newSession);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const toggleTasks = useSessionStore((s) => s.toggleTasks);
+  const setActiveTab = useSessionStore((s) => s.setActiveTab);
   const setEncounterStatus = useSessionStore((s) => s.setEncounterStatus);
   const setActiveSessionId = useSessionStore((s) => s.setActiveSessionId);
   const setNotes = useSessionStore((s) => s.setNotes);
@@ -29,7 +29,6 @@ export default function Sidebar() {
   const setTasks = useSessionStore((s) => s.setTasks);
   const setPatientName = useSessionStore((s) => s.setPatientName);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
-  const setActiveTab = useSessionStore((s) => s.setActiveTab);
 
   const [sessions, setSessions] = useState<DBSession[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -111,6 +110,12 @@ export default function Sidebar() {
     grouped[date].push(s);
   }
 
+  const getSessionLabel = (s: DBSession) => {
+    if (s.patient_name) return s.patient_name;
+    const time = new Date(s.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return `${s.session_type || 'Session'} · ${time}`;
+  };
+
   return (
     <aside className="w-[220px] bg-card border-r border-border flex flex-col shrink-0">
       <div className="flex items-center gap-2 px-4 pt-4 pb-3.5">
@@ -126,7 +131,10 @@ export default function Sidebar() {
         <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-semibold cursor-pointer bg-sand-dark text-bark">
           <Pen size={17} className="opacity-100 shrink-0" /> Scribe
         </div>
-        <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand hover:text-text-primary transition-all duration-100" onClick={toggleTasks}>
+        <div
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand hover:text-text-primary transition-all duration-100"
+          onClick={() => setActiveTab('tasks')}
+        >
           <ClipboardList size={17} className="opacity-65 shrink-0" /> Tasks
           {pendingCount > 0 && <span className="ml-auto text-[10px] font-bold bg-etv-pink text-bark px-[7px] py-px rounded-[10px]">{pendingCount}</span>}
         </div>
@@ -143,8 +151,8 @@ export default function Sidebar() {
                 <div key={s.id} className={`flex items-center gap-2.5 px-4 py-2 cursor-pointer transition-colors duration-100 ${s.id === activeSessionId ? 'bg-sand-dark' : 'hover:bg-sand'}`} onClick={() => loadDBSession(s.id)}>
                   <div className={`w-2 h-2 rounded-full shrink-0 ${s.id === activeSessionId ? 'bg-etv-olive' : 'bg-text-muted'}`} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-medium text-text-primary truncate">{s.patient_name || s.session_type || 'Session'}</div>
-                    <div className="text-[11px] text-text-muted">{new Date(s.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div className="text-[13px] font-medium text-text-primary truncate">{getSessionLabel(s)}</div>
+                    <div className="text-[11px] text-text-muted">{s.session_type || 'General Consult'}</div>
                   </div>
                 </div>
               ))}

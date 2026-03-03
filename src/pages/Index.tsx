@@ -7,11 +7,10 @@ import TranscriptPanel from '@/components/panels/TranscriptPanel';
 import NotesPanel from '@/components/panels/NotesPanel';
 import ClientInstructionsPanel from '@/components/panels/ClientInstructionsPanel';
 import AllTasksPanel from '@/components/panels/AllTasksPanel';
-import TasksSidebar from '@/components/tasks/TasksSidebar';
 import { useSessionStore } from '@/stores/useSessionStore';
 
 const Index = () => {
-  const { activeTab, tasksOpen, toggleTasks } = useSessionStore();
+  const { activeTab } = useSessionStore();
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -27,7 +26,6 @@ const Index = () => {
             {activeTab === 'client' && <ClientInstructionsPanel />}
             {activeTab === 'tasks' && <AllTasksPanel />}
           </div>
-          {tasksOpen && <TasksSidebar onClose={toggleTasks} />}
         </div>
         <BottomBar />
       </div>
