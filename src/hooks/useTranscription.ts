@@ -1,147 +1,78 @@
 import { useRef, useCallback, useState } from 'react';
+import { useScribe } from '@elevenlabs/react';
 import { useSessionStore } from '@/stores/useSessionStore';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Real-time speech-to-text using the Web Speech API (SpeechRecognition).
- * Falls back gracefully if the browser doesn't support it.
- *
- * How it works:
- * - Starts continuous recognition when recording begins
- * - Interim results appear immediately (grey text in TranscriptPanel)
- * - Final results are committed to the store's transcript
- * - Handles pauses, restarts, and error recovery automatically
+ * Real-time speech-to-text using ElevenLabs Scribe (scribe_v2_realtime).
+ * Uses WebSocket-based transcription with VAD for automatic commit.
  */
-
-interface SpeechRecognitionEvent {
-  resultIndex: number;
-  results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionErrorEvent {
-  error: string;
-  message: string;
-}
-
-const SpeechRecognition =
-  (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
 export function useTranscription() {
   const appendTranscript = useSessionStore((s) => s.appendTranscript);
-  const recognitionRef = useRef<any>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [interimText, setInterimText] = useState('');
-  const [isSupported] = useState(() => !!SpeechRecognition);
-  const shouldRestartRef = useRef(false);
+  const [isSupported] = useState(true); // ElevenLabs works in all browsers
+  const connectedRef = useRef(false);
 
-  const startTranscription = useCallback((lang: string = 'en-GB') => {
-    if (!SpeechRecognition) {
-      console.warn('SpeechRecognition not supported in this browser.');
-      return;
-    }
-
-    // Clean up any existing instance
-    if (recognitionRef.current) {
-      try { recognitionRef.current.abort(); } catch {}
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = lang;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      setIsTranscribing(true);
-    };
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let interim = '';
-      let finalTranscript = '';
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        const text = result[0].transcript;
-
-        if (result.isFinal) {
-          finalTranscript += text;
-        } else {
-          interim += text;
-        }
-      }
-
-      // Commit final text to the store
-      if (finalTranscript) {
+  const scribe = useScribe({
+    modelId: 'scribe_v2_realtime',
+    commitStrategy: 'vad' as any,
+    onPartialTranscript: (data) => {
+      setInterimText(data.text);
+    },
+    onCommittedTranscript: (data) => {
+      if (data.text.trim()) {
         const existing = useSessionStore.getState().transcript;
         const separator = existing && !existing.endsWith('\n') && !existing.endsWith(' ') ? ' ' : '';
-        appendTranscript(separator + finalTranscript);
-        setInterimText('');
-      } else {
-        setInterimText(interim);
+        appendTranscript(separator + data.text.trim());
       }
-    };
+      setInterimText('');
+    },
+  });
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.warn('Speech recognition error:', event.error);
-      // Auto-restart on recoverable errors
-      if (event.error === 'no-speech' || event.error === 'audio-capture') {
-        if (shouldRestartRef.current) {
-          setTimeout(() => {
-            try { recognition.start(); } catch {}
-          }, 500);
-        }
-      } else if (event.error === 'aborted') {
-        // User or system aborted — don't restart
-        setIsTranscribing(false);
-      } else if (event.error === 'not-allowed') {
-        setIsTranscribing(false);
-      }
-    };
-
-    recognition.onend = () => {
-      // Restart if we should still be transcribing (browser cuts off after ~60s silence)
-      if (shouldRestartRef.current) {
-        try { recognition.start(); } catch {}
-      } else {
-        setIsTranscribing(false);
-        setInterimText('');
-      }
-    };
-
-    recognitionRef.current = recognition;
-    shouldRestartRef.current = true;
-
+  const startTranscription = useCallback(async (_lang?: string) => {
     try {
-      recognition.start();
+      const { data, error } = await supabase.functions.invoke('elevenlabs-scribe-token');
+      if (error || !data?.token) {
+        console.error('Failed to get scribe token:', error);
+        return;
+      }
+
+      await scribe.connect({
+        token: data.token,
+        microphone: {
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      });
+      connectedRef.current = true;
+      setIsTranscribing(true);
     } catch (err) {
-      console.error('Failed to start speech recognition:', err);
+      console.error('Failed to start ElevenLabs transcription:', err);
     }
-  }, [appendTranscript]);
+  }, [scribe, appendTranscript]);
 
   const stopTranscription = useCallback(() => {
-    shouldRestartRef.current = false;
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch {}
-      recognitionRef.current = null;
+    if (connectedRef.current) {
+      scribe.disconnect();
+      connectedRef.current = false;
     }
     setIsTranscribing(false);
     setInterimText('');
-  }, []);
+  }, [scribe]);
 
   const pauseTranscription = useCallback(() => {
-    shouldRestartRef.current = false;
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch {}
+    // ElevenLabs doesn't have pause — disconnect
+    if (connectedRef.current) {
+      scribe.disconnect();
+      connectedRef.current = false;
     }
     setIsTranscribing(false);
-  }, []);
+  }, [scribe]);
 
-  const resumeTranscription = useCallback((lang: string = 'en-GB') => {
-    shouldRestartRef.current = true;
-    if (recognitionRef.current) {
-      try { recognitionRef.current.start(); } catch {}
-    } else {
-      startTranscription(lang);
-    }
+  const resumeTranscription = useCallback(async (lang?: string) => {
+    await startTranscription(lang);
   }, [startTranscription]);
 
   return {
