@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 
-export type TabId = 'context' | 'transcript' | 'notes' | 'client';
+export type TabId = 'context' | 'transcript' | 'notes' | 'client' | 'tasks';
 export type EncounterStatus = 'idle' | 'recording' | 'processing' | 'reviewing';
 
 export interface PEData {

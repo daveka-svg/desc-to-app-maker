@@ -1,5 +1,5 @@
 import { useSessionStore, type TabId } from '@/stores/useSessionStore';
-import { LayoutGrid, Activity, Pen, FileText } from 'lucide-react';
+import { LayoutGrid, Activity, Pen, FileText, ClipboardList } from 'lucide-react';
 
 const templates = ['General Consult', 'Surgical Notes', 'Emergency', 'Vaccination', 'Dental', 'Post-op Check'];
 
@@ -8,6 +8,7 @@ const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'transcript', label: 'Transcript', icon: <Activity size={15} /> },
   { id: 'notes', label: '', icon: <Pen size={15} /> }, // Template dropdown
   { id: 'client', label: 'Client Instructions', icon: <FileText size={15} /> },
+  { id: 'tasks', label: 'Tasks', icon: <ClipboardList size={15} /> },
 ];
 
 export default function CenterTabs() {

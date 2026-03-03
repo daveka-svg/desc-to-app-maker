@@ -20,19 +20,6 @@ interface AudioRecorderState {
   waveformData: number[];
 }
 
-type SpeechRecognitionLike = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: any) => void) | null;
-  onerror: ((event: any) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
-
 const DEFAULT_WAVEFORM = new Array(50).fill(4);
 
 const useAudioRecorderStore = create<AudioRecorderState>(() => ({
@@ -49,20 +36,10 @@ let analyserNode: AnalyserNode | null = null;
 let audioChunks: Blob[] = [];
 let animationFrameId = 0;
 let timerId: ReturnType<typeof setInterval> | null = null;
-let speechRecognition: SpeechRecognitionLike | null = null;
 let mountedHooks = 0;
 
 const setAudioState = (partial: Partial<AudioRecorderState>) => {
   useAudioRecorderStore.setState(partial);
-};
-
-const appendLiveTranscript = (raw: string) => {
-  const text = raw.replace(/\s+/g, ' ').trim();
-  if (!text) return;
-
-  const { transcript, setTranscript } = useSessionStore.getState();
-  const needsSeparator = transcript.trim().length > 0 && !transcript.endsWith('\n');
-  setTranscript(`${transcript}${needsSeparator ? '\n' : ''}${text}`);
 };
 
 const stopTimer = () => {
@@ -106,72 +83,9 @@ const updateWaveform = () => {
   animationFrameId = requestAnimationFrame(updateWaveform);
 };
 
-const stopSpeechRecognition = () => {
-  if (!speechRecognition) return;
-
-  speechRecognition.onend = null;
-  try {
-    speechRecognition.stop();
-  } catch {
-    // no-op
-  }
-  speechRecognition = null;
-};
-
-const startSpeechRecognition = () => {
-  const win = window as Window & {
-    SpeechRecognition?: SpeechRecognitionCtor;
-    webkitSpeechRecognition?: SpeechRecognitionCtor;
-  };
-
-  const Recognition = win.SpeechRecognition || win.webkitSpeechRecognition;
-  if (!Recognition) return;
-
-  stopSpeechRecognition();
-
-  const recognition = new Recognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'en-GB';
-
-  recognition.onresult = (event: any) => {
-    let finalText = '';
-    for (let i = event.resultIndex ?? 0; i < event.results.length; i += 1) {
-      const result = event.results[i];
-      const chunk = String(result?.[0]?.transcript || '');
-      if (result?.isFinal) finalText += `${chunk} `;
-    }
-
-    if (finalText.trim()) appendLiveTranscript(finalText);
-  };
-
-  recognition.onerror = () => {
-    // Keep recording even if speech recognition fails.
-  };
-
-  recognition.onend = () => {
-    const { isRecording, isPaused } = useAudioRecorderStore.getState();
-    if (!isRecording || isPaused) return;
-
-    try {
-      recognition.start();
-    } catch {
-      // no-op
-    }
-  };
-
-  try {
-    recognition.start();
-    speechRecognition = recognition;
-  } catch {
-    speechRecognition = null;
-  }
-};
-
 const cleanupRecorderEngine = (resetState: boolean) => {
   stopTimer();
   stopWaveform();
-  stopSpeechRecognition();
 
   mediaStream?.getTracks().forEach((track) => track.stop());
   mediaStream = null;
@@ -240,7 +154,6 @@ const startRecording = async () => {
 
   startTimer();
   updateWaveform();
-  startSpeechRecognition();
 };
 
 const pauseRecording = () => {
@@ -251,7 +164,6 @@ const pauseRecording = () => {
   useSessionStore.getState().setIsRecording(false);
   stopTimer();
   stopWaveform();
-  stopSpeechRecognition();
 };
 
 const resumeRecording = () => {
@@ -262,7 +174,6 @@ const resumeRecording = () => {
   useSessionStore.getState().setIsRecording(true);
   startTimer();
   updateWaveform();
-  startSpeechRecognition();
 };
 
 const stopRecording = async (): Promise<Blob | null> => {
