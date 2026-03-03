@@ -43,7 +43,8 @@ export default function TopBar() {
         await generateInstructions();
       } catch { /* non-critical */ }
 
-      saveCurrentSession();
+      await saveCurrentSession();
+      window.dispatchEvent(new Event('session-saved'));
     } catch (err: any) {
       toast({ title: 'Generation failed', description: err.message || 'Could not generate notes.', variant: 'destructive' });
     }
