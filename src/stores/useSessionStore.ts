@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 export type TabId = 'context' | 'transcript' | 'notes' | 'client';
+export type EncounterStatus = 'idle' | 'recording' | 'processing' | 'reviewing';
 
 export interface PEData {
   vitals: { temp: string; hr: string; rr: string; weight: string };
@@ -61,6 +62,10 @@ export interface SavedSession {
 }
 
 interface SessionStore {
+  // Encounter workflow
+  encounterStatus: EncounterStatus;
+  setEncounterStatus: (s: EncounterStatus) => void;
+
   // UI state
   activeTab: TabId;
   setActiveTab: (tab: TabId) => void;
@@ -117,6 +122,7 @@ interface SessionStore {
   // Session management
   sessions: SavedSession[];
   activeSessionId: string | null;
+  setActiveSessionId: (id: string | null) => void;
   newSession: () => void;
   saveCurrentSession: () => void;
   loadSession: (id: string) => void;
@@ -153,16 +159,13 @@ const normalPE: Partial<PEData> = {
 
 const genId = () => crypto.randomUUID();
 
-const loadSessions = (): SavedSession[] => {
-  try {
-    const stored = localStorage.getItem('etv-scribe-sessions');
-    return stored ? JSON.parse(stored) : [];
-  } catch { return []; }
-};
-
 export const useSessionStore = create<SessionStore>((set, get) => ({
+  // Encounter workflow
+  encounterStatus: 'idle',
+  setEncounterStatus: (s) => set({ encounterStatus: s }),
+
   // UI state
-  activeTab: 'context',
+  activeTab: 'notes',
   setActiveTab: (tab) => set({ activeTab: tab }),
   selectedTemplate: 'General Consult',
   setSelectedTemplate: (t) => set({ selectedTemplate: t }),
@@ -181,7 +184,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   applyNormalPE: () => set((s) => ({
     peData: {
       ...s.peData, ...normalPE,
-      vitals: s.peData.vitals, // Keep vitals as entered
+      vitals: s.peData.vitals,
       eyesDetail: '', earsDetail: '', noseDetail: '', oralDetail: '', plnsDetail: '',
       heartDetail: '', lungsDetail: '', hydrationDetail: '', abdoPalpDetail: '', skinCoatDetail: '',
     },
@@ -237,16 +240,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setPatientName: (n) => set({ patientName: n }),
 
   // Session management
-  sessions: loadSessions(),
+  sessions: [],
   activeSessionId: null,
+  setActiveSessionId: (id) => set({ activeSessionId: id }),
 
   newSession: () => {
-    const state = get();
-    if (state.transcript || state.notes) {
-      state.saveCurrentSession();
-    }
     set({
-      activeSessionId: genId(),
+      encounterStatus: 'idle',
+      activeSessionId: null,
       patientName: '',
       transcript: '',
       notes: '',
@@ -256,39 +257,21 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       tasks: [],
       clientInstructions: null,
       chatMessages: [],
-      activeTab: 'context',
+      activeTab: 'notes',
       selectedTemplate: 'General Consult',
       isRecording: false,
     });
   },
 
   saveCurrentSession: () => {
-    const s = get();
-    if (!s.transcript && !s.notes) return;
-    const session: SavedSession = {
-      id: s.activeSessionId || genId(),
-      patientName: s.patientName,
-      consultType: s.selectedTemplate,
-      createdAt: Date.now(),
-      duration: 0,
-      transcript: s.transcript,
-      notes: s.notes,
-      peData: s.peData,
-      peEnabled: s.peEnabled,
-      tasks: s.tasks,
-      clientInstructions: s.clientInstructions,
-    };
-    const sessions = [...s.sessions.filter((ss) => ss.id !== session.id), session]
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 50);
-    localStorage.setItem('etv-scribe-sessions', JSON.stringify(sessions));
-    set({ sessions, activeSessionId: session.id });
+    // Now handled by useEncounterPipeline — DB persistence
   },
 
   loadSession: (id) => {
     const session = get().sessions.find((s) => s.id === id);
     if (!session) return;
     set({
+      encounterStatus: 'reviewing',
       activeSessionId: session.id,
       patientName: session.patientName,
       selectedTemplate: session.consultType,
