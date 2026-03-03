@@ -6,6 +6,7 @@ import ContextPanel from '@/components/panels/ContextPanel';
 import TranscriptPanel from '@/components/panels/TranscriptPanel';
 import NotesPanel from '@/components/panels/NotesPanel';
 import ClientInstructionsPanel from '@/components/panels/ClientInstructionsPanel';
+import AllTasksPanel from '@/components/panels/AllTasksPanel';
 import TasksSidebar from '@/components/tasks/TasksSidebar';
 import { useSessionStore } from '@/stores/useSessionStore';
 
@@ -24,6 +25,7 @@ const Index = () => {
             {activeTab === 'transcript' && <TranscriptPanel />}
             {activeTab === 'notes' && <NotesPanel />}
             {activeTab === 'client' && <ClientInstructionsPanel />}
+            {activeTab === 'tasks' && <AllTasksPanel />}
           </div>
           {tasksOpen && <TasksSidebar onClose={toggleTasks} />}
         </div>
