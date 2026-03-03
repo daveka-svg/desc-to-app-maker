@@ -1,7 +1,30 @@
 import { useCallback } from 'react';
-import { mercuryChat, type ChatMessage } from '@/lib/mercury';
+import { supabase } from '@/integrations/supabase/client';
 import { TASK_EXTRACTION_PROMPT } from '@/lib/prompts';
 import { useSessionStore, type Task } from '@/stores/useSessionStore';
+
+async function parseSSEText(raw: unknown): Promise<string> {
+  const text = typeof raw === 'string'
+    ? raw
+    : raw instanceof Blob
+      ? await raw.text()
+      : JSON.stringify(raw);
+
+  let content = '';
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ')) continue;
+    const jsonStr = line.slice(6).trim();
+    if (jsonStr === '[DONE]') continue;
+    try {
+      const parsed = JSON.parse(jsonStr);
+      const chunk = parsed.choices?.[0]?.delta?.content;
+      if (chunk) content += chunk;
+    } catch {
+      // noop
+    }
+  }
+  return content || text;
+}
 
 export function useTaskExtraction() {
   const notes = useSessionStore((s) => s.notes);
@@ -14,29 +37,28 @@ export function useTaskExtraction() {
 
     setIsExtractingTasks(true);
     try {
-      const messages: ChatMessage[] = [
-        { role: 'system', content: 'You are a veterinary task extraction assistant. Extract tasks from clinical notes and return them as JSON.' },
-        { role: 'user', content: `${TASK_EXTRACTION_PROMPT}\n\nClinical Notes:\n${notes}` },
-      ];
+      const { data, error } = await supabase.functions.invoke('generate-notes', {
+        body: {
+          transcript: `${TASK_EXTRACTION_PROMPT}\n\nClinical Notes:\n${notes}`,
+          templatePrompt: 'You are a veterinary task extraction assistant. Return only valid JSON.',
+        },
+      });
+      if (error) throw new Error(error.message);
 
-      const response = await mercuryChat(messages);
-
-      // Parse JSON from response (handle markdown fences)
-      let jsonStr = response.trim();
+      let jsonStr = (await parseSSEText(data)).trim();
       if (jsonStr.startsWith('```')) {
         jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
       }
 
       const parsed = JSON.parse(jsonStr);
       const tasks: Task[] = [];
-      const genId = () => crypto.randomUUID();
-
       const categories = ['prescriptions', 'diagnostics', 'followup', 'admin'] as const;
+
       for (const cat of categories) {
         const items = parsed[cat] || [];
         for (const item of items) {
           tasks.push({
-            id: genId(),
+            id: crypto.randomUUID(),
             text: item.text,
             category: cat,
             assignee: (item.assignee || 'Vet') as Task['assignee'],
