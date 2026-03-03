@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '@/integrations/supabase/client';
 
 export type TabId = 'context' | 'transcript' | 'notes' | 'client';
 export type EncounterStatus = 'idle' | 'recording' | 'processing' | 'reviewing';
@@ -165,7 +166,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setEncounterStatus: (s) => set({ encounterStatus: s }),
 
   // UI state
-  activeTab: 'notes',
+  activeTab: 'context',
   setActiveTab: (tab) => set({ activeTab: tab }),
   selectedTemplate: 'General Consult',
   setSelectedTemplate: (t) => set({ selectedTemplate: t }),
@@ -257,14 +258,77 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       tasks: [],
       clientInstructions: null,
       chatMessages: [],
-      activeTab: 'notes',
+      activeTab: 'context',
       selectedTemplate: 'General Consult',
       isRecording: false,
     });
   },
 
-  saveCurrentSession: () => {
-    // Now handled by useEncounterPipeline — DB persistence
+  saveCurrentSession: async () => {
+    const s = get();
+    if (!s.transcript.trim() && !s.notes.trim()) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    let sessionId = s.activeSessionId;
+
+    if (!sessionId) {
+      const { data: createdSession, error: createError } = await supabase
+        .from('sessions')
+        .insert({
+          user_id: user.id,
+          patient_name: s.patientName || null,
+          session_type: s.selectedTemplate,
+          pe_data: s.peEnabled ? (s.peData as any) : null,
+          pe_enabled: s.peEnabled,
+          duration_seconds: 0,
+          status: 'completed',
+        })
+        .select('id')
+        .single();
+
+      if (createError || !createdSession) {
+        console.error('Failed to create session:', createError);
+        return;
+      }
+      sessionId = createdSession.id;
+      set({ activeSessionId: sessionId });
+    } else {
+      await supabase
+        .from('sessions')
+        .update({
+          patient_name: s.patientName || null,
+          session_type: s.selectedTemplate,
+          pe_data: s.peEnabled ? (s.peData as any) : null,
+          pe_enabled: s.peEnabled,
+          status: 'completed',
+        })
+        .eq('id', sessionId)
+        .eq('user_id', user.id);
+    }
+
+    await supabase.from('notes').delete().eq('session_id', sessionId).eq('user_id', user.id);
+    await supabase.from('notes').insert({
+      user_id: user.id,
+      session_id: sessionId,
+      content: s.notes,
+      transcript: s.transcript,
+    });
+
+    await supabase.from('tasks').delete().eq('session_id', sessionId).eq('user_id', user.id);
+    if (s.tasks.length > 0) {
+      await supabase.from('tasks').insert(
+        s.tasks.map((t) => ({
+          user_id: user.id,
+          session_id: sessionId!,
+          text: t.text,
+          category: t.category,
+          assignee: t.assignee,
+          done: t.done,
+        }))
+      );
+    }
   },
 
   loadSession: (id) => {

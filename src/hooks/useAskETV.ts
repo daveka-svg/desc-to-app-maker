@@ -1,7 +1,30 @@
 import { useCallback } from 'react';
-import { streamMercuryChat, type ChatMessage as MercuryMessage } from '@/lib/mercury';
+import { supabase } from '@/integrations/supabase/client';
 import { ASK_ETV_SYSTEM, compilePEReport } from '@/lib/prompts';
 import { useSessionStore } from '@/stores/useSessionStore';
+
+async function parseSSEText(raw: unknown): Promise<string> {
+  const text = typeof raw === 'string'
+    ? raw
+    : raw instanceof Blob
+      ? await raw.text()
+      : JSON.stringify(raw);
+
+  let content = '';
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ')) continue;
+    const jsonStr = line.slice(6).trim();
+    if (jsonStr === '[DONE]') continue;
+    try {
+      const parsed = JSON.parse(jsonStr);
+      const chunk = parsed.choices?.[0]?.delta?.content;
+      if (chunk) content += chunk;
+    } catch {
+      // noop
+    }
+  }
+  return content || text;
+}
 
 export function useAskETV() {
   const transcript = useSessionStore((s) => s.transcript);
@@ -9,7 +32,6 @@ export function useAskETV() {
   const peData = useSessionStore((s) => s.peData);
   const peEnabled = useSessionStore((s) => s.peEnabled);
   const patientName = useSessionStore((s) => s.patientName);
-  const chatMessages = useSessionStore((s) => s.chatMessages);
   const addChatMessage = useSessionStore((s) => s.addChatMessage);
   const updateLastAssistantMessage = useSessionStore((s) => s.updateLastAssistantMessage);
   const isChatStreaming = useSessionStore((s) => s.isChatStreaming);
@@ -18,16 +40,11 @@ export function useAskETV() {
   const sendMessage = useCallback(async (userText: string) => {
     if (!userText.trim()) return;
 
-    // Add user message
     addChatMessage({ role: 'user', content: userText });
-
-    // Add placeholder assistant message
     addChatMessage({ role: 'assistant', content: '' });
-
     setIsChatStreaming(true);
 
     try {
-      // Build context
       const peReport = peEnabled ? compilePEReport(peData) : '';
       const contextParts: string[] = [];
       if (patientName) contextParts.push(`Patient: ${patientName}`);
@@ -35,30 +52,24 @@ export function useAskETV() {
       if (peReport) contextParts.push(`PE Findings:\n${peReport}`);
       if (notes) contextParts.push(`Clinical Notes:\n${notes.slice(0, 3000)}`);
 
-      const systemMsg = `${ASK_ETV_SYSTEM}\n\nCurrent session context:\n${contextParts.join('\n\n')}`;
+      const { data, error } = await supabase.functions.invoke('generate-notes', {
+        body: {
+          transcript: `Current session context:\n${contextParts.join('\n\n')}\n\nUser request:\n${userText}`,
+          templatePrompt: ASK_ETV_SYSTEM,
+        },
+      });
 
-      // Build message history
-      const currentChat = useSessionStore.getState().chatMessages;
-      const mercuryMessages: MercuryMessage[] = [
-        { role: 'system', content: systemMsg },
-        ...currentChat.slice(0, -1).map((m) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-        })),
-      ];
+      if (error) throw new Error(error.message);
 
-      let responseSoFar = '';
-      for await (const chunk of streamMercuryChat(mercuryMessages)) {
-        responseSoFar += chunk;
-        updateLastAssistantMessage(responseSoFar);
-      }
+      const responseText = (await parseSSEText(data)).trim();
+      updateLastAssistantMessage(responseText || 'No response generated.');
     } catch (err) {
       console.error('Ask ETV error:', err);
       updateLastAssistantMessage('Sorry, I encountered an error. Please try again.');
     } finally {
       setIsChatStreaming(false);
     }
-  }, [transcript, notes, peData, peEnabled, patientName, chatMessages, addChatMessage, updateLastAssistantMessage, setIsChatStreaming]);
+  }, [transcript, notes, peData, peEnabled, patientName, addChatMessage, updateLastAssistantMessage, setIsChatStreaming]);
 
   return { sendMessage, isChatStreaming };
 }

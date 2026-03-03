@@ -4,6 +4,7 @@ import { LayoutGrid, Activity, Pen, FileText } from 'lucide-react';
 const templates = ['General Consult', 'Surgical Notes', 'Emergency', 'Vaccination', 'Dental', 'Post-op Check'];
 
 const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  { id: 'context', label: 'Context', icon: <LayoutGrid size={15} /> },
   { id: 'transcript', label: 'Transcript', icon: <Activity size={15} /> },
   { id: 'notes', label: '', icon: <Pen size={15} /> }, // Template dropdown
   { id: 'client', label: 'Client Instructions', icon: <FileText size={15} /> },
