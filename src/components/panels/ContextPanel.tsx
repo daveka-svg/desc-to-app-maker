@@ -6,7 +6,7 @@ import { useTaskExtraction } from '@/hooks/useTaskExtraction';
 import { useToast } from '@/hooks/use-toast';
 import PEForm from '@/components/pe-form/PEForm';
 
-const templates = ['General Consult', 'Surgical Notes', 'Emergency', 'Vaccination', 'Dental', 'Post-op Check'];
+const templates = ['General Consult', 'Surgical Notes', 'Emergency', 'Vaccination', 'Dental', 'Post-op Check', 'Discharge Summary', 'Referral Letter', 'Follow-up Update'];
 
 export default function ContextPanel() {
   const peEnabled = useSessionStore((s) => s.peEnabled);
@@ -43,9 +43,10 @@ export default function ContextPanel() {
   };
 
   const handleStop = async () => {
-    const blob = await stopRecording();
+    const blobPromise = stopRecording();
+    await stopTranscription();
+    const blob = await blobPromise;
     setIsRecording(false);
-    stopTranscription();
     if (blob) {
       console.log('Recording stopped. Audio blob size:', blob.size);
     }

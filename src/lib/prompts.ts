@@ -71,6 +71,35 @@ CE: [general demeanour and hydration status], [eye and ear findings], [oral and 
 [owner-reported recovery at home]
 [plan: suture removal timing, medication changes, activity restrictions]
 [next appointment if needed]`,
+
+  'Discharge Summary': `(Clear discharge note for the owner and referring vet. Use concise clinical language and short sections.)
+
+[reason for visit and key findings]
+[diagnostics performed and relevant results]
+[treatment provided in clinic]
+[medications on discharge: drug, dose, frequency, duration]
+[home care instructions]
+[red flags / when to seek urgent review]
+[follow-up timing and plan]`,
+
+  'Referral Letter': `(Formal referral letter tone in UK English. Keep factual and structured.)
+
+[patient details and presenting complaint]
+[relevant history and timeline]
+[clinical examination findings]
+[diagnostics and results]
+[treatments given and response]
+[current assessment / differentials]
+[specific referral question and requested next steps]
+[attachments / additional notes if mentioned]`,
+
+  'Follow-up Update': `(Brief follow-up consult summary.)
+
+[current clinical status]
+[changes since last visit]
+[response to treatment]
+[updated plan and owner advice]
+[next review date / triggers for earlier review]`,
 };
 
 export const TASK_EXTRACTION_PROMPT = `Given the following veterinary clinical notes, extract all action items. For each item, assign it to: "Vet" (clinical decisions, prescriptions, procedures), "Nurse" (sample collection, monitoring, fluid administration), or "Admin" (estimates, insurance, scheduling).

@@ -6,6 +6,8 @@ import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import AllTasksPanel from '@/components/panels/AllTasksPanel';
 
+const templateOptions = ['General Consult', 'Surgical Notes', 'Emergency', 'Vaccination', 'Dental', 'Post-op Check', 'Discharge Summary', 'Referral Letter', 'Follow-up Update'];
+
 interface DBSession {
   id: string;
   patient_name: string | null;
@@ -34,6 +36,7 @@ export default function Sidebar() {
   const [sessions, setSessions] = useState<DBSession[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [tasksSheetOpen, setTasksSheetOpen] = useState(false);
+  const [templatesSheetOpen, setTemplatesSheetOpen] = useState(false);
 
   useEffect(() => {
     fetchSessions();
@@ -165,7 +168,14 @@ export default function Sidebar() {
         <div className="border-t border-border-light">
           <nav className="px-2 pb-1">
             <div className="text-[10px] font-bold uppercase tracking-[0.8px] text-text-muted px-2.5 pt-3 pb-1">Library</div>
-            <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand transition-all duration-100"><Book size={17} className="opacity-65 shrink-0" /> Templates</div>
+            <button
+              onClick={() => {
+                setTemplatesSheetOpen(true);
+              }}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand transition-all duration-100"
+            >
+              <Book size={17} className="opacity-65 shrink-0" /> Templates
+            </button>
             <Link to="/settings" className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand transition-all duration-100 no-underline"><Settings size={17} className="opacity-65 shrink-0" /> Settings</Link>
           </nav>
           <div className="px-3.5 py-3 border-t border-border-light flex items-center gap-2.5">
@@ -191,6 +201,28 @@ export default function Sidebar() {
           </SheetHeader>
           <div className="flex-1 overflow-y-auto h-[calc(100vh-60px)]">
             <AllTasksPanel />
+          </div>
+        </SheetContent>
+      </Sheet>
+      <Sheet open={templatesSheetOpen} onOpenChange={setTemplatesSheetOpen}>
+        <SheetContent side="left" className="w-[420px] sm:w-[460px] p-0">
+          <SheetHeader className="px-5 py-4 border-b border-border-light">
+            <SheetTitle className="text-[15px] font-bold text-bark">Templates</SheetTitle>
+          </SheetHeader>
+          <div className="p-4 space-y-2">
+            {templateOptions.map((template) => (
+              <button
+                key={template}
+                onClick={() => {
+                  setSelectedTemplate(template);
+                  setActiveTab('context');
+                  setTemplatesSheetOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 rounded-md border border-border bg-card hover:bg-sand text-[13px] text-text-primary transition-colors"
+              >
+                {template}
+              </button>
+            ))}
           </div>
         </SheetContent>
       </Sheet>
