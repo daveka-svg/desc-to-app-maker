@@ -68,6 +68,12 @@ export default function ContextPanel() {
         });
 
         if (error) throw error;
+        
+        // Check for API-level errors in response body
+        if (data?.error) {
+          console.warn('Fallback transcription API error:', data.error);
+          throw new Error(data.error);
+        }
 
         const text = typeof data?.text === 'string' ? data.text.trim() : '';
         if (text) {
@@ -75,8 +81,12 @@ export default function ContextPanel() {
           setInterimTranscript('');
           transcript = text;
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Fallback transcription failed:', error);
+        const msg = error?.message || '';
+        if (msg.includes('quota') || msg.includes('401')) {
+          toast({ title: 'Transcription quota exceeded', description: 'ElevenLabs credits exhausted. Please check your plan.', variant: 'destructive' });
+        }
       }
     }
 
