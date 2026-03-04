@@ -11,6 +11,7 @@ export function useTranscription() {
   const [interimText, setInterimText] = useState('');
   const [isSupported] = useState(typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
   const segmentCountRef = useRef(0);
+  const connectedRef = useRef(false);
 
   const pickText = (data: any): string => {
     if (!data) return '';
@@ -26,13 +27,26 @@ export function useTranscription() {
   const scribe = useScribe({
     modelId: 'scribe_v2_realtime',
     commitStrategy: CommitStrategy.VAD,
+    onConnect: () => {
+      console.log('[Scribe] Connected to ElevenLabs realtime');
+      connectedRef.current = true;
+    },
+    onDisconnect: () => {
+      console.log('[Scribe] Disconnected from ElevenLabs realtime');
+      connectedRef.current = false;
+    },
+    onSessionStarted: () => {
+      console.log('[Scribe] Session started - listening for speech');
+    },
     onPartialTranscript: (data: unknown) => {
       const text = pickText(data).trim();
+      console.log('[Scribe] Partial:', text);
       setInterimText(text);
       setInterimTranscript(text);
     },
     onCommittedTranscript: (data: unknown) => {
       const text = pickText(data).trim();
+      console.log('[Scribe] Committed:', text);
       if (!text) return;
 
       segmentCountRef.current += 1;
@@ -45,6 +59,7 @@ export function useTranscription() {
     },
     onCommittedTranscriptWithTimestamps: (data: unknown) => {
       const text = pickText(data).trim();
+      console.log('[Scribe] CommittedWithTimestamps:', text);
       if (!text) return;
 
       segmentCountRef.current += 1;
@@ -56,7 +71,7 @@ export function useTranscription() {
       setInterimTranscript('');
     },
     onError: (err: unknown) => {
-      console.error('ElevenLabs transcription error:', err);
+      console.error('[Scribe] Error:', err);
     },
   });
 
@@ -64,11 +79,13 @@ export function useTranscription() {
     if (!isSupported || scribe.isConnected) return;
 
     try {
+      console.log('[Scribe] Fetching token...');
       const { data, error } = await supabase.functions.invoke('openai-realtime-token');
       if (error || !data?.token) {
-        console.error('Failed to get ElevenLabs token:', error);
+        console.error('[Scribe] Failed to get token:', error);
         return;
       }
+      console.log('[Scribe] Token received, connecting...');
 
       segmentCountRef.current = 0;
       setInterimText('');
@@ -81,16 +98,17 @@ export function useTranscription() {
           autoGainControl: true,
         },
       });
+      console.log('[Scribe] connect() resolved, isConnected:', scribe.isConnected);
     } catch (err) {
-      console.error('Failed to start ElevenLabs transcription:', err);
+      console.error('[Scribe] Failed to start:', err);
     }
   }, [isSupported, scribe]);
 
   const stopTranscription = useCallback(async () => {
-    if (scribe.isConnected) {
-      await wait(350);
-      (scribe as any).commit?.();
-      await wait(250);
+    if (scribe.isConnected || connectedRef.current) {
+      console.log('[Scribe] Stopping - committing final segment...');
+      try { scribe.commit(); } catch {}
+      await wait(500);
       scribe.disconnect();
     }
     setInterimText('');
@@ -99,7 +117,7 @@ export function useTranscription() {
 
   const pauseTranscription = useCallback(() => {
     if (scribe.isConnected) {
-      (scribe as any).commit?.();
+      try { scribe.commit(); } catch {}
       scribe.disconnect();
     }
     setInterimText('');
@@ -121,4 +139,3 @@ export function useTranscription() {
     resumeTranscription,
   };
 }
-
