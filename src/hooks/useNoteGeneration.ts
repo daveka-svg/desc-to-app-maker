@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SYSTEM_PROMPT, TEMPLATES, compilePEReport } from '@/lib/prompts';
 import { useSessionStore } from '@/stores/useSessionStore';
+import { extractLlmText } from '@/lib/llm';
+import { getTemplatePrompt } from '@/lib/templatePrompts';
 
 export function useNoteGeneration() {
   const transcript = useSessionStore((s) => s.transcript);
@@ -20,38 +22,21 @@ export function useNoteGeneration() {
     setNotes('');
 
     try {
-      const templatePrompt = TEMPLATES[selectedTemplate] || TEMPLATES['General Consult'];
+      const fallbackTemplate = TEMPLATES[selectedTemplate] || TEMPLATES['General Consult'];
+      const templatePrompt = await getTemplatePrompt(selectedTemplate, fallbackTemplate);
       const peReport = peEnabled ? compilePEReport(peData) : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
-      const userContent = `Generate clinical notes from the following consultation transcript:${peReport ? `\n\nPhysical Examination:\n${peReport}` : ''}\n\nTranscript:\n${transcript}`;
+      const payloadTranscript = peReport
+        ? `${transcript}\n\nPhysical Examination:\n${peReport}`
+        : transcript;
 
       const response = await supabase.functions.invoke('generate-notes', {
-        body: { transcript: userContent, peData: peEnabled ? peData : null, templatePrompt: fullPrompt },
+        body: { transcript: payloadTranscript, peData: peEnabled ? peData : null, templatePrompt: fullPrompt },
       });
 
       if (response.error) throw new Error(response.error.message);
 
-      const text = typeof response.data === 'string' ? response.data :
-                   response.data instanceof Blob ? await response.data.text() :
-                   JSON.stringify(response.data);
-
-      let notesContent = '';
-      for (const line of text.split('\n')) {
-        if (!line.startsWith('data: ')) continue;
-        const jsonStr = line.slice(6).trim();
-        if (jsonStr === '[DONE]') continue;
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const content = parsed.choices?.[0]?.delta?.content;
-          if (content) notesContent += content;
-        } catch { /* skip */ }
-      }
-
-      if (!notesContent && typeof response.data === 'object' && response.data?.choices) {
-        notesContent = response.data.choices[0]?.message?.content || '';
-      }
-      if (!notesContent) notesContent = text;
-
+      const notesContent = await extractLlmText(response.data);
       setNotes(notesContent);
     } catch (err) {
       console.error('Note generation error:', err);
@@ -63,3 +48,4 @@ export function useNoteGeneration() {
 
   return { notes, isGeneratingNotes, generateNote, setNotes };
 }
+

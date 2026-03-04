@@ -4,6 +4,8 @@ import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useTranscription } from '@/hooks/useTranscription';
 import { supabase } from '@/integrations/supabase/client';
 import { SYSTEM_PROMPT, TEMPLATES, compilePEReport, TASK_EXTRACTION_PROMPT, CLIENT_INSTRUCTIONS_PROMPT } from '@/lib/prompts';
+import { extractLlmText } from '@/lib/llm';
+import { getTemplatePrompt } from '@/lib/templatePrompts';
 
 interface PipelineStep {
   label: string;
@@ -60,11 +62,14 @@ export function useEncounterPipeline() {
     // Generate notes via edge function
     try {
       const peData = store.peEnabled ? store.peData : null;
-      const templatePrompt = TEMPLATES[store.selectedTemplate] || TEMPLATES['General Consult'];
+      const fallbackTemplate = TEMPLATES[store.selectedTemplate] || TEMPLATES['General Consult'];
+      const templatePrompt = await getTemplatePrompt(store.selectedTemplate, fallbackTemplate);
       const peReport = peData ? compilePEReport(peData) : '';
       
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
-      const userContent = `Generate clinical notes from the following consultation transcript:${peReport ? `\n\nPhysical Examination:\n${peReport}` : ''}\n\nTranscript:\n${transcript}`;
+      const userContent = peReport
+        ? `${transcript}\n\nPhysical Examination:\n${peReport}`
+        : transcript;
 
       const response = await supabase.functions.invoke('generate-notes', {
         body: { transcript: userContent, peData, templatePrompt: fullPrompt },
@@ -72,28 +77,7 @@ export function useEncounterPipeline() {
 
       if (response.error) throw new Error(response.error.message);
 
-      // Parse SSE stream from response
-      const text = typeof response.data === 'string' ? response.data : 
-                   response.data instanceof Blob ? await response.data.text() : 
-                   JSON.stringify(response.data);
-      
-      // Parse SSE lines
-      let notesContent = '';
-      for (const line of text.split('\n')) {
-        if (!line.startsWith('data: ')) continue;
-        const jsonStr = line.slice(6).trim();
-        if (jsonStr === '[DONE]') continue;
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const content = parsed.choices?.[0]?.delta?.content;
-          if (content) notesContent += content;
-        } catch { /* skip */ }
-      }
-      
-      if (!notesContent && typeof response.data === 'object' && response.data?.choices) {
-        notesContent = response.data.choices[0]?.message?.content || '';
-      }
-      if (!notesContent) notesContent = text;
+      const notesContent = await extractLlmText(response.data);
 
       store.setNotes(notesContent);
       updateStep(1, 'done');
@@ -114,22 +98,7 @@ export function useEncounterPipeline() {
           },
         });
 
-        const taskText = typeof taskResponse.data === 'string' ? taskResponse.data :
-                         taskResponse.data instanceof Blob ? await taskResponse.data.text() :
-                         JSON.stringify(taskResponse.data);
-
-        let taskContent = '';
-        for (const line of taskText.split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) taskContent += content;
-          } catch { /* skip */ }
-        }
-        if (!taskContent) taskContent = taskText;
+        let taskContent = await extractLlmText(taskResponse.data);
 
         let cleanJson = taskContent.trim();
         if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
@@ -169,22 +138,7 @@ export function useEncounterPipeline() {
           },
         });
 
-        const ciText = typeof ciResponse.data === 'string' ? ciResponse.data :
-                       ciResponse.data instanceof Blob ? await ciResponse.data.text() :
-                       JSON.stringify(ciResponse.data);
-
-        let ciContent = '';
-        for (const line of ciText.split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) ciContent += content;
-          } catch { /* skip */ }
-        }
-        if (!ciContent) ciContent = ciText;
+        let ciContent = await extractLlmText(ciResponse.data);
 
         let cleanJson = ciContent.trim();
         if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');

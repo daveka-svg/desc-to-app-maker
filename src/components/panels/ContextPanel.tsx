@@ -28,7 +28,7 @@ export default function ContextPanel() {
     await startRecording();
     setIsRecording(true);
     if (isSupported) {
-      startTranscription('en-GB');
+      startTranscription();
     }
   };
 
@@ -39,7 +39,7 @@ export default function ContextPanel() {
 
   const handleResume = () => {
     resumeRecording();
-    resumeTranscription('en-GB');
+    resumeTranscription();
   };
 
   const handleStop = async () => {
