@@ -3,7 +3,7 @@ import { Plus, Pen, ClipboardList, Book, Settings, LogOut, Save, Loader2 } from 
 import { useSessionStore } from '@/stores/useSessionStore';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import AllTasksPanel from '@/components/panels/AllTasksPanel';
 import { TEMPLATES } from '@/lib/prompts';
 import { useToast } from '@/hooks/use-toast';
@@ -112,7 +112,7 @@ export default function Sidebar() {
 
     setIsSavingTemplate(true);
     try {
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from('note_templates')
         .select('id')
         .eq('user_id', userId)
@@ -120,13 +120,17 @@ export default function Sidebar() {
         .order('created_at', { ascending: false })
         .limit(1);
 
+      if (existingError) throw existingError;
+
       if (existing && existing.length > 0) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('note_templates')
           .update({ system_prompt: prompt })
-          .eq('id', existing[0].id);
+          .eq('id', existing[0].id)
+          .eq('user_id', userId);
+        if (updateError) throw updateError;
       } else {
-        await supabase
+        const { error: insertError } = await supabase
           .from('note_templates')
           .insert({
             user_id: userId,
@@ -134,6 +138,7 @@ export default function Sidebar() {
             system_prompt: prompt,
             is_default: false,
           });
+        if (insertError) throw insertError;
       }
 
       setSelectedTemplate(activeTemplateEditor);
@@ -249,6 +254,7 @@ export default function Sidebar() {
             <div className="text-[10px] font-bold uppercase tracking-[0.8px] text-text-muted px-2.5 pt-3 pb-1">Library</div>
             <button
               onClick={() => {
+                fetchTemplatePrompts();
                 setActiveTemplateEditor(selectedTemplate || 'General Consult');
                 setTemplatesSheetOpen(true);
               }}
@@ -277,6 +283,7 @@ export default function Sidebar() {
         <SheetContent side="left" className="w-[480px] sm:w-[540px] p-0">
           <SheetHeader className="px-5 py-4 border-b border-border-light">
             <SheetTitle className="text-[15px] font-bold text-bark">All Tasks</SheetTitle>
+            <SheetDescription className="sr-only">View and manage tasks from all consultations.</SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto h-[calc(100vh-60px)]">
             <AllTasksPanel />
@@ -285,11 +292,12 @@ export default function Sidebar() {
       </Sheet>
 
       <Sheet open={templatesSheetOpen} onOpenChange={setTemplatesSheetOpen}>
-        <SheetContent side="left" className="w-[92vw] max-w-[920px] p-0">
+        <SheetContent side="left" className="w-[96vw] max-w-[1200px] sm:max-w-[1200px] p-0">
           <SheetHeader className="px-5 py-4 border-b border-border-light">
             <SheetTitle className="text-[15px] font-bold text-bark">Templates</SheetTitle>
+            <SheetDescription className="sr-only">Edit and save AI prompt templates for consultation summaries.</SheetDescription>
           </SheetHeader>
-          <div className="grid grid-cols-[240px_1fr] h-[calc(100vh-64px)]">
+          <div className="grid grid-cols-[240px_minmax(0,1fr)] h-[calc(100vh-64px)]">
             <div className="border-r border-border-light p-3 space-y-1 overflow-y-auto">
               {templateOptions.map((template) => (
                 <button
@@ -305,7 +313,7 @@ export default function Sidebar() {
                 </button>
               ))}
             </div>
-            <div className="p-4 flex flex-col gap-3">
+            <div className="p-4 flex flex-col gap-3 min-w-0">
               <div className="flex items-center justify-between">
                 <div className="text-[13px] font-semibold text-bark">{activeTemplateEditor}</div>
                 <button
@@ -319,7 +327,7 @@ export default function Sidebar() {
               <textarea
                 value={templateDrafts[activeTemplateEditor] || ''}
                 onChange={(e) => setTemplateDrafts((prev) => ({ ...prev, [activeTemplateEditor]: e.target.value }))}
-                className="flex-1 w-full border border-border rounded-md bg-card text-text-primary text-[13px] leading-relaxed p-3 outline-none focus:border-bark-muted"
+                className="flex-1 w-full border border-border rounded-md bg-card text-text-primary text-[13px] leading-relaxed p-3 outline-none focus:border-bark-muted resize-none"
                 placeholder="Write the full template prompt used for summary generation..."
               />
             </div>

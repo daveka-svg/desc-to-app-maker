@@ -86,7 +86,9 @@ interface SessionStore {
 
   // Transcript
   transcript: string;
+  interimTranscript: string;
   setTranscript: (t: string) => void;
+  setInterimTranscript: (t: string) => void;
   appendTranscript: (t: string) => void;
 
   // Notes
@@ -193,9 +195,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   // Transcript
   transcript: '',
+  interimTranscript: '',
   setTranscript: (t) => set({ transcript: t }),
+  setInterimTranscript: (t) => set({ interimTranscript: t }),
   appendTranscript: (t) => set((s) => ({ transcript: s.transcript + t })),
-
   // Notes
   notes: '',
   setNotes: (n) => set({ notes: n }),
@@ -251,8 +254,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       activeSessionId: null,
       patientName: '',
       transcript: '',
+      interimTranscript: '',
       notes: '',
-      peData: { ...defaultPE },
       peEnabled: true,
       peIncludeInNotes: true,
       tasks: [],
@@ -340,8 +343,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       patientName: session.patientName,
       selectedTemplate: session.consultType,
       transcript: session.transcript,
+      interimTranscript: '',
       notes: session.notes,
-      peData: session.peData,
       peEnabled: session.peEnabled,
       tasks: session.tasks,
       clientInstructions: session.clientInstructions,

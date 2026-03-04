@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function TranscriptPanel() {
   const transcript = useSessionStore((s) => s.transcript);
+  const interimTranscript = useSessionStore((s) => s.interimTranscript);
   const isRecording = useSessionStore((s) => s.isRecording);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
@@ -51,7 +52,7 @@ export default function TranscriptPanel() {
 
       {/* Content - Read only */}
       <div className="flex-1 overflow-y-auto p-6">
-        {!transcript && !isRecording ? (
+        {!transcript && !interimTranscript && !isRecording ? (
           <div className="max-w-[720px] text-sm text-text-muted py-12 text-center mx-auto">
             <div className="w-12 h-12 bg-sand rounded-full flex items-center justify-center mx-auto mb-4">
               <Mic size={20} className="text-text-muted" />
@@ -85,6 +86,12 @@ export default function TranscriptPanel() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {isRecording && interimTranscript && (
+          <div className="w-full max-w-[720px] text-sm leading-[1.85] text-text-muted italic mt-1">
+            {interimTranscript}
           </div>
         )}
 

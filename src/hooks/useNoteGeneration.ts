@@ -15,15 +15,16 @@ export function useNoteGeneration() {
   const isGeneratingNotes = useSessionStore((s) => s.isGeneratingNotes);
   const setIsGeneratingNotes = useSessionStore((s) => s.setIsGeneratingNotes);
 
-  const generateNote = useCallback(async () => {
+  const generateNote = useCallback(async (templateOverride?: string) => {
     if (!transcript.trim()) throw new Error('No transcript available');
 
     setIsGeneratingNotes(true);
     setNotes('');
 
     try {
-      const fallbackTemplate = TEMPLATES[selectedTemplate] || TEMPLATES['General Consult'];
-      const templatePrompt = await getTemplatePrompt(selectedTemplate, fallbackTemplate);
+      const templateToUse = templateOverride || selectedTemplate;
+      const fallbackTemplate = TEMPLATES[templateToUse] || TEMPLATES['General Consult'];
+      const templatePrompt = await getTemplatePrompt(templateToUse, fallbackTemplate);
       const peReport = peEnabled ? compilePEReport(peData) : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
       const payloadTranscript = peReport
