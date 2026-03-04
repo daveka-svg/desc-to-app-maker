@@ -2,12 +2,6 @@ import { useRef, useCallback, useState } from 'react';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { supabase } from '@/integrations/supabase/client';
 
-/**
- * Real-time speech-to-text using OpenAI Realtime API (gpt-4o-transcribe).
- * Uses WebSocket with server VAD for automatic turn detection.
- * Labels each committed segment with speaker labels.
- */
-
 function float32ToPcm16(float32: Float32Array): Uint8Array {
   const buffer = new ArrayBuffer(float32.length * 2);
   const view = new DataView(buffer);
@@ -21,9 +15,7 @@ function float32ToPcm16(float32: Float32Array): Uint8Array {
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
 }
 
@@ -42,11 +34,13 @@ function resampleFloat32(input: Float32Array, inputRate: number, outputRate: num
   return output;
 }
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export function useTranscription() {
   const appendTranscript = useSessionStore((s) => s.appendTranscript);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [interimText, setInterimText] = useState('');
-  const [isSupported] = useState(true);
+  const [isSupported] = useState(typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
   const wsRef = useRef<WebSocket | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -56,6 +50,7 @@ export function useTranscription() {
   const cleanup = useCallback(() => {
     if (processorRef.current) {
       processorRef.current.disconnect();
+      processorRef.current.onaudioprocess = null;
       processorRef.current = null;
     }
     if (audioCtxRef.current) {
@@ -72,114 +67,135 @@ export function useTranscription() {
     }
   }, []);
 
-  const startAudioCapture = (ws: WebSocket) => {
-    navigator.mediaDevices
-      .getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
-      .then((stream) => {
-        streamRef.current = stream;
-        const audioCtx = new AudioContext();
-        audioCtxRef.current = audioCtx;
-        const source = audioCtx.createMediaStreamSource(stream);
-        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-        processorRef.current = processor;
-        const nativeSampleRate = audioCtx.sampleRate;
+  const handleRealtimeMessage = useCallback((raw: string) => {
+    try {
+      const msg = JSON.parse(raw);
 
-        processor.onaudioprocess = (e) => {
-          if (ws.readyState !== WebSocket.OPEN) return;
-          const inputData = e.inputBuffer.getChannelData(0);
-          const resampled = resampleFloat32(inputData, nativeSampleRate, 24000);
-          const pcm16 = float32ToPcm16(resampled);
-          const base64 = arrayBufferToBase64(pcm16.buffer as ArrayBuffer);
-          ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: base64 }));
-        };
-
-        source.connect(processor);
-        processor.connect(audioCtx.destination);
-      })
-      .catch((err) => console.error('Failed to start audio capture:', err));
-  };
-
-  const startTranscription = useCallback(
-    async (_lang?: string) => {
-      try {
-        const { data, error } = await supabase.functions.invoke('openai-realtime-token');
-        if (error || !data?.token) {
-          console.error('Failed to get OpenAI realtime token:', error);
-          return;
-        }
-
-        segmentCountRef.current = 0;
-
-        const ws = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-transcribe', [
-          'realtime',
-          `openai-insecure-api-key.${data.token}`,
-          'openai-beta.realtime-v1',
-        ]);
-
-        ws.onopen = () => {
-          // Configure transcription session
-          ws.send(
-            JSON.stringify({
-              type: 'transcription_session.update',
-              session: {
-                input_audio_format: 'pcm16',
-                input_audio_transcription: {
-                  model: 'gpt-4o-transcribe',
-                  language: _lang || 'en',
-                },
-                turn_detection: {
-                  type: 'server_vad',
-                  threshold: 0.5,
-                  prefix_padding_ms: 300,
-                  silence_duration_ms: 700,
-                },
-                input_audio_noise_reduction: { type: 'near_field' },
-              },
-            })
-          );
-          startAudioCapture(ws);
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const msg = JSON.parse(event.data);
-
-            if (msg.type === 'conversation.item.input_audio_transcription.delta') {
-              setInterimText((prev) => prev + (msg.delta || ''));
-            }
-
-            if (msg.type === 'conversation.item.input_audio_transcription.completed') {
-              if (msg.transcript?.trim()) {
-                segmentCountRef.current += 1;
-                const speaker = segmentCountRef.current % 2 === 1 ? 'Speaker 1' : 'Speaker 2';
-                const existing = useSessionStore.getState().transcript;
-                const prefix = existing ? '\n\n' : '';
-                appendTranscript(`${prefix}**${speaker}:** ${msg.transcript.trim()}`);
-              }
-              setInterimText('');
-            }
-
-            if (msg.type === 'error') {
-              console.error('OpenAI Realtime error:', msg.error);
-            }
-          } catch {
-            /* ignore parse errors */
-          }
-        };
-
-        ws.onerror = (err) => console.error('WebSocket error:', err);
-        ws.onclose = () => setIsTranscribing(false);
-
-        wsRef.current = ws;
-        setIsTranscribing(true);
-      } catch (err) {
-        console.error('Failed to start OpenAI transcription:', err);
+      if (msg.type === 'conversation.item.input_audio_transcription.delta') {
+        setInterimText((prev) => prev + (msg.delta || ''));
       }
-    },
-    [appendTranscript, cleanup]
-  );
 
-  const stopTranscription = useCallback(() => {
+      if (msg.type === 'conversation.item.input_audio_transcription.completed') {
+        if (msg.transcript?.trim()) {
+          segmentCountRef.current += 1;
+          const speaker = segmentCountRef.current % 2 === 1 ? 'Speaker 1' : 'Speaker 2';
+          const existing = useSessionStore.getState().transcript;
+          const prefix = existing ? '\n\n' : '';
+          appendTranscript(`${prefix}**${speaker}:** ${msg.transcript.trim()}`);
+        }
+        setInterimText('');
+      }
+
+      if (msg.type === 'error') {
+        console.error('OpenAI Realtime error:', msg.error);
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }, [appendTranscript]);
+
+  const startAudioCapture = useCallback(async (ws: WebSocket) => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+
+    streamRef.current = stream;
+    const audioCtx = new AudioContext();
+    audioCtxRef.current = audioCtx;
+
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    const source = audioCtx.createMediaStreamSource(stream);
+    const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+    processorRef.current = processor;
+    const nativeSampleRate = audioCtx.sampleRate;
+
+    processor.onaudioprocess = (e) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const inputData = e.inputBuffer.getChannelData(0);
+      const resampled = resampleFloat32(inputData, nativeSampleRate, 24000);
+      const pcm16 = float32ToPcm16(resampled);
+      const base64 = arrayBufferToBase64(pcm16.buffer as ArrayBuffer);
+      ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: base64 }));
+    };
+
+    source.connect(processor);
+    processor.connect(audioCtx.destination);
+  }, []);
+
+  const startTranscription = useCallback(async (_lang?: string) => {
+    if (!isSupported) return;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('openai-realtime-token');
+      if (error || !data?.token) {
+        console.error('Failed to get OpenAI realtime token:', error);
+        return;
+      }
+
+      segmentCountRef.current = 0;
+      setInterimText('');
+
+      const ws = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-transcribe', [
+        'realtime',
+        `openai-insecure-api-key.${data.token}`,
+        'openai-beta.realtime-v1',
+      ]);
+
+      ws.onopen = async () => {
+        ws.send(
+          JSON.stringify({
+            type: 'transcription_session.update',
+            session: {
+              input_audio_format: 'pcm16',
+              input_audio_transcription: {
+                model: 'gpt-4o-transcribe',
+                language: _lang || 'en',
+              },
+              turn_detection: {
+                type: 'server_vad',
+                threshold: 0.5,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 700,
+              },
+              input_audio_noise_reduction: { type: 'near_field' },
+            },
+          })
+        );
+
+        try {
+          await startAudioCapture(ws);
+          setIsTranscribing(true);
+        } catch (err) {
+          console.error('Failed to start audio capture:', err);
+          ws.close();
+        }
+      };
+
+      ws.onmessage = (event) => handleRealtimeMessage(event.data);
+      ws.onerror = (err) => console.error('WebSocket error:', err);
+      ws.onclose = () => setIsTranscribing(false);
+
+      wsRef.current = ws;
+    } catch (err) {
+      console.error('Failed to start OpenAI transcription:', err);
+    }
+  }, [handleRealtimeMessage, isSupported, startAudioCapture]);
+
+  const stopTranscription = useCallback(async () => {
+    const ws = wsRef.current;
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+      } catch {
+        // noop
+      }
+      await wait(900);
+    }
+
     cleanup();
     setIsTranscribing(false);
     setInterimText('');
@@ -192,13 +208,11 @@ export function useTranscription() {
     setIsTranscribing(false);
   }, []);
 
-  const resumeTranscription = useCallback(
-    async (lang?: string) => {
-      cleanup();
-      await startTranscription(lang);
-    },
-    [startTranscription, cleanup]
-  );
+  const resumeTranscription = useCallback(async (lang?: string) => {
+    cleanup();
+    await wait(150);
+    await startTranscription(lang);
+  }, [startTranscription, cleanup]);
 
   return {
     isTranscribing,

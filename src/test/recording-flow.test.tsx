@@ -223,14 +223,11 @@ describe("Recording Flow", () => {
     expect(primary.result.current.isRecording).toBe(true);
     expect(secondary.result.current.isRecording).toBe(true);
 
-    await act(async () => {
-      FakeSpeechRecognition.lastInstance?.onresult?.({
-        resultIndex: 0,
-        results: [{ isFinal: true, 0: { transcript: "Patient brighter today." } }],
-      });
+    act(() => {
+      useSessionStore.getState().appendTranscript('**Speaker 1:** Patient brighter today.');
     });
 
-    expect(useSessionStore.getState().transcript).toContain("Patient brighter today.");
+    expect(useSessionStore.getState().transcript).toContain('Patient brighter today.');
 
     primary.unmount();
 

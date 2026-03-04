@@ -56,7 +56,7 @@ export default function TopBar() {
         <button
           onClick={handleCreate}
           disabled={isGeneratingNotes}
-          className="bg-forest text-primary-foreground border-none px-[18px] py-2 rounded-md text-[13px] font-semibold cursor-pointer flex items-center gap-1.5 hover:bg-forest-dark transition-colors disabled:opacity-50"
+          className="bg-sand text-bark border border-border px-[18px] py-2 rounded-md text-[13px] font-semibold cursor-pointer flex items-center gap-1.5 hover:bg-sand-dark transition-colors disabled:opacity-50"
         >
           {isGeneratingNotes ? (
             <><svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" /><path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor" className="opacity-75" /></svg> Generating...</>

@@ -36,8 +36,9 @@ export function useEncounterPipeline() {
     const store = useSessionStore.getState();
     
     // Stop recording
-    const blob = await stopRecording();
-    stopTranscription();
+    const blobPromise = stopRecording();
+    await stopTranscription();
+    const blob = await blobPromise;
     store.setIsRecording(false);
     store.setEncounterStatus('processing');
 
