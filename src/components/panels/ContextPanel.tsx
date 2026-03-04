@@ -50,6 +50,16 @@ export default function ContextPanel() {
   };
 
   const handleStop = async () => {
+    const liveTranscript = useSessionStore.getState().transcript.trim();
+    if (timerSeconds < 2 && !liveTranscript) {
+      toast({
+        title: 'Keep recording a bit longer',
+        description: 'Please speak for at least 2 seconds before ending the session.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const blobPromise = stopRecording();
     await stopTranscription();
     const blob = await blobPromise;
@@ -68,7 +78,7 @@ export default function ContextPanel() {
         });
 
         if (error) throw error;
-        
+
         // Check for API-level errors in response body
         if (data?.error) {
           console.warn('Fallback transcription API error:', data.error);
@@ -86,6 +96,8 @@ export default function ContextPanel() {
         const msg = error?.message || '';
         if (msg.includes('quota') || msg.includes('401')) {
           toast({ title: 'Transcription quota exceeded', description: 'ElevenLabs credits exhausted. Please check your plan.', variant: 'destructive' });
+        } else {
+          toast({ title: 'Transcription failed', description: msg || 'Could not transcribe this recording.', variant: 'destructive' });
         }
       }
     }
