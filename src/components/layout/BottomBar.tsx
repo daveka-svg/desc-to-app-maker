@@ -1,14 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { Info, Send, Loader2 } from 'lucide-react';
 import { useAskETV } from '@/hooks/useAskETV';
+import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useSessionStore } from '@/stores/useSessionStore';
+import { useToast } from '@/hooks/use-toast';
 
 export default function BottomBar() {
   const [input, setInput] = useState('');
   const { sendMessage, isChatStreaming } = useAskETV();
+  const { generateNote, isGeneratingNotes } = useNoteGeneration();
   const chatMessages = useSessionStore((s) => s.chatMessages);
   const activeTab = useSessionStore((s) => s.activeTab);
+  const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const [showChat, setShowChat] = useState(false);
+  const { toast } = useToast();
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,8 +29,13 @@ export default function BottomBar() {
   };
 
   const handleQuickAction = async (action: string) => {
-    setShowChat(true);
-    await sendMessage(`Create a ${action} using the current consultation context. Return the full final text ready to copy.`);
+    setSelectedTemplate(action);
+    try {
+      await generateNote(action);
+      toast({ title: `${action} generated`, description: 'Summary is ready in the Notes tab.' });
+    } catch (err: any) {
+      toast({ title: 'Generation failed', description: err?.message || 'Could not generate summary.', variant: 'destructive' });
+    }
   };
 
   return (
@@ -54,7 +64,7 @@ export default function BottomBar() {
             <button
               key={c.action}
               onClick={() => handleQuickAction(c.action)}
-              disabled={isChatStreaming}
+               disabled={isChatStreaming || isGeneratingNotes}
               className="px-3 py-1.5 text-[12px] font-medium bg-sand border border-border rounded-md cursor-pointer text-text-secondary hover:bg-sand-dark hover:text-bark hover:border-bark-muted transition-all duration-100 disabled:opacity-50 flex items-center gap-1.5"
             >
               <span>{c.icon}</span> {c.label}

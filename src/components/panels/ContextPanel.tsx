@@ -28,7 +28,11 @@ export default function ContextPanel() {
     await startRecording();
     setIsRecording(true);
     if (isSupported) {
-      startTranscription();
+      try {
+        await startTranscription();
+      } catch {
+        toast({ title: 'Transcription unavailable', description: 'Microphone recording started, but live transcription could not start.', variant: 'destructive' });
+      }
     }
   };
 
