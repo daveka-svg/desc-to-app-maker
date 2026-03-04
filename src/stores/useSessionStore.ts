@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 
-export type TabId = 'context' | 'transcript' | 'notes' | 'client' | 'tasks';
+export type TabId = 'context' | 'transcript' | 'notes' | 'tasks';
 export type EncounterStatus = 'idle' | 'recording' | 'processing' | 'reviewing';
 
 export interface PEData {
@@ -135,7 +135,7 @@ interface SessionStore {
 
 const defaultPE: PEData = {
   vitals: { temp: '', hr: '', rr: '', weight: '' },
-  mentation: '', demeanour: '', bcs: 5,
+  mentation: '', demeanour: '', bcs: 0,
   eyes: '', eyesDetail: '',
   ears: '', earsDetail: '',
   nose: '', noseDetail: '',

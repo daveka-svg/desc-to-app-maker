@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Mic, Info, Send, Loader2 } from 'lucide-react';
+import { Info, Send, Loader2 } from 'lucide-react';
 import { useAskETV } from '@/hooks/useAskETV';
 import { useSessionStore } from '@/stores/useSessionStore';
 
@@ -52,7 +52,6 @@ export default function BottomBar() {
         {[
           { label: 'Referral Letter', icon: '📄', action: 'Referral Letter' },
           { label: 'Discharge Summary', icon: '📋', action: 'Discharge Summary' },
-          { label: 'Client Instructions', icon: '📝', action: 'Client Instructions' },
         ].map((c) => (
           <button
             key={c.action}

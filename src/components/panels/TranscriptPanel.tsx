@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { useSessionStore } from '@/stores/useSessionStore';
-import { Mic, Pen, Copy, Check } from 'lucide-react';
+import { Mic, Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function TranscriptPanel() {
   const transcript = useSessionStore((s) => s.transcript);
-  const setTranscript = useSessionStore((s) => s.setTranscript);
   const isRecording = useSessionStore((s) => s.isRecording);
-  const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
@@ -36,9 +34,6 @@ export default function TranscriptPanel() {
               Listening...
             </span>
           )}
-          {editing && (
-            <span className="flex items-center gap-1 text-[11px] text-forest font-semibold"><Pen size={12} /> Editing</span>
-          )}
           {wordCount > 0 && (
             <span className="text-[11px] text-text-muted">{wordCount} words</span>
           )}
@@ -54,7 +49,7 @@ export default function TranscriptPanel() {
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content - Read only */}
       <div className="flex-1 overflow-y-auto p-6">
         {!transcript && !isRecording ? (
           <div className="max-w-[720px] text-sm text-text-muted py-12 text-center mx-auto">
@@ -62,22 +57,38 @@ export default function TranscriptPanel() {
               <Mic size={20} className="text-text-muted" />
             </div>
             <p className="mb-2 font-medium">No transcript yet.</p>
-            <p>Start recording from the <strong className="text-bark">Context</strong> tab to capture speech in real-time, or paste a transcript below to get started.</p>
+            <p>Start recording from the <strong className="text-bark">Context</strong> tab to capture speech in real-time.</p>
           </div>
         ) : null}
 
-        {/* Editable transcript area */}
-        <textarea
-          className="w-full max-w-[720px] min-h-[200px] text-sm leading-[1.85] text-text-primary bg-transparent outline-none resize-none rounded-md p-2 transition-colors duration-150 hover:bg-bark/[0.02] focus:bg-card focus:shadow-[0_0_0_2px_hsl(var(--sand-deeper))]"
-          placeholder={isRecording ? 'Transcript will appear here as you speak...' : 'Paste or type transcript here...'}
-          value={transcript}
-          onChange={(e) => setTranscript(e.target.value)}
-          onFocus={() => setEditing(true)}
-          onBlur={() => setEditing(false)}
-          spellCheck
-        />
+        {/* Read-only transcript display */}
+        {transcript && (
+          <div className="w-full max-w-[720px] text-sm leading-[1.85] text-text-primary whitespace-pre-wrap">
+            {transcript.split('\n\n').map((segment, i) => {
+              const isSpeaker1 = segment.startsWith('**Speaker 1:**');
+              const isSpeaker2 = segment.startsWith('**Speaker 2:**');
+              const speakerLabel = isSpeaker1 ? 'Speaker 1' : isSpeaker2 ? 'Speaker 2' : null;
+              const text = speakerLabel ? segment.replace(/^\*\*Speaker \d:\*\*\s*/, '') : segment;
 
-        {/* Recording indicator at the bottom of transcript */}
+              return (
+                <div key={i} className="mb-4">
+                  {speakerLabel && (
+                    <span className={`text-xs font-bold mr-2 px-2 py-0.5 rounded-full ${
+                      isSpeaker1
+                        ? 'bg-[#e8f0e5] text-forest'
+                        : 'bg-[#e5ecf5] text-[#3565a0]'
+                    }`}>
+                      {speakerLabel}
+                    </span>
+                  )}
+                  <span>{text}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Recording indicator */}
         {isRecording && (
           <div className="flex items-center gap-1.5 text-xs font-semibold text-forest mt-2 max-w-[720px]">
             <span className="w-1.5 h-1.5 bg-forest rounded-full animate-pulse-dot" />

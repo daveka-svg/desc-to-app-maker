@@ -4,7 +4,7 @@ import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useTaskExtraction } from '@/hooks/useTaskExtraction';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { compilePEReport } from '@/lib/prompts';
-import { Mic, ChevronDown, Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy } from 'lucide-react';
+import { Mic, Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function NotesPanel() {
@@ -26,7 +26,6 @@ export default function NotesPanel() {
   const noteRef = useRef<HTMLDivElement>(null);
   const { canUndo, canRedo, undo, redo, pushState } = useUndoRedo();
 
-  // Push initial notes to undo stack on mount
   useEffect(() => {
     if (notes) pushState(notes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,29 +65,18 @@ export default function NotesPanel() {
 
   const handleUndo = useCallback(() => {
     const prev = undo();
-    if (prev !== undefined) {
-      setNotes(prev);
-    }
+    if (prev !== undefined) setNotes(prev);
   }, [undo, setNotes]);
 
   const handleRedo = useCallback(() => {
     const next = redo();
-    if (next !== undefined) {
-      setNotes(next);
-    }
+    if (next !== undefined) setNotes(next);
   }, [redo, setNotes]);
 
-  // Keyboard shortcuts for undo/redo
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        handleUndo();
-      }
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-        e.preventDefault();
-        handleRedo();
-      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleRedo(); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -99,21 +87,15 @@ export default function NotesPanel() {
       {/* Toolbar */}
       <div className="flex items-center justify-between px-5 py-2.5 bg-card border-b border-border-light shrink-0">
         <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-sand border border-border rounded-md text-[13px] font-semibold text-bark cursor-pointer hover:bg-sand-dark">
+          <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-sand border border-border rounded-md text-[13px] font-semibold text-bark">
             <span className="w-4 h-4 bg-forest rounded-[3px] flex items-center justify-center">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /></svg>
             </span>
             {selectedTemplate}
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 12l2 2 4-4" /></svg>
           </div>
-          <button className="flex items-center gap-[5px] px-3 py-1.5 bg-card border border-border rounded-md text-[13px] font-medium text-text-secondary cursor-pointer hover:bg-sand hover:text-bark">
-            <Pen size={13} /> Brief
-          </button>
-          <button className="w-8 h-8 flex items-center justify-center border border-border rounded-md cursor-pointer text-text-muted bg-card hover:bg-sand text-base">···</button>
         </div>
         <div className="flex items-center gap-1">
           <ToolBtn title="Dictate — switch to Context" onClick={() => setActiveTab('context')}><Mic size={16} /></ToolBtn>
-          <ToolBtn title="Audio"><ChevronDown size={16} /></ToolBtn>
           <div className="w-px h-5 bg-border mx-1" />
           <ToolBtn title="Undo (Ctrl+Z)" onClick={handleUndo} disabled={!canUndo}><Undo2 size={16} /></ToolBtn>
           <ToolBtn title="Redo (Ctrl+Y)" onClick={handleRedo} disabled={!canRedo}><Redo2 size={16} /></ToolBtn>
@@ -148,7 +130,7 @@ export default function NotesPanel() {
         {!notes && !isGeneratingNotes ? (
           <div className="max-w-[720px] text-sm text-text-muted py-12 text-center">
             <p className="mb-2">No notes yet.</p>
-            <p>Record a consultation or add a transcript, then click <strong className="text-forest">"Create"</strong> to generate clinical notes with AI.</p>
+            <p>Record a consultation or add a transcript, then click <strong className="text-forest">"Generate Summary"</strong> to generate clinical notes with AI.</p>
           </div>
         ) : (
           <div

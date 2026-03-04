@@ -76,7 +76,7 @@ const updateWaveform = () => {
   const step = Math.max(1, Math.floor(data.length / bars));
   const waveform = Array.from({ length: bars }, (_, i) => {
     const value = data[i * step] ?? 128;
-    return Math.max(4, Math.abs(value - 128) * 0.5);
+    return Math.max(4, Math.abs(value - 128) * 1.5);
   });
 
   setAudioState({ waveformData: waveform });

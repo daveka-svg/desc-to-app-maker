@@ -3,7 +3,6 @@ import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useTranscription } from '@/hooks/useTranscription';
 import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useTaskExtraction } from '@/hooks/useTaskExtraction';
-import { useClientInstructions } from '@/hooks/useClientInstructions';
 import { useToast } from '@/hooks/use-toast';
 import PEForm from '@/components/pe-form/PEForm';
 
@@ -20,16 +19,14 @@ export default function ContextPanel() {
   const saveCurrentSession = useSessionStore((s) => s.saveCurrentSession);
   const setActiveTab = useSessionStore((s) => s.setActiveTab);
   const { isRecording, isPaused, timerSeconds, waveformData, startRecording, pauseRecording, resumeRecording, stopRecording } = useAudioRecorder();
-  const { isTranscribing, interimText, isSupported, startTranscription, stopTranscription, pauseTranscription, resumeTranscription } = useTranscription();
+  const { isSupported, startTranscription, stopTranscription, pauseTranscription, resumeTranscription } = useTranscription();
   const { generateNote, isGeneratingNotes } = useNoteGeneration();
   const { extractTasks } = useTaskExtraction();
-  const { generateInstructions } = useClientInstructions();
   const { toast } = useToast();
 
   const handleStart = async () => {
     await startRecording();
     setIsRecording(true);
-    // Start real-time transcription alongside audio recording
     if (isSupported) {
       startTranscription('en-GB');
     }
@@ -53,7 +50,6 @@ export default function ContextPanel() {
       console.log('Recording stopped. Audio blob size:', blob.size);
     }
 
-    // Auto-trigger the full pipeline: notes → tasks → client instructions → save
     const transcript = useSessionStore.getState().transcript;
     if (!transcript.trim()) {
       toast({ title: 'No transcript', description: 'No speech was detected during recording.', variant: 'destructive' });
@@ -67,12 +63,9 @@ export default function ContextPanel() {
       toast({ title: 'Notes generated', description: 'Extracting tasks...' });
 
       try { await extractTasks(); } catch { /* non-critical */ }
-      try { await generateInstructions(); } catch { /* non-critical */ }
 
       await saveCurrentSession();
-      toast({ title: 'Session saved', description: 'Notes, tasks, and instructions saved.' });
-
-      // Dispatch custom event so sidebar can refresh
+      toast({ title: 'Session saved', description: 'Notes and tasks saved.' });
       window.dispatchEvent(new Event('session-saved'));
     } catch (err: any) {
       toast({ title: 'Generation failed', description: err.message || 'Could not generate notes.', variant: 'destructive' });
@@ -91,17 +84,6 @@ export default function ContextPanel() {
       <div className="bg-card rounded-lg p-[18px] mb-3.5 border border-border-light">
         <div className="flex items-center justify-between mb-2.5">
           <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted">Recording</div>
-          {isTranscribing && (
-            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-forest">
-              <span className="w-1.5 h-1.5 bg-forest rounded-full animate-pulse-dot" />
-              Live transcription
-            </span>
-          )}
-          {!isSupported && isRecording && (
-            <span className="text-[10px] font-medium text-warning">
-              Speech-to-text not supported in this browser
-            </span>
-          )}
         </div>
         <div className="flex flex-col items-center gap-3">
           <div className="font-mono text-[32px] font-semibold text-bark tracking-wide flex items-center gap-2.5">
@@ -110,22 +92,16 @@ export default function ContextPanel() {
             {!isRecording && <span className="w-[9px] h-[9px] rounded-full bg-text-muted" />}
             {formatTime(timerSeconds)}
           </div>
-          {/* Waveform */}
-          <div className="flex items-center justify-center gap-[1.5px] h-7 w-full max-w-[360px]">
+          {/* Waveform - taller, more prominent */}
+          <div className="flex items-center justify-center gap-[2px] h-16 w-full max-w-[360px]">
             {waveformData.map((h, i) => (
               <div
                 key={i}
-                className={`w-[2.5px] rounded-sm transition-all duration-75 ${isRecording && !isPaused ? 'bg-etv-olive opacity-70' : 'bg-text-muted opacity-20'}`}
-                style={{ height: `${Math.min(h, 28)}px` }}
+                className={`w-[3px] rounded-sm transition-all duration-75 ${isRecording && !isPaused ? 'bg-forest opacity-80' : 'bg-text-muted opacity-20'}`}
+                style={{ height: `${Math.min(h, 56)}px` }}
               />
             ))}
           </div>
-          {/* Interim text preview */}
-          {interimText && (
-            <div className="w-full max-w-[360px] text-xs text-text-muted italic text-center truncate px-2">
-              "{interimText}"
-            </div>
-          )}
           <div className="flex gap-2.5">
             {!isRecording ? (
               <button
