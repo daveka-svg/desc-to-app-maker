@@ -1,5 +1,5 @@
 import { useRef, useCallback, useState } from 'react';
-import { useScribe } from '@elevenlabs/react';
+import { useScribe, CommitStrategy } from '@elevenlabs/react';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,14 +14,18 @@ export function useTranscription() {
 
   const pickText = (data: any): string => {
     if (!data) return '';
+    if (typeof data === 'string') return data;
     if (typeof data.text === 'string') return data.text;
     if (typeof data.transcript === 'string') return data.transcript;
+    if (typeof data.partial_transcript === 'string') return data.partial_transcript;
     if (typeof data.content === 'string') return data.content;
+    if (typeof data?.transcript?.text === 'string') return data.transcript.text;
     return '';
   };
 
   const scribe = useScribe({
     modelId: 'scribe_v2_realtime',
+    commitStrategy: CommitStrategy.VAD,
     onPartialTranscript: (data: unknown) => {
       const text = pickText(data).trim();
       setInterimText(text);
