@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pen, ClipboardList, Book, Settings, LogOut } from 'lucide-react';
+import { Plus, Pen, ClipboardList, Book, Settings, LogOut, Save, Loader2 } from 'lucide-react';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import AllTasksPanel from '@/components/panels/AllTasksPanel';
+import { TEMPLATES } from '@/lib/prompts';
+import { useToast } from '@/hooks/use-toast';
 
-const templateOptions = ['General Consult', 'Surgical Notes', 'Emergency', 'Vaccination', 'Dental', 'Post-op Check', 'Discharge Summary', 'Referral Letter', 'Follow-up Update'];
+const templateOptions = Object.keys(TEMPLATES);
 
 interface DBSession {
   id: string;
@@ -31,16 +33,22 @@ export default function Sidebar() {
   const setTranscript = useSessionStore((s) => s.setTranscript);
   const setTasks = useSessionStore((s) => s.setTasks);
   const setPatientName = useSessionStore((s) => s.setPatientName);
+  const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
 
   const [sessions, setSessions] = useState<DBSession[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [tasksSheetOpen, setTasksSheetOpen] = useState(false);
   const [templatesSheetOpen, setTemplatesSheetOpen] = useState(false);
+  const [templateDrafts, setTemplateDrafts] = useState<Record<string, string>>({ ...TEMPLATES });
+  const [activeTemplateEditor, setActiveTemplateEditor] = useState(selectedTemplate || 'General Consult');
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchSessions();
     fetchProfile();
+    fetchTemplatePrompts();
 
     const handleRefresh = () => fetchSessions();
     window.addEventListener('session-saved', handleRefresh);
@@ -65,6 +73,77 @@ export default function Sidebar() {
       .eq('user_id', user.id)
       .single();
     if (data) setProfile(data);
+  };
+
+  const fetchTemplatePrompts = async () => {
+    const defaults = { ...TEMPLATES };
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData.user?.id;
+
+    if (!userId) {
+      setTemplateDrafts(defaults);
+      return;
+    }
+
+    const { data } = await supabase
+      .from('note_templates')
+      .select('name, system_prompt')
+      .eq('user_id', userId);
+
+    const merged = { ...defaults };
+    for (const row of data || []) {
+      if (row.name && row.system_prompt) {
+        merged[row.name] = row.system_prompt;
+      }
+    }
+    setTemplateDrafts(merged);
+  };
+
+  const saveTemplatePrompt = async () => {
+    const prompt = (templateDrafts[activeTemplateEditor] || '').trim();
+    if (!prompt) {
+      toast({ title: 'Template is empty', description: 'Please enter a prompt before saving.', variant: 'destructive' });
+      return;
+    }
+
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData.user?.id;
+    if (!userId) return;
+
+    setIsSavingTemplate(true);
+    try {
+      const { data: existing } = await supabase
+        .from('note_templates')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('name', activeTemplateEditor)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        await supabase
+          .from('note_templates')
+          .update({ system_prompt: prompt })
+          .eq('id', existing[0].id);
+      } else {
+        await supabase
+          .from('note_templates')
+          .insert({
+            user_id: userId,
+            name: activeTemplateEditor,
+            system_prompt: prompt,
+            is_default: false,
+          });
+      }
+
+      setSelectedTemplate(activeTemplateEditor);
+      toast({ title: 'Template saved', description: `${activeTemplateEditor} prompt updated.` });
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Save failed', description: 'Could not save template prompt.', variant: 'destructive' });
+    } finally {
+      setIsSavingTemplate(false);
+    }
   };
 
   const loadDBSession = async (sessionId: string) => {
@@ -170,6 +249,7 @@ export default function Sidebar() {
             <div className="text-[10px] font-bold uppercase tracking-[0.8px] text-text-muted px-2.5 pt-3 pb-1">Library</div>
             <button
               onClick={() => {
+                setActiveTemplateEditor(selectedTemplate || 'General Consult');
                 setTemplatesSheetOpen(true);
               }}
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand transition-all duration-100"
@@ -193,7 +273,6 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* Tasks Sheet - opens with all tasks from all consultations */}
       <Sheet open={tasksSheetOpen} onOpenChange={setTasksSheetOpen}>
         <SheetContent side="left" className="w-[480px] sm:w-[540px] p-0">
           <SheetHeader className="px-5 py-4 border-b border-border-light">
@@ -204,28 +283,50 @@ export default function Sidebar() {
           </div>
         </SheetContent>
       </Sheet>
+
       <Sheet open={templatesSheetOpen} onOpenChange={setTemplatesSheetOpen}>
-        <SheetContent side="left" className="w-[420px] sm:w-[460px] p-0">
+        <SheetContent side="left" className="w-[92vw] max-w-[920px] p-0">
           <SheetHeader className="px-5 py-4 border-b border-border-light">
             <SheetTitle className="text-[15px] font-bold text-bark">Templates</SheetTitle>
           </SheetHeader>
-          <div className="p-4 space-y-2">
-            {templateOptions.map((template) => (
-              <button
-                key={template}
-                onClick={() => {
-                  setSelectedTemplate(template);
-                  setActiveTab('context');
-                  setTemplatesSheetOpen(false);
-                }}
-                className="w-full text-left px-3 py-2 rounded-md border border-border bg-card hover:bg-sand text-[13px] text-text-primary transition-colors"
-              >
-                {template}
-              </button>
-            ))}
+          <div className="grid grid-cols-[240px_1fr] h-[calc(100vh-64px)]">
+            <div className="border-r border-border-light p-3 space-y-1 overflow-y-auto">
+              {templateOptions.map((template) => (
+                <button
+                  key={template}
+                  onClick={() => {
+                    setActiveTemplateEditor(template);
+                    setSelectedTemplate(template);
+                    setActiveTab('notes');
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-md border text-[13px] transition-colors ${activeTemplateEditor === template ? 'bg-sand-dark border-bark-muted text-bark' : 'bg-card border-border hover:bg-sand text-text-primary'}`}
+                >
+                  {template}
+                </button>
+              ))}
+            </div>
+            <div className="p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="text-[13px] font-semibold text-bark">{activeTemplateEditor}</div>
+                <button
+                  onClick={saveTemplatePrompt}
+                  disabled={isSavingTemplate}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-forest text-primary-foreground disabled:opacity-50"
+                >
+                  {isSavingTemplate ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save template
+                </button>
+              </div>
+              <textarea
+                value={templateDrafts[activeTemplateEditor] || ''}
+                onChange={(e) => setTemplateDrafts((prev) => ({ ...prev, [activeTemplateEditor]: e.target.value }))}
+                className="flex-1 w-full border border-border rounded-md bg-card text-text-primary text-[13px] leading-relaxed p-3 outline-none focus:border-bark-muted"
+                placeholder="Write the full template prompt used for summary generation..."
+              />
+            </div>
           </div>
         </SheetContent>
       </Sheet>
     </>
   );
 }
+

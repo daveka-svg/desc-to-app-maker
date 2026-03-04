@@ -35,7 +35,7 @@ Keep the language concise and professional. Use standard veterinary abbreviation
           { role: "system", content: systemPrompt },
           { role: "user", content: `Generate clinical notes from the following consultation transcript:${peContext}\n\nTranscript:\n${transcript}` },
         ],
-        stream: true,
+        stream: false,
       }),
     });
 
@@ -60,8 +60,11 @@ Keep the language concise and professional. Use standard veterinary abbreviation
       });
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content || "";
+
+    return new Response(JSON.stringify({ content }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("generate-notes error:", e);

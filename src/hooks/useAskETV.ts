@@ -2,29 +2,7 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ASK_ETV_SYSTEM, compilePEReport } from '@/lib/prompts';
 import { useSessionStore } from '@/stores/useSessionStore';
-
-async function parseSSEText(raw: unknown): Promise<string> {
-  const text = typeof raw === 'string'
-    ? raw
-    : raw instanceof Blob
-      ? await raw.text()
-      : JSON.stringify(raw);
-
-  let content = '';
-  for (const line of text.split('\n')) {
-    if (!line.startsWith('data: ')) continue;
-    const jsonStr = line.slice(6).trim();
-    if (jsonStr === '[DONE]') continue;
-    try {
-      const parsed = JSON.parse(jsonStr);
-      const chunk = parsed.choices?.[0]?.delta?.content;
-      if (chunk) content += chunk;
-    } catch {
-      // noop
-    }
-  }
-  return content || text;
-}
+import { extractLlmText } from '@/lib/llm';
 
 export function useAskETV() {
   const transcript = useSessionStore((s) => s.transcript);
@@ -61,7 +39,7 @@ export function useAskETV() {
 
       if (error) throw new Error(error.message);
 
-      const responseText = (await parseSSEText(data)).trim();
+      const responseText = (await extractLlmText(data)).trim();
       updateLastAssistantMessage(responseText || 'No response generated.');
     } catch (err) {
       console.error('Ask ETV error:', err);

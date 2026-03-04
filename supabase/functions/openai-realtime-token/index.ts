@@ -11,38 +11,34 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-  if (!OPENAI_API_KEY) {
+  const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
+  if (!ELEVENLABS_API_KEY) {
     return new Response(
-      JSON.stringify({ error: "OPENAI_API_KEY not configured" }),
+      JSON.stringify({ error: "ELEVENLABS_API_KEY not configured" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
   try {
-    // Create an ephemeral token for OpenAI Realtime transcription
-    const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
+    const response = await fetch("https://api.elevenlabs.io/v1/single-use-token/realtime_scribe", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
+        "xi-api-key": ELEVENLABS_API_KEY,
       },
-      body: JSON.stringify({
-        model: "gpt-4o-transcribe",
-      }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`OpenAI API error [${response.status}]: ${errorText}`);
+      throw new Error(`ElevenLabs API error [${response.status}]: ${errorText}`);
     }
 
     const data = await response.json();
-    const token = data.client_secret?.value;
+    const token = data.token;
 
     if (!token) {
-      throw new Error("No ephemeral token returned from OpenAI");
+      throw new Error("No token returned from ElevenLabs");
     }
+
 
     return new Response(JSON.stringify({ token }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

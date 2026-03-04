@@ -16,7 +16,7 @@ export default function NotesPanel() {
   const tasks = useSessionStore((s) => s.tasks);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
-  const setActiveTab = useSessionStore((s) => s.setActiveTab);
+  
   const toggleTasks = useSessionStore((s) => s.toggleTasks);
   const { generateNote, isGeneratingNotes } = useNoteGeneration();
   const { extractTasks } = useTaskExtraction();
@@ -95,7 +95,7 @@ export default function NotesPanel() {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <ToolBtn title="Dictate — switch to Context" onClick={() => setActiveTab('context')}><Mic size={16} /></ToolBtn>
+          <ToolBtn title="Dictate" disabled><Mic size={16} /></ToolBtn>
           <div className="w-px h-5 bg-border mx-1" />
           <ToolBtn title="Undo (Ctrl+Z)" onClick={handleUndo} disabled={!canUndo}><Undo2 size={16} /></ToolBtn>
           <ToolBtn title="Redo (Ctrl+Y)" onClick={handleRedo} disabled={!canRedo}><Redo2 size={16} /></ToolBtn>

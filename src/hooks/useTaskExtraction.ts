@@ -2,29 +2,7 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { TASK_EXTRACTION_PROMPT } from '@/lib/prompts';
 import { useSessionStore, type Task } from '@/stores/useSessionStore';
-
-async function parseSSEText(raw: unknown): Promise<string> {
-  const text = typeof raw === 'string'
-    ? raw
-    : raw instanceof Blob
-      ? await raw.text()
-      : JSON.stringify(raw);
-
-  let content = '';
-  for (const line of text.split('\n')) {
-    if (!line.startsWith('data: ')) continue;
-    const jsonStr = line.slice(6).trim();
-    if (jsonStr === '[DONE]') continue;
-    try {
-      const parsed = JSON.parse(jsonStr);
-      const chunk = parsed.choices?.[0]?.delta?.content;
-      if (chunk) content += chunk;
-    } catch {
-      // noop
-    }
-  }
-  return content || text;
-}
+import { extractLlmText } from '@/lib/llm';
 
 export function useTaskExtraction() {
   const notes = useSessionStore((s) => s.notes);
@@ -45,7 +23,7 @@ export function useTaskExtraction() {
       });
       if (error) throw new Error(error.message);
 
-      let jsonStr = (await parseSSEText(data)).trim();
+      let jsonStr = (await extractLlmText(data)).trim();
       if (jsonStr.startsWith('```')) {
         jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
       }
