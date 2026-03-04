@@ -5,6 +5,44 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const parseQuotaExceeded = (raw: string): boolean => {
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed?.detail?.status === "quota_exceeded";
+  } catch {
+    return raw.includes("quota_exceeded");
+  }
+};
+
+const transcribeWithOpenAI = async (audio: File) => {
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+  if (!OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY not configured for fallback transcription");
+  }
+
+  const form = new FormData();
+  form.append("file", audio, audio.name || "consultation.webm");
+  form.append("model", "gpt-4o-mini-transcribe");
+  form.append("response_format", "json");
+
+  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: form,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI STT fallback error [${response.status}]: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = typeof data?.text === "string" ? data.text : "";
+  return { text, words: [] as unknown[], provider: "openai" };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -45,6 +83,14 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      if (response.status === 401 && parseQuotaExceeded(errorText)) {
+        console.warn("ElevenLabs quota exceeded, using OpenAI fallback transcription");
+        const fallback = await transcribeWithOpenAI(audio);
+        return new Response(JSON.stringify(fallback), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       return new Response(JSON.stringify({ error: `ElevenLabs STT error [${response.status}]: ${errorText}` }), {
         status: response.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -54,7 +100,7 @@ serve(async (req) => {
     const data = await response.json();
     const text = typeof data?.text === "string" ? data.text : "";
 
-    return new Response(JSON.stringify({ text, words: data?.words ?? [] }), {
+    return new Response(JSON.stringify({ text, words: data?.words ?? [], provider: "elevenlabs" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
