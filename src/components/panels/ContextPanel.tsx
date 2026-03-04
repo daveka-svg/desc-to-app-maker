@@ -4,6 +4,7 @@ import { useTranscription } from '@/hooks/useTranscription';
 import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useTaskExtraction } from '@/hooks/useTaskExtraction';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import PEForm from '@/components/pe-form/PEForm';
 
 const templates = ['General Consult', 'Surgical Notes', 'Emergency', 'Vaccination', 'Dental', 'Post-op Check', 'Discharge Summary', 'Referral Letter', 'Follow-up Update'];
@@ -18,6 +19,8 @@ export default function ContextPanel() {
   const setIsRecording = useSessionStore((s) => s.setIsRecording);
   const saveCurrentSession = useSessionStore((s) => s.saveCurrentSession);
   const setActiveTab = useSessionStore((s) => s.setActiveTab);
+  const setTranscript = useSessionStore((s) => s.setTranscript);
+  const setInterimTranscript = useSessionStore((s) => s.setInterimTranscript);
   const { isRecording, isPaused, timerSeconds, waveformData, startRecording, pauseRecording, resumeRecording, stopRecording } = useAudioRecorder();
   const { isSupported, startTranscription, stopTranscription, pauseTranscription, resumeTranscription } = useTranscription();
   const { generateNote, isGeneratingNotes } = useNoteGeneration();
@@ -51,12 +54,33 @@ export default function ContextPanel() {
     await stopTranscription();
     const blob = await blobPromise;
     setIsRecording(false);
-    if (blob) {
-      console.log('Recording stopped. Audio blob size:', blob.size);
+
+    let transcript = useSessionStore.getState().transcript.trim();
+
+    if (!transcript && blob) {
+      try {
+        toast({ title: 'Finalizing transcript', description: 'No live text detected, transcribing recorded audio now.' });
+        const formData = new FormData();
+        formData.append('audio', blob, 'consultation.webm');
+
+        const { data, error } = await supabase.functions.invoke('elevenlabs-transcribe', {
+          body: formData,
+        });
+
+        if (error) throw error;
+
+        const text = typeof data?.text === 'string' ? data.text.trim() : '';
+        if (text) {
+          setTranscript(`**Speaker 1:** ${text}`);
+          setInterimTranscript('');
+          transcript = text;
+        }
+      } catch (error) {
+        console.error('Fallback transcription failed:', error);
+      }
     }
 
-    const transcript = useSessionStore.getState().transcript;
-    if (!transcript.trim()) {
+    if (!transcript) {
       toast({ title: 'No transcript', description: 'No speech was detected during recording.', variant: 'destructive' });
       return;
     }
