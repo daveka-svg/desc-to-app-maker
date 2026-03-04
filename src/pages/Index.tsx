@@ -5,7 +5,6 @@ import CenterTabs from '@/components/layout/CenterTabs';
 import ContextPanel from '@/components/panels/ContextPanel';
 import TranscriptPanel from '@/components/panels/TranscriptPanel';
 import NotesPanel from '@/components/panels/NotesPanel';
-import ClientInstructionsPanel from '@/components/panels/ClientInstructionsPanel';
 import AllTasksPanel from '@/components/panels/AllTasksPanel';
 import { useSessionStore } from '@/stores/useSessionStore';
 
@@ -23,7 +22,6 @@ const Index = () => {
             {activeTab === 'context' && <ContextPanel />}
             {activeTab === 'transcript' && <TranscriptPanel />}
             {activeTab === 'notes' && <NotesPanel />}
-            {activeTab === 'client' && <ClientInstructionsPanel />}
             {activeTab === 'tasks' && <AllTasksPanel />}
           </div>
         </div>

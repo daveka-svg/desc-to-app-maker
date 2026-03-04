@@ -30,7 +30,7 @@ Keep the language concise and professional. Use standard veterinary abbreviation
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "openai/gpt-5",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Generate clinical notes from the following consultation transcript:${peContext}\n\nTranscript:\n${transcript}` },

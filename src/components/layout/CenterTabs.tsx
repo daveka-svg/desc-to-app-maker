@@ -1,18 +1,15 @@
 import { useSessionStore, type TabId } from '@/stores/useSessionStore';
-import { LayoutGrid, Activity, Pen, FileText, ClipboardList } from 'lucide-react';
-
-const templates = ['General Consult', 'Surgical Notes', 'Emergency', 'Vaccination', 'Dental', 'Post-op Check'];
+import { LayoutGrid, Activity, Pen, ClipboardList } from 'lucide-react';
 
 const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'context', label: 'Context', icon: <LayoutGrid size={15} /> },
   { id: 'transcript', label: 'Transcript', icon: <Activity size={15} /> },
   { id: 'notes', label: 'Notes', icon: <Pen size={15} /> },
-  { id: 'client', label: 'Client Instructions', icon: <FileText size={15} /> },
   { id: 'tasks', label: 'Tasks', icon: <ClipboardList size={15} /> },
 ];
 
 export default function CenterTabs() {
-  const { activeTab, setActiveTab, selectedTemplate, setSelectedTemplate } = useSessionStore();
+  const { activeTab, setActiveTab, selectedTemplate } = useSessionStore();
 
   return (
     <div className="flex items-center gap-0 px-5 bg-card border-b border-border">
@@ -34,17 +31,9 @@ export default function CenterTabs() {
         );
       })}
 
-      {/* Template selector - separate from tabs */}
+      {/* Template indicator */}
       <div className="ml-auto flex items-center gap-1.5 px-2 py-[11px]">
-        <select
-          className="appearance-none bg-sand border border-border rounded-md px-3 py-1 text-[12px] font-medium text-text-secondary cursor-pointer outline-none hover:bg-sand-dark focus:border-bark-muted"
-          value={selectedTemplate}
-          onChange={(e) => setSelectedTemplate(e.target.value)}
-        >
-          {templates.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
+        <span className="text-[12px] font-medium text-text-muted">{selectedTemplate}</span>
       </div>
     </div>
   );
