@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import { useScribe, CommitStrategy } from '@elevenlabs/react';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,6 +35,14 @@ export function useTranscription() {
   const usingBrowserFallbackRef = useRef(false);
   const browserShouldRestartRef = useRef(false);
 
+  // Keep stable refs for callbacks used inside useScribe config
+  const appendTranscriptRef = useRef(appendTranscript);
+  const setInterimTranscriptRef = useRef(setInterimTranscript);
+  useEffect(() => {
+    appendTranscriptRef.current = appendTranscript;
+    setInterimTranscriptRef.current = setInterimTranscript;
+  }, [appendTranscript, setInterimTranscript]);
+
   const pickText = (data: any): string => {
     if (!data) return '';
     if (typeof data === 'string') return data;
@@ -46,69 +54,81 @@ export function useTranscription() {
     return '';
   };
 
-  const appendSpeakerSegment = useCallback((text: string) => {
+  const commitSegment = (text: string) => {
     if (!text.trim()) return;
     segmentCountRef.current += 1;
     const speaker = segmentCountRef.current % 2 === 1 ? 'Speaker 1' : 'Speaker 2';
     const existing = useSessionStore.getState().transcript;
     const prefix = existing ? '\n\n' : '';
-    appendTranscript(`${prefix}**${speaker}:** ${text.trim()}`);
+    appendTranscriptRef.current(`${prefix}**${speaker}:** ${text.trim()}`);
     setInterimText('');
-    setInterimTranscript('');
-  }, [appendTranscript, setInterimTranscript]);
+    setInterimTranscriptRef.current('');
+  };
 
-  const stopBrowserFallback = useCallback((clearInterim = true) => {
-    browserShouldRestartRef.current = false;
-    usingBrowserFallbackRef.current = false;
-    const recognition = browserRecognitionRef.current;
-    browserRecognitionRef.current = null;
-    try {
-      recognition?.stop();
-    } catch {
-      // no-op
-    }
-    if (clearInterim) {
-      setInterimText('');
-      setInterimTranscript('');
-    }
-  }, [setInterimTranscript]);
+  // useScribe MUST be called at a stable position in the hook list
+  const scribe = useScribe({
+    modelId: 'scribe_v2_realtime',
+    commitStrategy: CommitStrategy.VAD,
+    onConnect: () => {
+      console.log('[Scribe] Connected');
+      connectedRef.current = true;
+      // Stop browser fallback if scribe connects
+      browserShouldRestartRef.current = false;
+      usingBrowserFallbackRef.current = false;
+      try { browserRecognitionRef.current?.stop(); } catch {}
+      browserRecognitionRef.current = null;
+    },
+    onDisconnect: () => {
+      console.log('[Scribe] Disconnected');
+      connectedRef.current = false;
+    },
+    onSessionStarted: () => {
+      console.log('[Scribe] Session started');
+    },
+    onPartialTranscript: (data: unknown) => {
+      const text = pickText(data).trim();
+      setInterimText(text);
+      setInterimTranscriptRef.current(text);
+    },
+    onCommittedTranscript: (data: unknown) => {
+      commitSegment(pickText(data));
+    },
+    onCommittedTranscriptWithTimestamps: (data: unknown) => {
+      commitSegment(pickText(data));
+    },
+    onError: (err: unknown) => {
+      console.error('[Scribe] Error:', err);
+    },
+  });
 
   const startBrowserFallback = useCallback(() => {
-    const RecognitionCtor = getSpeechRecognitionCtor();
-    if (!RecognitionCtor || usingBrowserFallbackRef.current) return false;
-
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor || usingBrowserFallbackRef.current) return false;
     try {
-      const recognition = new RecognitionCtor();
+      const recognition = new Ctor();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       recognition.onresult = (event: any) => {
         let interim = '';
-        for (let i = event.resultIndex; i < event.results.length; i += 1) {
-          const result = event.results[i];
-          const text = (result?.[0]?.transcript || '').trim();
-          if (!text) continue;
-          if (result.isFinal) appendSpeakerSegment(text);
-          else interim += `${text} `;
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const r = event.results[i];
+          const t = (r?.[0]?.transcript || '').trim();
+          if (!t) continue;
+          if (r.isFinal) commitSegment(t);
+          else interim += `${t} `;
         }
-
-        const interimTextValue = interim.trim();
-        setInterimText(interimTextValue);
-        setInterimTranscript(interimTextValue);
+        const iv = interim.trim();
+        setInterimText(iv);
+        setInterimTranscriptRef.current(iv);
       };
 
-      recognition.onerror = (event: any) => {
-        console.warn('[BrowserSpeech] Error:', event?.error || event);
-      };
+      recognition.onerror = (e: any) => console.warn('[BrowserSpeech] Error:', e?.error || e);
 
       recognition.onend = () => {
         if (browserShouldRestartRef.current && usingBrowserFallbackRef.current) {
-          try {
-            recognition.start();
-          } catch {
-            // no-op
-          }
+          try { recognition.start(); } catch {}
         }
       };
 
@@ -119,77 +139,37 @@ export function useTranscription() {
       console.log('[Transcription] Browser speech fallback active');
       return true;
     } catch (err) {
-      console.error('[Transcription] Failed to start browser speech fallback:', err);
+      console.error('[Transcription] Browser fallback failed:', err);
       return false;
     }
-  }, [appendSpeakerSegment, setInterimTranscript]);
+  }, []);
 
-  const scribe = useScribe({
-    modelId: 'scribe_v2_realtime',
-    commitStrategy: CommitStrategy.VAD,
-    onConnect: () => {
-      console.log('[Scribe] Connected to ElevenLabs realtime');
-      connectedRef.current = true;
-      stopBrowserFallback(false);
-    },
-    onDisconnect: () => {
-      console.log('[Scribe] Disconnected from ElevenLabs realtime');
-      connectedRef.current = false;
-    },
-    onSessionStarted: () => {
-      console.log('[Scribe] Session started - listening for speech');
-    },
-    onPartialTranscript: (data: unknown) => {
-      const text = pickText(data).trim();
-      setInterimText(text);
-      setInterimTranscript(text);
-    },
-    onCommittedTranscript: (data: unknown) => {
-      const text = pickText(data).trim();
-      if (!text) return;
-      appendSpeakerSegment(text);
-    },
-    onCommittedTranscriptWithTimestamps: (data: unknown) => {
-      const text = pickText(data).trim();
-      if (!text) return;
-      appendSpeakerSegment(text);
-    },
-    onError: (err: unknown) => {
-      console.error('[Scribe] Error:', err);
-      if (!usingBrowserFallbackRef.current) {
-        startBrowserFallback();
-      }
-    },
-  });
+  const stopBrowserFallback = useCallback(() => {
+    browserShouldRestartRef.current = false;
+    usingBrowserFallbackRef.current = false;
+    try { browserRecognitionRef.current?.stop(); } catch {}
+    browserRecognitionRef.current = null;
+  }, []);
 
   const startTranscription = useCallback(async () => {
     if (!isSupported || scribe.isConnected || connectedRef.current || usingBrowserFallbackRef.current) return;
 
     try {
       const { data, error } = await supabase.functions.invoke('openai-realtime-token');
-      if (error || !data?.token) {
-        throw new Error(error?.message || 'Failed to get realtime token');
-      }
+      if (error || !data?.token) throw new Error(error?.message || 'No token');
 
       segmentCountRef.current = 0;
       setInterimText('');
-      setInterimTranscript('');
+      setInterimTranscriptRef.current('');
       await scribe.connect({
         token: data.token,
-        microphone: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
+        microphone: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
     } catch (err) {
-      console.warn('[Scribe] Realtime unavailable, switching to browser speech fallback:', err);
-      const started = startBrowserFallback();
-      if (!started) {
-        console.error('[Transcription] No realtime transcription provider available');
-      }
+      console.warn('[Scribe] Unavailable, using browser fallback:', err);
+      startBrowserFallback();
     }
-  }, [isSupported, scribe, setInterimTranscript, startBrowserFallback]);
+  }, [isSupported, scribe, startBrowserFallback]);
 
   const stopTranscription = useCallback(async () => {
     if (scribe.isConnected || connectedRef.current) {
@@ -197,20 +177,20 @@ export function useTranscription() {
       await wait(500);
       scribe.disconnect();
     }
-    stopBrowserFallback(true);
+    stopBrowserFallback();
     setInterimText('');
-    setInterimTranscript('');
-  }, [scribe, setInterimTranscript, stopBrowserFallback]);
+    setInterimTranscriptRef.current('');
+  }, [scribe, stopBrowserFallback]);
 
   const pauseTranscription = useCallback(() => {
     if (scribe.isConnected) {
       try { scribe.commit(); } catch {}
       scribe.disconnect();
     }
-    stopBrowserFallback(true);
+    stopBrowserFallback();
     setInterimText('');
-    setInterimTranscript('');
-  }, [scribe, setInterimTranscript, stopBrowserFallback]);
+    setInterimTranscriptRef.current('');
+  }, [scribe, stopBrowserFallback]);
 
   const resumeTranscription = useCallback(async () => {
     await wait(150);
@@ -227,4 +207,3 @@ export function useTranscription() {
     resumeTranscription,
   };
 }
-
