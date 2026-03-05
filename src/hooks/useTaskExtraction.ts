@@ -41,6 +41,7 @@ export function useTaskExtraction() {
             category: cat,
             assignee: (item.assignee || 'Vet') as Task['assignee'],
             done: false,
+            orderIndex: tasks.length + 1,
           });
         }
       }

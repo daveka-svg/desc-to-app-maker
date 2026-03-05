@@ -1,8 +1,25 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
+import { TEMPLATES } from '@/lib/prompts';
 
 export type TabId = 'context' | 'transcript' | 'notes' | 'tasks';
 export type EncounterStatus = 'idle' | 'recording' | 'processing' | 'reviewing';
+export type TranscriptionConnectionState = 'connected' | 'reconnecting' | 'disconnected';
+export type ProcessingStepStatus = 'pending' | 'active' | 'done' | 'error';
+export type ProcessingStepId =
+  | 'stopping-recording'
+  | 'finalizing-live-transcript'
+  | 'generating-audio-transcription'
+  | 'merging-transcript-tail'
+  | 'generating-consultation-notes'
+  | 'extracting-tasks'
+  | 'saving-session';
+
+export interface ProcessingStep {
+  id: ProcessingStepId;
+  label: string;
+  status: ProcessingStepStatus;
+}
 
 export interface PEData {
   vitals: { temp: string; hr: string; rr: string; weight: string };
@@ -31,6 +48,7 @@ export interface Task {
   category: 'prescriptions' | 'diagnostics' | 'followup' | 'admin';
   assignee: 'Vet' | 'Nurse' | 'Admin';
   done: boolean;
+  orderIndex?: number | null;
 }
 
 export interface ChatMessage {
@@ -50,6 +68,7 @@ export interface ClientInstructions {
 
 export interface SavedSession {
   id: string;
+  title?: string | null;
   patientName: string;
   consultType: string;
   createdAt: number;
@@ -72,6 +91,8 @@ interface SessionStore {
   setActiveTab: (tab: TabId) => void;
   selectedTemplate: string;
   setSelectedTemplate: (t: string) => void;
+  availableTemplates: string[];
+  setAvailableTemplates: (templates: string[]) => void;
   peEnabled: boolean;
   togglePE: () => void;
   peIncludeInNotes: boolean;
@@ -90,6 +111,14 @@ interface SessionStore {
   setTranscript: (t: string) => void;
   setInterimTranscript: (t: string) => void;
   appendTranscript: (t: string) => void;
+  transcriptMergeWarning: string | null;
+  setTranscriptMergeWarning: (warning: string | null) => void;
+  transcriptionConnectionState: TranscriptionConnectionState;
+  setTranscriptionConnectionState: (state: TranscriptionConnectionState) => void;
+  processingSteps: ProcessingStep[];
+  setProcessingSteps: (steps: ProcessingStep[]) => void;
+  setProcessingStepStatus: (id: ProcessingStepId, status: ProcessingStepStatus) => void;
+  resetProcessingSteps: () => void;
 
   // Notes
   notes: string;
@@ -121,6 +150,8 @@ interface SessionStore {
   // Patient
   patientName: string;
   setPatientName: (n: string) => void;
+  sessionTitle: string;
+  setSessionTitle: (title: string) => void;
 
   // Session management
   sessions: SavedSession[];
@@ -161,6 +192,17 @@ const normalPE: Partial<PEData> = {
 };
 
 const genId = () => crypto.randomUUID();
+const DEFAULT_TEMPLATE_OPTIONS = Object.keys(TEMPLATES);
+
+const createDefaultProcessingSteps = (): ProcessingStep[] => [
+  { id: 'stopping-recording', label: 'Stopping recording', status: 'pending' },
+  { id: 'finalizing-live-transcript', label: 'Finalizing live transcript', status: 'pending' },
+  { id: 'generating-audio-transcription', label: 'Generating audio transcription', status: 'pending' },
+  { id: 'merging-transcript-tail', label: 'Merging transcript tail', status: 'pending' },
+  { id: 'generating-consultation-notes', label: 'Generating consultation notes', status: 'pending' },
+  { id: 'extracting-tasks', label: 'Extracting tasks', status: 'pending' },
+  { id: 'saving-session', label: 'Saving session', status: 'pending' },
+];
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
   // Encounter workflow
@@ -172,6 +214,16 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setActiveTab: (tab) => set({ activeTab: tab }),
   selectedTemplate: 'General Consult',
   setSelectedTemplate: (t) => set({ selectedTemplate: t }),
+  availableTemplates: [...DEFAULT_TEMPLATE_OPTIONS],
+  setAvailableTemplates: (templates) => {
+    const uniqueTemplates = Array.from(new Set(templates.filter(Boolean)));
+    set((state) => ({
+      availableTemplates: uniqueTemplates.length > 0 ? uniqueTemplates : [...DEFAULT_TEMPLATE_OPTIONS],
+      selectedTemplate: uniqueTemplates.includes(state.selectedTemplate)
+        ? state.selectedTemplate
+        : uniqueTemplates[0] || 'General Consult',
+    }));
+  },
   peEnabled: true,
   togglePE: () => set((s) => ({ peEnabled: !s.peEnabled })),
   peIncludeInNotes: true,
@@ -199,6 +251,18 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setTranscript: (t) => set({ transcript: t }),
   setInterimTranscript: (t) => set({ interimTranscript: t }),
   appendTranscript: (t) => set((s) => ({ transcript: s.transcript + t })),
+  transcriptMergeWarning: null,
+  setTranscriptMergeWarning: (warning) => set({ transcriptMergeWarning: warning }),
+  transcriptionConnectionState: 'disconnected',
+  setTranscriptionConnectionState: (state) => set({ transcriptionConnectionState: state }),
+  processingSteps: createDefaultProcessingSteps(),
+  setProcessingSteps: (steps) => set({ processingSteps: steps }),
+  setProcessingStepStatus: (id, status) => set((state) => ({
+    processingSteps: state.processingSteps.map((step) =>
+      step.id === id ? { ...step, status } : step
+    ),
+  })),
+  resetProcessingSteps: () => set({ processingSteps: createDefaultProcessingSteps() }),
   // Notes
   notes: '',
   setNotes: (n) => set({ notes: n }),
@@ -212,7 +276,18 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     tasks: s.tasks.map((t) => t.id === id ? { ...t, done: !t.done } : t),
   })),
   addTask: (task) => set((s) => ({
-    tasks: [...s.tasks, { ...task, id: genId() }],
+    tasks: [
+      ...s.tasks,
+      {
+        ...task,
+        id: genId(),
+        orderIndex:
+          task.orderIndex ??
+          (s.tasks.length > 0
+            ? Math.max(...s.tasks.map((t, index) => t.orderIndex ?? index + 1)) + 1
+            : 1),
+      },
+    ],
   })),
   isExtractingTasks: false,
   setIsExtractingTasks: (v) => set({ isExtractingTasks: v }),
@@ -242,6 +317,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   // Patient
   patientName: '',
   setPatientName: (n) => set({ patientName: n }),
+  sessionTitle: '',
+  setSessionTitle: (title) => set({ sessionTitle: title }),
 
   // Session management
   sessions: [],
@@ -253,8 +330,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       encounterStatus: 'idle',
       activeSessionId: null,
       patientName: '',
+      sessionTitle: '',
       transcript: '',
       interimTranscript: '',
+      transcriptMergeWarning: null,
       notes: '',
       peEnabled: true,
       peIncludeInNotes: true,
@@ -264,6 +343,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       activeTab: 'context',
       selectedTemplate: 'General Consult',
       isRecording: false,
+      transcriptionConnectionState: 'disconnected',
+      processingSteps: createDefaultProcessingSteps(),
     });
   },
 
@@ -282,6 +363,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         .insert({
           user_id: user.id,
           patient_name: s.patientName || null,
+          title: s.sessionTitle.trim() || null,
           session_type: s.selectedTemplate,
           pe_data: s.peEnabled ? (s.peData as any) : null,
           pe_enabled: s.peEnabled,
@@ -302,6 +384,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         .from('sessions')
         .update({
           patient_name: s.patientName || null,
+          title: s.sessionTitle.trim() || null,
           session_type: s.selectedTemplate,
           pe_data: s.peEnabled ? (s.peData as any) : null,
           pe_enabled: s.peEnabled,
@@ -322,13 +405,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     await supabase.from('tasks').delete().eq('session_id', sessionId).eq('user_id', user.id);
     if (s.tasks.length > 0) {
       await supabase.from('tasks').insert(
-        s.tasks.map((t) => ({
+        s.tasks.map((t, index) => ({
           user_id: user.id,
           session_id: sessionId!,
           text: t.text,
           category: t.category,
           assignee: t.assignee,
           done: t.done,
+          order_index: t.orderIndex ?? index + 1,
         }))
       );
     }
@@ -340,6 +424,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set({
       encounterStatus: 'reviewing',
       activeSessionId: session.id,
+      sessionTitle: session.title || '',
       patientName: session.patientName,
       selectedTemplate: session.consultType,
       transcript: session.transcript,

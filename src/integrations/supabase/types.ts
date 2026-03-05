@@ -21,6 +21,7 @@ export type Database = {
           is_default: boolean | null
           name: string
           system_prompt: string | null
+          updated_at: string
           user_id: string | null
         }
         Insert: {
@@ -29,6 +30,7 @@ export type Database = {
           is_default?: boolean | null
           name: string
           system_prompt?: string | null
+          updated_at?: string
           user_id?: string | null
         }
         Update: {
@@ -37,6 +39,7 @@ export type Database = {
           is_default?: boolean | null
           name?: string
           system_prompt?: string | null
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: []
@@ -117,6 +120,7 @@ export type Database = {
       }
       sessions: {
         Row: {
+          archived_at: string | null
           audio_url: string | null
           created_at: string
           duration_seconds: number | null
@@ -127,10 +131,12 @@ export type Database = {
           session_type: string | null
           status: string | null
           template_id: string | null
+          title: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           audio_url?: string | null
           created_at?: string
           duration_seconds?: number | null
@@ -141,10 +147,12 @@ export type Database = {
           session_type?: string | null
           status?: string | null
           template_id?: string | null
+          title?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           audio_url?: string | null
           created_at?: string
           duration_seconds?: number | null
@@ -155,6 +163,7 @@ export type Database = {
           session_type?: string | null
           status?: string | null
           template_id?: string | null
+          title?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -175,6 +184,7 @@ export type Database = {
           created_at: string
           done: boolean | null
           id: string
+          order_index: number | null
           session_id: string
           text: string
           user_id: string
@@ -185,6 +195,7 @@ export type Database = {
           created_at?: string
           done?: boolean | null
           id?: string
+          order_index?: number | null
           session_id: string
           text: string
           user_id: string
@@ -195,6 +206,7 @@ export type Database = {
           created_at?: string
           done?: boolean | null
           id?: string
+          order_index?: number | null
           session_id?: string
           text?: string
           user_id?: string

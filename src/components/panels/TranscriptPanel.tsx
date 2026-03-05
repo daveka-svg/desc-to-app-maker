@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useSessionStore } from '@/stores/useSessionStore';
-import { Mic, Copy, Check } from 'lucide-react';
+import { Mic, Copy, Check, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function TranscriptPanel() {
   const transcript = useSessionStore((s) => s.transcript);
   const interimTranscript = useSessionStore((s) => s.interimTranscript);
   const isRecording = useSessionStore((s) => s.isRecording);
+  const transcriptMergeWarning = useSessionStore((s) => s.transcriptMergeWarning);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
@@ -52,6 +53,13 @@ export default function TranscriptPanel() {
 
       {/* Content - Read only */}
       <div className="flex-1 overflow-y-auto p-6">
+        {transcriptMergeWarning && (
+          <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-text-primary flex items-start gap-2 max-w-[720px]">
+            <AlertTriangle size={14} className="text-warning mt-px shrink-0" />
+            <span>{transcriptMergeWarning}</span>
+          </div>
+        )}
+
         {!transcript && !interimTranscript && !isRecording ? (
           <div className="max-w-[720px] text-sm text-text-muted py-12 text-center mx-auto">
             <div className="w-12 h-12 bg-sand rounded-full flex items-center justify-center mx-auto mb-4">

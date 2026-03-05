@@ -25,15 +25,22 @@ const getSpeechRecognitionCtor = (): (new () => BrowserSpeechRecognition) | null
 export function useTranscription() {
   const appendTranscript = useSessionStore((s) => s.appendTranscript);
   const setInterimTranscript = useSessionStore((s) => s.setInterimTranscript);
+  const setTranscriptionConnectionState = useSessionStore((s) => s.setTranscriptionConnectionState);
+  const connectionState = useSessionStore((s) => s.transcriptionConnectionState);
   const [interimText, setInterimText] = useState('');
   const [isSupported] = useState(
     typeof window !== 'undefined' && (!!navigator.mediaDevices?.getUserMedia || !!getSpeechRecognitionCtor())
   );
   const segmentCountRef = useRef(0);
   const connectedRef = useRef(false);
+  const connectingRef = useRef(false);
   const browserRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const usingBrowserFallbackRef = useRef(false);
   const browserShouldRestartRef = useRef(false);
+  const shouldStayActiveRef = useRef(false);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const startTranscriptionRef = useRef<(() => Promise<void>) | null>(null);
 
   // Keep stable refs for callbacks used inside useScribe config
   const appendTranscriptRef = useRef(appendTranscript);
@@ -65,6 +72,29 @@ export function useTranscription() {
     setInterimTranscriptRef.current('');
   };
 
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
+  const queueReconnect = useCallback((reason: string) => {
+    if (!shouldStayActiveRef.current || usingBrowserFallbackRef.current || reconnectTimerRef.current !== null) {
+      return;
+    }
+    const delayMs = Math.min(1000 * Math.pow(2, reconnectAttemptRef.current), 8000);
+    setTranscriptionConnectionState('reconnecting');
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      reconnectAttemptRef.current += 1;
+      console.log(`[Scribe] Reconnect attempt ${reconnectAttemptRef.current} (${reason})`);
+      startTranscriptionRef.current?.().catch((err) => {
+        console.warn('[Scribe] Reconnect failed:', err);
+      });
+    }, delayMs);
+  }, [setTranscriptionConnectionState]);
+
   // useScribe MUST be called at a stable position in the hook list
   const scribe = useScribe({
     modelId: 'scribe_v2_realtime',
@@ -72,6 +102,10 @@ export function useTranscription() {
     onConnect: () => {
       console.log('[Scribe] Connected');
       connectedRef.current = true;
+      connectingRef.current = false;
+      reconnectAttemptRef.current = 0;
+      clearReconnectTimer();
+      setTranscriptionConnectionState('connected');
       // Stop browser fallback if scribe connects
       browserShouldRestartRef.current = false;
       usingBrowserFallbackRef.current = false;
@@ -81,6 +115,13 @@ export function useTranscription() {
     onDisconnect: () => {
       console.log('[Scribe] Disconnected');
       connectedRef.current = false;
+      connectingRef.current = false;
+      if (shouldStayActiveRef.current && !usingBrowserFallbackRef.current) {
+        setTranscriptionConnectionState('reconnecting');
+        queueReconnect('disconnect');
+      } else if (!usingBrowserFallbackRef.current) {
+        setTranscriptionConnectionState('disconnected');
+      }
     },
     onSessionStarted: () => {
       console.log('[Scribe] Session started');
@@ -98,6 +139,10 @@ export function useTranscription() {
     },
     onError: (err: unknown) => {
       console.error('[Scribe] Error:', err);
+      if (shouldStayActiveRef.current && !usingBrowserFallbackRef.current) {
+        setTranscriptionConnectionState('reconnecting');
+        queueReconnect('error');
+      }
     },
   });
 
@@ -135,6 +180,9 @@ export function useTranscription() {
       browserRecognitionRef.current = recognition;
       usingBrowserFallbackRef.current = true;
       browserShouldRestartRef.current = true;
+      reconnectAttemptRef.current = 0;
+      clearReconnectTimer();
+      setTranscriptionConnectionState('connected');
       recognition.start();
       console.log('[Transcription] Browser speech fallback active');
       return true;
@@ -142,7 +190,7 @@ export function useTranscription() {
       console.error('[Transcription] Browser fallback failed:', err);
       return false;
     }
-  }, []);
+  }, [clearReconnectTimer, setTranscriptionConnectionState]);
 
   const stopBrowserFallback = useCallback(() => {
     browserShouldRestartRef.current = false;
@@ -152,53 +200,105 @@ export function useTranscription() {
   }, []);
 
   const startTranscription = useCallback(async () => {
-    if (!isSupported || scribe.isConnected || connectedRef.current || usingBrowserFallbackRef.current) return;
+    shouldStayActiveRef.current = true;
+    if (
+      !isSupported ||
+      scribe.isConnected ||
+      connectedRef.current ||
+      usingBrowserFallbackRef.current ||
+      connectingRef.current
+    ) {
+      return;
+    }
+    connectingRef.current = true;
+    setTranscriptionConnectionState('reconnecting');
 
     try {
       const { data, error } = await supabase.functions.invoke('openai-realtime-token');
       if (error || !data?.token) throw new Error(error?.message || 'No token');
 
-      segmentCountRef.current = 0;
+      if (!useSessionStore.getState().transcript.trim()) {
+        segmentCountRef.current = 0;
+      }
       setInterimText('');
       setInterimTranscriptRef.current('');
       await scribe.connect({
         token: data.token,
         microphone: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
+      reconnectAttemptRef.current = 0;
     } catch (err) {
+      connectedRef.current = false;
+      connectingRef.current = false;
       console.warn('[Scribe] Unavailable, using browser fallback:', err);
-      startBrowserFallback();
+      const fallbackStarted = startBrowserFallback();
+      if (!fallbackStarted) {
+        queueReconnect('connect-failure');
+      }
+    } finally {
+      if (!connectedRef.current && !usingBrowserFallbackRef.current) {
+        connectingRef.current = false;
+      }
     }
-  }, [isSupported, scribe, startBrowserFallback]);
+  }, [isSupported, scribe, queueReconnect, setTranscriptionConnectionState, startBrowserFallback]);
 
   const stopTranscription = useCallback(async () => {
+    shouldStayActiveRef.current = false;
+    clearReconnectTimer();
     if (scribe.isConnected || connectedRef.current) {
       try { scribe.commit(); } catch {}
       await wait(500);
       scribe.disconnect();
     }
+    connectingRef.current = false;
+    connectedRef.current = false;
     stopBrowserFallback();
     setInterimText('');
     setInterimTranscriptRef.current('');
-  }, [scribe, stopBrowserFallback]);
+    setTranscriptionConnectionState('disconnected');
+  }, [clearReconnectTimer, scribe, setTranscriptionConnectionState, stopBrowserFallback]);
 
   const pauseTranscription = useCallback(() => {
+    shouldStayActiveRef.current = false;
+    clearReconnectTimer();
     if (scribe.isConnected) {
       try { scribe.commit(); } catch {}
       scribe.disconnect();
     }
+    connectingRef.current = false;
+    connectedRef.current = false;
     stopBrowserFallback();
     setInterimText('');
     setInterimTranscriptRef.current('');
-  }, [scribe, stopBrowserFallback]);
+    setTranscriptionConnectionState('disconnected');
+  }, [clearReconnectTimer, scribe, setTranscriptionConnectionState, stopBrowserFallback]);
 
   const resumeTranscription = useCallback(async () => {
     await wait(150);
     await startTranscription();
   }, [startTranscription]);
 
+  useEffect(() => {
+    startTranscriptionRef.current = startTranscription;
+  }, [startTranscription]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && shouldStayActiveRef.current && !connectedRef.current && !usingBrowserFallbackRef.current) {
+        queueReconnect('visibility');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearReconnectTimer();
+    };
+  }, [clearReconnectTimer, queueReconnect]);
+
   return {
     isTranscribing: scribe.isConnected || usingBrowserFallbackRef.current,
+    connectionState,
     interimText,
     isSupported,
     startTranscription,

@@ -72,15 +72,22 @@ CE: [general demeanour and hydration status], [eye and ear findings], [oral and 
 [plan: suture removal timing, medication changes, activity restrictions]
 [next appointment if needed]`,
 
-  'Discharge Summary': `(Clear discharge note for the owner and referring vet. Use concise clinical language and short sections.)
+  'Discharge Summary': `(Generate a clearly separated discharge document with two sections. Use concise UK English and only include facts present in transcript or notes.)
 
-[reason for visit and key findings]
-[diagnostics performed and relevant results]
+Section 1: Owner Instructions
+[reason for visit in plain language]
 [treatment provided in clinic]
-[medications on discharge: drug, dose, frequency, duration]
 [home care instructions]
+[medications at home: medicine, dose, frequency, duration in plain language]
 [red flags / when to seek urgent review]
-[follow-up timing and plan]`,
+[follow-up timing and how to book]
+
+Section 2: Team Handover (Vet/Nurse)
+[clinical findings and diagnostics]
+[clinical assessment and differential focus]
+[vet tasks: prescribing, decisions, callbacks]
+[nurse tasks: monitoring, sample handling, follow-up checks]
+[admin tasks if explicitly mentioned]`,
 
   'Referral Letter': `(Formal referral letter tone in UK English. Keep factual and structured.)
 
