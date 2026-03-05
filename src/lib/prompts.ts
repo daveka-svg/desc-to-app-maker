@@ -1,29 +1,33 @@
 // AI Prompt Library for ETV Scribe
 
-export const SYSTEM_PROMPT = `You are a veterinary clinical scribe writing notes for the current consultation only. The transcript contains speaker labels (Speaker 1, Speaker 2). First, analyse the context to determine which speaker is the veterinarian and which is the pet owner/client based on clinical language, questions asked, and instructions given. Use this understanding to properly attribute history (from owner) and clinical findings/advice (from vet). Include only information clinically relevant to today's presenting problem, exam findings, diagnostic reasoning, treatment decisions, and follow-up plan. Exclude unrelated historical anecdotes or prior problems unless they directly affect today's differentials, risk assessment, or management. Keep notes concise but complete, avoid repetition, and do not invent facts.`;
+export const SYSTEM_PROMPT = `You are a veterinary clinical scribe writing notes for the current consultation only. The transcript contains speaker labels (Speaker 1, Speaker 2). Infer who is veterinarian vs owner and attribute content correctly. Include only clinically relevant information for this visit: presenting issue, exam findings, diagnostic reasoning, treatment decisions, and follow-up. Exclude unrelated history unless it changes current risk or management. Use concise UK veterinary style with common abbreviations where appropriate. Do not invent facts. Do not output duplicate physical examination sections.`;
 
 export const TEMPLATES: Record<string, string> = {
-  'General Consult': `(Write in a concise, telegraphic style using common veterinary abbreviations. Separate each topic with a blank line. Only include information if explicitly mentioned in transcript, contextual notes or clinical note, else omit completely.)
+  'General Consult': `(Use concise UK veterinary documentation style with common abbreviations where relevant (eg BAR, QAR, NAD, CRT<2, RR, HR, MM, WNL). Keep this exact heading order and omit any item not explicitly supported by transcript/context:
 
-Do not include history that is not relevant to the reason for todays visit. Only include relevant information.
+TREATMENT:
+- [Only relevant medical history including current medications, dosing, and administration challenges]
+- [Patient's current situation and owner concerns]
 
-[presenting complaint and brief owner-reported history, including symptom duration, changes in appetite, and demeanour]
-(Only include if explicitly mentioned in transcript, contextual notes or clinical note, else omit completely.)
+Objective:
+- [Vital signs]
+- [Relevant objective examination findings]
 
-CE: [general demeanour and hydration status], [eye and ear findings], [oral and dental examination findings], [mucous membrane colour and capillary refill time], [tracheal pinch result], [thoracic auscultation findings including heart rate, rhythm, murmurs, and lung sounds], [pulse rate, quality, and synchronicity], [abdominal palpation findings], [peripheral lymph node assessment]
-(Only include if explicitly mentioned in transcript, contextual notes or clinical note, else omit this line completely. Use standard veterinary abbreviations like BAR, NAD, CRT, WNLs. List findings as a continuous sentence.)
+Assessment:
+[Clinical assessment as concise paragraph, based only on explicit evidence]
 
-[assessment and discussion with owner, including interpretation of findings, differential diagnoses, and contributing factors]
-(Only include if explicitly mentioned in transcript, contextual notes or clinical note, else omit completely. May start with "Adv" for "Advised".)
+Plan:
+[Treatment plan discussions including medication adjustments and recommendations as continuous paragraph text]
 
-[plan for diagnostics, treatments, and follow-up, including specific instructions for timing, medications, and next steps]
-(Only include if explicitly mentioned in transcript, contextual notes or clinical note, else omit completely.)
+Communications:
+- [Summary of owner communication and agreed next steps]
 
-[medication plan, including drug name, dose, and duration prescribed]
-(Only include if explicitly mentioned in transcript, contextual notes or clinical note, else omit completely.)
-
-[billing and administrative notes]
-(Only include if explicitly mentioned in transcript, contextual notes or clinical note, else omit completely.)`,
+Strict rules:
+- Include only details explicitly stated in transcript, contextual notes, or existing clinical note.
+- Never invent patient details, assessment, plan, interventions, evaluation, or continuing-care plans.
+- If detail is missing, omit that bullet/line.
+- Keep output concise, practical, and abbreviation-friendly for clinical readers.
+- Do not duplicate physical examination content.`,
 
   'Surgical Notes': `(Telegraphic style, vet abbreviations. Blank line between topics. Only include if mentioned.)
 
@@ -139,7 +143,7 @@ Return ONLY valid JSON in this format:
   "followUp": "..."
 }`;
 
-export const ASK_ETV_SYSTEM = `You are a veterinary AI assistant for Every Tail Vets (London, UK). You have access to the current consultation's transcript, physical exam findings, and generated clinical notes. Help with: documentation, clinical reasoning, generating referral letters, discharge summaries, and client instructions. Write in UK English. Follow ETV's warm, professional tone for client-facing documents. For clinical documents, use standard veterinary abbreviations.`;
+export const ASK_ETV_SYSTEM = `You are a veterinary AI assistant for Every Tail Vets (London, UK). You have access to the current consultation's transcript, physical exam findings, generated clinical notes, and uploaded contextual files. Help with: documentation, clinical reasoning, generating referral letters, discharge summaries, follow-up letters, and lab result interpretation. Write in UK English. Follow ETV's warm, professional tone for client-facing documents. For clinical documents, use standard veterinary abbreviations.`;
 
 export function compilePEReport(peData: any): string {
   if (!peData) return '';
@@ -155,30 +159,30 @@ export function compilePEReport(peData: any): string {
 
   const findings: string[] = [];
   const fields = ['eyes', 'ears', 'nose', 'oral', 'plns'] as const;
-  for (const f of fields) {
-    const val = peData[f];
-    const detail = peData[`${f}Detail`];
-    if (detail) findings.push(`${f.charAt(0).toUpperCase() + f.slice(1)}: ${detail}`);
-    else if (val) findings.push(`${f.charAt(0).toUpperCase() + f.slice(1)} ${val}`);
+  for (const field of fields) {
+    const val = peData[field];
+    const detail = peData[`${field}Detail`];
+    if (detail) findings.push(`${field.charAt(0).toUpperCase() + field.slice(1)}: ${detail}`);
+    else if (val) findings.push(`${field.charAt(0).toUpperCase() + field.slice(1)} ${val}`);
   }
 
   if (peData.mmColor) findings.push(`MM ${peData.mmColor}`);
   if (peData.mmMoisture) findings.push(peData.mmMoisture);
   if (peData.crt) findings.push(`CRT ${peData.crt}s`);
 
-  for (const f of ['heart', 'lungs'] as const) {
-    const val = peData[f];
-    const detail = peData[`${f}Detail`];
-    if (detail) findings.push(`${f.charAt(0).toUpperCase() + f.slice(1)}: ${detail}`);
-    else if (val) findings.push(`${f.charAt(0).toUpperCase() + f.slice(1)} ${val}`);
+  for (const field of ['heart', 'lungs'] as const) {
+    const val = peData[field];
+    const detail = peData[`${field}Detail`];
+    if (detail) findings.push(`${field.charAt(0).toUpperCase() + field.slice(1)}: ${detail}`);
+    else if (val) findings.push(`${field.charAt(0).toUpperCase() + field.slice(1)} ${val}`);
   }
 
   if (peData.pulses) findings.push(`Pulses ${peData.pulses}`);
 
-  for (const f of ['hydration', 'abdoPalp', 'skinCoat'] as const) {
-    const val = peData[f];
-    const detail = peData[`${f}Detail`];
-    const label = f === 'abdoPalp' ? 'Abdo palp' : f === 'skinCoat' ? 'Skin/coat' : 'Hydration';
+  for (const field of ['hydration', 'abdoPalp', 'skinCoat'] as const) {
+    const val = peData[field];
+    const detail = peData[`${field}Detail`];
+    const label = field === 'abdoPalp' ? 'Abdo palp' : field === 'skinCoat' ? 'Skin/coat' : 'Hydration';
     if (detail) findings.push(`${label}: ${detail}`);
     else if (val) findings.push(`${label} ${val}`);
   }

@@ -10,11 +10,10 @@ serve(async (req) => {
 
   try {
     const { transcript, peData, templatePrompt } = await req.json();
-    const INCEPTIONLABS_API_KEY =
-      Deno.env.get("INCEPTIONLABS_API_KEY") || Deno.env.get("INCEPTION_API_KEY");
+    const INCEPTIONLABS_API_KEY = Deno.env.get("INCEPTIONLABS_API_KEY");
 
     if (!INCEPTIONLABS_API_KEY) {
-      throw new Error("INCEPTIONLABS_API_KEY must be configured");
+      throw new Error("Inception API key is not configured");
     }
 
     const systemPrompt = templatePrompt || `You are a veterinary clinical note generator. Generate structured clinical notes from the consultation transcript. Include:

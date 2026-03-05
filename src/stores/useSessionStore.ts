@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { TEMPLATES } from '@/lib/prompts';
+import { DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE } from '@/lib/defaultClinicKnowledgeBase';
 
 export type TabId = 'context' | 'transcript' | 'notes' | 'tasks' | 'chat';
 export type EncounterStatus = 'idle' | 'recording' | 'processing' | 'reviewing';
@@ -81,6 +82,16 @@ export interface SavedSession {
   clientInstructions: ClientInstructions | null;
 }
 
+export interface RecordingArtifact {
+  id: string;
+  sessionId: string | null;
+  fileName: string;
+  objectUrl: string;
+  createdAt: number;
+  durationSeconds: number;
+  sizeBytes: number;
+}
+
 interface SessionStore {
   // Encounter workflow
   encounterStatus: EncounterStatus;
@@ -155,6 +166,13 @@ interface SessionStore {
   setPatientName: (n: string) => void;
   clinicKnowledgeBase: string;
   setClinicKnowledgeBase: (value: string) => void;
+  peAppliedAt: number | null;
+  peAppliedSummary: string;
+  setPEAppliedSnapshot: (summary: string, appliedAt?: number) => void;
+  clearPEAppliedSnapshot: () => void;
+  recordingArtifacts: RecordingArtifact[];
+  addRecordingArtifact: (blob: Blob, sessionId: string | null, durationSeconds: number) => void;
+  clearRecordingArtifacts: () => void;
   sessionTitle: string;
   setSessionTitle: (title: string) => void;
   sessionDurationSeconds: number;
@@ -229,6 +247,11 @@ const createDefaultProcessingSteps = (): ProcessingStep[] => [
   { id: 'extracting-tasks', label: 'Extracting tasks', status: 'pending' },
   { id: 'saving-session', label: 'Saving session', status: 'pending' },
 ];
+
+const buildRecordingFileName = (now = new Date()): string => {
+  const stamp = now.toISOString().replace(/[:.]/g, '-');
+  return `consultation-${stamp}.webm`;
+};
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
   // Encounter workflow
@@ -350,8 +373,53 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   // Patient
   patientName: '',
   setPatientName: (n) => set({ patientName: n }),
-  clinicKnowledgeBase: '',
+  clinicKnowledgeBase: DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE,
   setClinicKnowledgeBase: (value) => set({ clinicKnowledgeBase: value }),
+  peAppliedAt: null,
+  peAppliedSummary: '',
+  setPEAppliedSnapshot: (summary, appliedAt = Date.now()) => set({
+    peAppliedSummary: summary.trim(),
+    peAppliedAt: summary.trim() ? appliedAt : null,
+  }),
+  clearPEAppliedSnapshot: () => set({ peAppliedSummary: '', peAppliedAt: null }),
+  recordingArtifacts: [],
+  addRecordingArtifact: (blob, sessionId, durationSeconds) =>
+    set((state) => {
+      const now = Date.now();
+      const artifact: RecordingArtifact = {
+        id: genId(),
+        sessionId,
+        fileName: buildRecordingFileName(new Date(now)),
+        objectUrl: URL.createObjectURL(blob),
+        createdAt: now,
+        durationSeconds: Math.max(0, durationSeconds),
+        sizeBytes: blob.size,
+      };
+
+      const maxArtifacts = 20;
+      const nextArtifacts = [artifact, ...state.recordingArtifacts];
+      const removedArtifacts = nextArtifacts.slice(maxArtifacts);
+      removedArtifacts.forEach((item) => {
+        try {
+          URL.revokeObjectURL(item.objectUrl);
+        } catch {
+          // ignore revoke failures
+        }
+      });
+
+      return { recordingArtifacts: nextArtifacts.slice(0, maxArtifacts) };
+    }),
+  clearRecordingArtifacts: () =>
+    set((state) => {
+      state.recordingArtifacts.forEach((item) => {
+        try {
+          URL.revokeObjectURL(item.objectUrl);
+        } catch {
+          // ignore revoke failures
+        }
+      });
+      return { recordingArtifacts: [] };
+    }),
   sessionTitle: '',
   setSessionTitle: (title) => set({ sessionTitle: title }),
   sessionDurationSeconds: 0,
@@ -373,6 +441,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       interimTranscript: '',
       supplementalContext: '',
       transcriptMergeWarning: null,
+      peAppliedAt: null,
+      peAppliedSummary: '',
       notes: '',
       peEnabled: true,
       peIncludeInNotes: true,

@@ -40,6 +40,7 @@ export function useTranscription() {
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
   const startTranscriptionRef = useRef<(() => Promise<void>) | null>(null);
+  const recentCommittedSegmentsRef = useRef<Map<string, number>>(new Map());
   const lastCommittedSegmentRef = useRef<{ normalized: string; at: number }>({
     normalized: '',
     at: 0,
@@ -92,12 +93,26 @@ export function useTranscription() {
     if (!text) return;
     const normalized = normalizeSegment(text);
     const now = Date.now();
+
+    // Guard against duplicated committed chunks that can arrive from diarization callbacks.
+    for (const [segment, seenAt] of recentCommittedSegmentsRef.current.entries()) {
+      if (now - seenAt > 30000) {
+        recentCommittedSegmentsRef.current.delete(segment);
+      }
+    }
+    if (normalized && recentCommittedSegmentsRef.current.has(normalized)) {
+      return;
+    }
+
     if (
       normalized &&
       normalized === lastCommittedSegmentRef.current.normalized &&
-      now - lastCommittedSegmentRef.current.at < 2500
+      now - lastCommittedSegmentRef.current.at < 8000
     ) {
       return;
+    }
+    if (normalized) {
+      recentCommittedSegmentsRef.current.set(normalized, now);
     }
     lastCommittedSegmentRef.current = { normalized, at: now };
     const speaker = pickSpeakerLabel(data);
@@ -254,6 +269,7 @@ export function useTranscription() {
       if (error || !data?.token) throw new Error(error?.message || 'No token');
 
       lastCommittedSegmentRef.current = { normalized: '', at: 0 };
+      recentCommittedSegmentsRef.current.clear();
       setInterimText('');
       setInterimTranscriptRef.current('');
       await scribe.connect({

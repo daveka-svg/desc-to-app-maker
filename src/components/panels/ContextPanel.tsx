@@ -1,12 +1,13 @@
-import type { ChangeEvent } from 'react';
-import { AlertTriangle, CheckCircle2, Loader2, Wifi, WifiOff } from 'lucide-react';
+import type { ChangeEvent, ReactNode } from 'react';
+import { useMemo } from 'react';
+import { Download, FileAudio, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { useEncounterController } from '@/components/encounter/EncounterControllerProvider';
 import PEForm from '@/components/pe-form/PEForm';
 
 const connectionMeta: Record<
   'connected' | 'reconnecting' | 'disconnected',
-  { label: string; className: string; icon: React.ReactNode }
+  { label: string; className: string; icon: ReactNode }
 > = {
   connected: {
     label: 'Live transcription connected',
@@ -25,6 +26,25 @@ const connectionMeta: Record<
   },
 };
 
+const formatDuration = (seconds: number) => {
+  if (!seconds || seconds <= 0) return '0m';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+};
+
+const formatBytes = (value: number): string => {
+  if (value <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = value;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+};
+
 export default function ContextPanel() {
   const peEnabled = useSessionStore((s) => s.peEnabled);
   const togglePE = useSessionStore((s) => s.togglePE);
@@ -37,7 +57,12 @@ export default function ContextPanel() {
   const setSupplementalContext = useSessionStore((s) => s.setSupplementalContext);
   const appendSupplementalContext = useSessionStore((s) => s.appendSupplementalContext);
   const encounterStatus = useSessionStore((s) => s.encounterStatus);
-  const processingSteps = useSessionStore((s) => s.processingSteps);
+  const recordingArtifacts = useSessionStore((s) => s.recordingArtifacts);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const transcript = useSessionStore((s) => s.transcript);
+  const notes = useSessionStore((s) => s.notes);
+  const peAppliedAt = useSessionStore((s) => s.peAppliedAt);
+  const peAppliedSummary = useSessionStore((s) => s.peAppliedSummary);
   const {
     isRecording,
     isPaused,
@@ -52,6 +77,15 @@ export default function ContextPanel() {
   } = useEncounterController();
 
   const isProcessing = encounterStatus === 'processing';
+  const connectionUi = connectionMeta[transcriptionConnectionState];
+
+  const visibleRecordings = useMemo(() => {
+    if (!activeSessionId) return recordingArtifacts;
+    return recordingArtifacts.filter((item) => item.sessionId === activeSessionId);
+  }, [activeSessionId, recordingArtifacts]);
+
+  const transcriptPreview = transcript.trim().slice(0, 220);
+  const notesPreview = notes.trim().slice(0, 220);
 
   const handleContextFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -67,27 +101,14 @@ export default function ContextPanel() {
     event.target.value = '';
   };
 
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   };
-
-  const connectionUi = connectionMeta[transcriptionConnectionState];
 
   return (
     <div className="p-5 overflow-y-auto flex-1">
-      <div className="mb-3.5 rounded-lg border border-border-light bg-card p-3.5">
-        <div className="text-[12px] font-bold text-bark mb-1">Quick start</div>
-        <div className="text-[12px] text-text-secondary leading-relaxed">
-          1) Add patient details and template below.
-          <br />
-          2) Press Start Recording.
-          <br />
-          3) Press End session to auto-generate transcript, notes, and tasks.
-        </div>
-      </div>
-
       <div className="bg-card rounded-lg p-[18px] mb-3.5 border border-border-light">
         <div className="flex items-center justify-between mb-2.5">
           <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted">Recording</div>
@@ -103,17 +124,17 @@ export default function ContextPanel() {
               {isRecording && !isPaused && <span className="w-[9px] h-[9px] rounded-full bg-error animate-pulse-dot" />}
               {isPaused && <span className="w-[9px] h-[9px] rounded-full bg-warning" />}
               {!isRecording && <span className="w-[9px] h-[9px] rounded-full bg-text-muted" />}
-              {formatTime(timerSeconds)}
+              {formatTimer(timerSeconds)}
             </div>
 
             <div className="flex items-center justify-center gap-[2px] h-16 w-full max-w-[360px]">
-              {waveformData.map((h, i) => (
+              {waveformData.map((height, index) => (
                 <div
-                  key={i}
+                  key={index}
                   className={`w-[3px] rounded-sm transition-all duration-75 ${
                     isRecording && !isPaused ? 'bg-forest opacity-80' : 'bg-text-muted opacity-20'
                   }`}
-                  style={{ height: `${Math.min(h, 56)}px` }}
+                  style={{ height: `${Math.min(height, 56)}px` }}
                 />
               ))}
             </div>
@@ -145,26 +166,9 @@ export default function ContextPanel() {
             </div>
           </div>
         ) : (
-          <div className="space-y-3">
-            <div className="text-sm font-semibold text-bark">Finalizing transcript and generating output...</div>
-            <div className="space-y-2">
-              {processingSteps.map((step) => (
-                <div key={step.id} className="flex items-center gap-2 text-[13px]">
-                  {step.status === 'done' ? (
-                    <CheckCircle2 size={15} className="text-success" />
-                  ) : step.status === 'active' ? (
-                    <Loader2 size={15} className="animate-spin text-forest" />
-                  ) : step.status === 'error' ? (
-                    <AlertTriangle size={15} className="text-error" />
-                  ) : (
-                    <span className="w-[15px] h-[15px] rounded-full border border-border" />
-                  )}
-                  <span className={step.status === 'active' ? 'font-semibold text-text-primary' : 'text-text-secondary'}>
-                    {step.label}
-                  </span>
-                </div>
-              ))}
-            </div>
+          <div className="flex items-center gap-2.5 text-sm text-text-secondary py-2">
+            <Loader2 size={16} className="animate-spin text-forest" />
+            Finalizing transcript and generating consultation outputs...
           </div>
         )}
       </div>
@@ -186,8 +190,8 @@ export default function ContextPanel() {
             onChange={(e) => setSelectedTemplate(e.target.value)}
             disabled={isProcessing}
           >
-            {availableTemplates.map((t) => (
-              <option key={t}>{t}</option>
+            {availableTemplates.map((template) => (
+              <option key={template}>{template}</option>
             ))}
           </select>
         </div>
@@ -254,6 +258,69 @@ export default function ContextPanel() {
                 peEnabled ? 'left-5' : 'left-[2px]'
               }`}
             />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-lg p-[18px] mb-3.5 border border-border-light space-y-3">
+        <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted">Session outputs</div>
+
+        <div>
+          <div className="text-[12px] font-semibold text-text-secondary mb-1.5">Recorded audio</div>
+          {visibleRecordings.length === 0 ? (
+            <div className="text-xs text-text-muted">No downloadable recording available yet for this view.</div>
+          ) : (
+            <div className="space-y-2">
+              {visibleRecordings.map((artifact) => (
+                <div key={artifact.id} className="flex items-center justify-between gap-2 rounded-md border border-border-light px-3 py-2 bg-sand">
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-semibold text-text-primary truncate flex items-center gap-1.5">
+                      <FileAudio size={13} />
+                      {artifact.fileName}
+                    </div>
+                    <div className="text-[11px] text-text-muted">
+                      {new Date(artifact.createdAt).toLocaleString('en-GB')} - {formatDuration(artifact.durationSeconds)} - {formatBytes(artifact.sizeBytes)}
+                    </div>
+                  </div>
+                  <a
+                    href={artifact.objectUrl}
+                    download={artifact.fileName}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md bg-card border border-border hover:bg-sand-dark whitespace-nowrap"
+                  >
+                    <Download size={12} />
+                    Download
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className="text-[12px] font-semibold text-text-secondary mb-1.5">Physical exam snapshot</div>
+          {peAppliedAt && peAppliedSummary ? (
+            <div className="rounded-md border border-border-light px-3 py-2 bg-sand">
+              <div className="text-[11px] text-text-muted mb-1">
+                Applied in generated note: {new Date(peAppliedAt).toLocaleString('en-GB')}
+              </div>
+              <div className="text-[12px] text-text-primary leading-relaxed">{peAppliedSummary}</div>
+            </div>
+          ) : (
+            <div className="text-xs text-text-muted">No PE snapshot captured in generated notes yet.</div>
+          )}
+        </div>
+
+        <div>
+          <div className="text-[12px] font-semibold text-text-secondary mb-1.5">Content preview</div>
+          <div className="rounded-md border border-border-light px-3 py-2 bg-sand text-[12px] text-text-secondary space-y-2">
+            <div>
+              <span className="font-semibold text-text-primary">Transcript:</span>{' '}
+              {transcriptPreview ? `${transcriptPreview}${transcript.length > transcriptPreview.length ? '...' : ''}` : 'Not available'}
+            </div>
+            <div>
+              <span className="font-semibold text-text-primary">Notes:</span>{' '}
+              {notesPreview ? `${notesPreview}${notes.length > notesPreview.length ? '...' : ''}` : 'Not generated'}
+            </div>
           </div>
         </div>
       </div>

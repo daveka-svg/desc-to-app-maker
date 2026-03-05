@@ -3,7 +3,6 @@ import { useSessionStore } from '@/stores/useSessionStore';
 import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useTaskExtraction } from '@/hooks/useTaskExtraction';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
-import { compilePEReport } from '@/lib/prompts';
 import { Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -13,8 +12,6 @@ export default function NotesPanel() {
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const availableTemplates = useSessionStore((s) => s.availableTemplates);
-  const peData = useSessionStore((s) => s.peData);
-  const peEnabled = useSessionStore((s) => s.peEnabled);
   const tasks = useSessionStore((s) => s.tasks);
   const toggleTask = useSessionStore((s) => s.toggleTask);
   const notes = useSessionStore((s) => s.notes);
@@ -81,8 +78,6 @@ export default function NotesPanel() {
       toast({ title: 'Copy failed', description: 'Could not copy to clipboard.', variant: 'destructive' });
     }
   };
-
-  const peText = peEnabled ? compilePEReport(peData) : '';
 
   const handleNoteInput = () => {
     if (noteRef.current) {
@@ -153,7 +148,7 @@ export default function NotesPanel() {
             onClick={handleCopy}
             className="flex items-center gap-[5px] px-3.5 py-1.5 bg-sand border border-border rounded-md text-[13px] font-semibold text-bark cursor-pointer hover:bg-sand-dark"
           >
-            {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+            {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy Notes</>}
           </button>
         </div>
       </div>
@@ -187,11 +182,6 @@ export default function NotesPanel() {
                   ) : para}
                 </p>
               ))}
-              {peIncludeInNotes && peEnabled && peText && (
-                <div className="border-t border-dashed border-border pt-3 mt-1.5">
-                  <p><span className="text-etv-olive font-bold">PE:</span> {peText.substring(3)}</p>
-                </div>
-              )}
             </div>
           )}
         </div>

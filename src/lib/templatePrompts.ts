@@ -69,6 +69,50 @@ export async function bootstrapUserTemplates(): Promise<UserTemplate[]> {
   return listUserTemplates();
 }
 
+export async function syncDefaultTemplatePrompts(): Promise<void> {
+  const userId = await getUserId();
+  if (!userId) return;
+
+  const { data, error } = await supabase
+    .from('note_templates')
+    .select(TEMPLATE_COLUMNS_WITH_UPDATED)
+    .eq('user_id', userId)
+    .eq('is_default', true);
+
+  const templateRows = !error
+    ? data || []
+    : (
+        await supabase
+          .from('note_templates')
+          .select(TEMPLATE_COLUMNS_LEGACY)
+          .eq('user_id', userId)
+          .eq('is_default', true)
+      ).data || [];
+
+  const updates = templateRows
+    .map(toTemplate)
+    .filter((row) => !!TEMPLATES[row.name])
+    .filter((row) => {
+      const raw = templateRows.find((item: any) => item.id === row.id);
+      const createdAt = raw?.created_at || null;
+      const updatedAt = raw?.updated_at || createdAt;
+      const untouched = !updatedAt || !createdAt || updatedAt === createdAt;
+      return untouched && row.systemPrompt.trim() !== TEMPLATES[row.name].trim();
+    });
+
+  if (updates.length === 0) return;
+
+  await Promise.all(
+    updates.map((row) =>
+      supabase
+        .from('note_templates')
+        .update({ system_prompt: TEMPLATES[row.name] })
+        .eq('id', row.id)
+        .eq('user_id', userId)
+    )
+  );
+}
+
 export async function createTemplate(name: string, systemPrompt: string): Promise<UserTemplate> {
   const userId = await getUserId();
   if (!userId) throw new Error('Not signed in');

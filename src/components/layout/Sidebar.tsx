@@ -19,10 +19,14 @@ import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import AllTasksPanel from '@/components/panels/AllTasksPanel';
 import { useToast } from '@/hooks/use-toast';
+import { compilePEReport } from '@/lib/prompts';
+import { DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE } from '@/lib/defaultClinicKnowledgeBase';
 import {
   bootstrapUserTemplates,
   createTemplate,
   deleteTemplate,
+  listUserTemplates,
+  syncDefaultTemplatePrompts,
   type UserTemplate,
   updateTemplate,
 } from '@/lib/templatePrompts';
@@ -34,6 +38,8 @@ interface DBSession {
   session_type: string | null;
   created_at: string;
   duration_seconds: number | null;
+  pe_data: Record<string, unknown> | null;
+  pe_enabled: boolean | null;
   status: string | null;
   archived_at: string | null;
 }
@@ -73,6 +79,8 @@ export default function Sidebar() {
   const setAvailableTemplates = useSessionStore((s) => s.setAvailableTemplates);
   const setSessionTitle = useSessionStore((s) => s.setSessionTitle);
   const setSessionDurationSeconds = useSessionStore((s) => s.setSessionDurationSeconds);
+  const setPEAppliedSnapshot = useSessionStore((s) => s.setPEAppliedSnapshot);
+  const clearPEAppliedSnapshot = useSessionStore((s) => s.clearPEAppliedSnapshot);
 
   const [sessions, setSessions] = useState<DBSession[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -109,7 +117,7 @@ export default function Sidebar() {
   const fetchSessions = async () => {
     let query = supabase
       .from('sessions')
-      .select('id, title, patient_name, session_type, created_at, duration_seconds, status, archived_at')
+      .select('id, title, patient_name, session_type, created_at, duration_seconds, pe_data, pe_enabled, status, archived_at')
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -133,8 +141,10 @@ export default function Sidebar() {
       .single();
     if (data) {
       setProfile(data);
-      if (typeof data.clinic_knowledge_base === 'string') {
+      if (typeof data.clinic_knowledge_base === 'string' && data.clinic_knowledge_base.trim()) {
         setClinicKnowledgeBase(data.clinic_knowledge_base);
+      } else {
+        setClinicKnowledgeBase(DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE);
       }
       return;
     }
@@ -147,12 +157,15 @@ export default function Sidebar() {
         .eq('user_id', user.id)
         .single();
       if (fallback.data) setProfile(fallback.data);
+      setClinicKnowledgeBase(DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE);
     }
   };
 
   const fetchTemplates = async () => {
     try {
-      const rows = sortTemplates(await bootstrapUserTemplates());
+      await bootstrapUserTemplates();
+      await syncDefaultTemplatePrompts();
+      const rows = sortTemplates(await listUserTemplates());
       setTemplates(rows);
       setAvailableTemplates(rows.map((row) => row.name));
 
@@ -413,6 +426,20 @@ export default function Sidebar() {
     setPatientName(session.patient_name || '');
     setSelectedTemplate(session.session_type || 'General Consult');
     setSessionDurationSeconds(session.duration_seconds || 0);
+    if (session.pe_enabled && session.pe_data) {
+      try {
+        const summary = compilePEReport(session.pe_data);
+        if (summary.trim()) {
+          setPEAppliedSnapshot(summary, new Date(session.created_at).getTime());
+        } else {
+          clearPEAppliedSnapshot();
+        }
+      } catch {
+        clearPEAppliedSnapshot();
+      }
+    } else {
+      clearPEAppliedSnapshot();
+    }
 
     const { data: noteData } = await supabase
       .from('notes')

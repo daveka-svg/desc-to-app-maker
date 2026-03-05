@@ -99,10 +99,11 @@ export default function TranscriptPanel() {
         {isRecording && (
           <div className="flex items-center gap-1.5 text-xs font-semibold text-forest mt-2 max-w-[720px]">
             <span className="w-1.5 h-1.5 bg-forest rounded-full animate-pulse-dot" />
-            Listening — speak clearly for best results
+            Listening - speak clearly for best results
           </div>
         )}
       </div>
     </div>
   );
 }
+

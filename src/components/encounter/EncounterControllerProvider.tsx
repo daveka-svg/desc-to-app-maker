@@ -87,6 +87,7 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
       store.setSupplementalContext('');
       store.setTranscriptMergeWarning(null);
       store.setSessionDurationSeconds(0);
+      store.clearPEAppliedSnapshot();
       store.setNotes('');
       store.setTasks([]);
       store.setClientInstructions(null);
@@ -175,6 +176,9 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
     try {
       recordedBlob = await stopRecording();
       markStepDone('stopping-recording');
+      if (recordedBlob) {
+        store.addRecordingArtifact(recordedBlob, store.activeSessionId, timerSeconds);
+      }
     } catch (err) {
       console.error('Stop recording failed:', err);
       markStepError('stopping-recording');

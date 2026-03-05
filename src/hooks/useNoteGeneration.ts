@@ -13,6 +13,8 @@ export function useNoteGeneration() {
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const supplementalContext = useSessionStore((s) => s.supplementalContext);
   const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
+  const setPEAppliedSnapshot = useSessionStore((s) => s.setPEAppliedSnapshot);
+  const clearPEAppliedSnapshot = useSessionStore((s) => s.clearPEAppliedSnapshot);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
   const isGeneratingNotes = useSessionStore((s) => s.isGeneratingNotes);
@@ -45,13 +47,29 @@ export function useNoteGeneration() {
 
       const notesContent = await extractLlmText(response.data);
       setNotes(notesContent);
+      if (peEnabled && peReport.trim()) {
+        setPEAppliedSnapshot(peReport);
+      } else {
+        clearPEAppliedSnapshot();
+      }
     } catch (err) {
       console.error('Note generation error:', err);
       throw err;
     } finally {
       setIsGeneratingNotes(false);
     }
-  }, [transcript, peData, peEnabled, selectedTemplate, setNotes, setIsGeneratingNotes, supplementalContext, clinicKnowledgeBase]);
+  }, [
+    transcript,
+    peData,
+    peEnabled,
+    selectedTemplate,
+    setNotes,
+    setIsGeneratingNotes,
+    supplementalContext,
+    clinicKnowledgeBase,
+    setPEAppliedSnapshot,
+    clearPEAppliedSnapshot,
+  ]);
 
   return { notes, isGeneratingNotes, generateNote, setNotes };
 }

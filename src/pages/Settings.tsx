@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/stores/useSessionStore';
+import { DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE } from '@/lib/defaultClinicKnowledgeBase';
 
 interface AppSettings {
   language: string;
@@ -53,7 +54,7 @@ const isMissingKnowledgeBaseColumn = (message: string): boolean =>
 
 export default function Settings() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
-  const [clinicKnowledgeBase, setClinicKnowledgeBase] = useState('');
+  const [clinicKnowledgeBase, setClinicKnowledgeBase] = useState(DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE);
   const [saved, setSaved] = useState(false);
   const [loadingKnowledge, setLoadingKnowledge] = useState(true);
   const [savingKnowledge, setSavingKnowledge] = useState(false);
@@ -78,9 +79,12 @@ export default function Settings() {
           .eq('user_id', user.id)
           .single();
 
-        if (!error && data?.clinic_knowledge_base) {
+        if (!error && typeof data?.clinic_knowledge_base === 'string' && data.clinic_knowledge_base.trim()) {
           setClinicKnowledgeBase(data.clinic_knowledge_base);
           setStoreClinicKnowledgeBase(data.clinic_knowledge_base);
+        } else {
+          setClinicKnowledgeBase(DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE);
+          setStoreClinicKnowledgeBase(DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE);
         }
       } catch (error) {
         console.warn('Could not load clinic knowledge base:', error);

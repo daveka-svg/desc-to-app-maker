@@ -1,13 +1,6 @@
 import { Calendar, Globe } from 'lucide-react';
 import { useSessionStore } from '@/stores/useSessionStore';
 
-const statusHelp: Record<string, string> = {
-  idle: 'Open Context and press Start Recording.',
-  recording: 'Recording live. Press End session to finalize transcript and auto-generate notes.',
-  processing: 'Processing audio and generating consultation output...',
-  reviewing: 'Session ready. Switch template in Notes to regenerate.',
-};
-
 export default function TopBar() {
   const patientName = useSessionStore((s) => s.patientName);
   const setPatientName = useSessionStore((s) => s.setPatientName);
@@ -15,7 +8,6 @@ export default function TopBar() {
   const setSessionTitle = useSessionStore((s) => s.setSessionTitle);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const encounterStatus = useSessionStore((s) => s.encounterStatus);
   const saveCurrentSession = useSessionStore((s) => s.saveCurrentSession);
 
   const fallbackConsultationTitle = `${selectedTemplate} Consultation`;
@@ -46,7 +38,6 @@ export default function TopBar() {
           placeholder="Patient details"
           value={patientName}
           onChange={(e) => setPatientName(e.target.value)}
-          disabled={encounterStatus === 'processing'}
         />
       </div>
 
@@ -57,7 +48,6 @@ export default function TopBar() {
           value={sessionTitle}
           onChange={(e) => setSessionTitle(e.target.value)}
           onBlur={handleSessionTitleBlur}
-          disabled={encounterStatus === 'processing'}
         />
       </div>
 
@@ -70,9 +60,6 @@ export default function TopBar() {
         </span>
       </div>
 
-      <div className="px-3 py-1.5 rounded-md border border-border bg-sand text-[11px] text-text-secondary max-w-[420px] truncate">
-        {statusHelp[encounterStatus] || statusHelp.idle}
-      </div>
     </div>
   );
 }
