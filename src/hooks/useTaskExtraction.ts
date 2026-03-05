@@ -3,9 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { TASK_EXTRACTION_PROMPT } from '@/lib/prompts';
 import { useSessionStore, type Task } from '@/stores/useSessionStore';
 import { extractLlmText } from '@/lib/llm';
+import { buildTaskExtractionInput } from '@/lib/clinicContext';
 
 export function useTaskExtraction() {
   const notes = useSessionStore((s) => s.notes);
+  const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
   const setTasks = useSessionStore((s) => s.setTasks);
   const isExtractingTasks = useSessionStore((s) => s.isExtractingTasks);
   const setIsExtractingTasks = useSessionStore((s) => s.setIsExtractingTasks);
@@ -17,7 +19,10 @@ export function useTaskExtraction() {
     try {
       const { data, error } = await supabase.functions.invoke('generate-notes', {
         body: {
-          transcript: `${TASK_EXTRACTION_PROMPT}\n\nClinical Notes:\n${notes}`,
+          transcript: `${TASK_EXTRACTION_PROMPT}\n\n${buildTaskExtractionInput({
+            notes,
+            clinicKnowledgeBase,
+          })}`,
           templatePrompt: 'You are a veterinary task extraction assistant. Return only valid JSON.',
         },
       });
@@ -56,7 +61,7 @@ export function useTaskExtraction() {
     } finally {
       setIsExtractingTasks(false);
     }
-  }, [notes, setTasks, setIsExtractingTasks]);
+  }, [notes, clinicKnowledgeBase, setTasks, setIsExtractingTasks]);
 
   return { extractTasks, isExtractingTasks };
 }

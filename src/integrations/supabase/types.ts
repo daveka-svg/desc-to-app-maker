@@ -88,6 +88,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          clinic_knowledge_base: string | null
           created_at: string
           display_name: string | null
           email: string | null
@@ -98,6 +99,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          clinic_knowledge_base?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -108,6 +110,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          clinic_knowledge_base?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null

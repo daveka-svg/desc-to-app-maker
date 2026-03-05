@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ASK_ETV_SYSTEM, compilePEReport } from '@/lib/prompts';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { extractLlmText } from '@/lib/llm';
+import { buildChatInput } from '@/lib/clinicContext';
 
 export function useAskETV() {
   const transcript = useSessionStore((s) => s.transcript);
@@ -11,6 +12,7 @@ export function useAskETV() {
   const peEnabled = useSessionStore((s) => s.peEnabled);
   const patientName = useSessionStore((s) => s.patientName);
   const supplementalContext = useSessionStore((s) => s.supplementalContext);
+  const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
   const addChatMessage = useSessionStore((s) => s.addChatMessage);
   const updateLastAssistantMessage = useSessionStore((s) => s.updateLastAssistantMessage);
   const isChatStreaming = useSessionStore((s) => s.isChatStreaming);
@@ -25,16 +27,19 @@ export function useAskETV() {
 
     try {
       const peReport = peEnabled ? compilePEReport(peData) : '';
-      const contextParts: string[] = [];
-      if (patientName) contextParts.push(`Patient: ${patientName}`);
-      if (transcript) contextParts.push(`Transcript:\n${transcript.slice(0, 3000)}`);
-      if (peReport) contextParts.push(`PE Findings:\n${peReport}`);
-      if (notes) contextParts.push(`Clinical Notes:\n${notes.slice(0, 3000)}`);
-      if (supplementalContext) contextParts.push(`Additional Context:\n${supplementalContext.slice(0, 3000)}`);
+      const composedContext = buildChatInput({
+        patientName,
+        transcript,
+        notes,
+        peReport,
+        supplementalContext,
+        clinicKnowledgeBase,
+        userRequest: userText,
+      });
 
       const { data, error } = await supabase.functions.invoke('generate-notes', {
         body: {
-          transcript: `Current session context:\n${contextParts.join('\n\n')}\n\nUser request:\n${userText}`,
+          transcript: composedContext,
           templatePrompt: ASK_ETV_SYSTEM,
         },
       });
@@ -49,7 +54,7 @@ export function useAskETV() {
     } finally {
       setIsChatStreaming(false);
     }
-  }, [transcript, notes, peData, peEnabled, patientName, supplementalContext, addChatMessage, updateLastAssistantMessage, setIsChatStreaming]);
+  }, [transcript, notes, peData, peEnabled, patientName, supplementalContext, clinicKnowledgeBase, addChatMessage, updateLastAssistantMessage, setIsChatStreaming]);
 
   return { sendMessage, isChatStreaming };
 }

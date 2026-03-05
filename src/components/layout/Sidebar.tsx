@@ -41,6 +41,7 @@ interface DBSession {
 interface UserProfile {
   display_name: string | null;
   email: string | null;
+  clinic_knowledge_base?: string | null;
 }
 
 const sortTemplates = (templates: UserTemplate[]) =>
@@ -66,6 +67,7 @@ export default function Sidebar() {
   const setTranscriptMergeWarning = useSessionStore((s) => s.setTranscriptMergeWarning);
   const setTasks = useSessionStore((s) => s.setTasks);
   const setPatientName = useSessionStore((s) => s.setPatientName);
+  const setClinicKnowledgeBase = useSessionStore((s) => s.setClinicKnowledgeBase);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const setAvailableTemplates = useSessionStore((s) => s.setAvailableTemplates);
@@ -124,12 +126,28 @@ export default function Sidebar() {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, email')
+      .select('display_name, email, clinic_knowledge_base')
       .eq('user_id', user.id)
       .single();
-    if (data) setProfile(data);
+    if (data) {
+      setProfile(data);
+      if (typeof data.clinic_knowledge_base === 'string') {
+        setClinicKnowledgeBase(data.clinic_knowledge_base);
+      }
+      return;
+    }
+
+    // Compatibility fallback when local DB has not yet applied the knowledge-base migration.
+    if (error) {
+      const fallback = await supabase
+        .from('profiles')
+        .select('display_name, email')
+        .eq('user_id', user.id)
+        .single();
+      if (fallback.data) setProfile(fallback.data);
+    }
   };
 
   const fetchTemplates = async () => {

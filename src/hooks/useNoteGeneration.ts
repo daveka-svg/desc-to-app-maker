@@ -4,6 +4,7 @@ import { SYSTEM_PROMPT, TEMPLATES, compilePEReport } from '@/lib/prompts';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { extractLlmText } from '@/lib/llm';
 import { getTemplatePrompt } from '@/lib/templatePrompts';
+import { buildNotesGenerationInput } from '@/lib/clinicContext';
 
 export function useNoteGeneration() {
   const transcript = useSessionStore((s) => s.transcript);
@@ -11,6 +12,7 @@ export function useNoteGeneration() {
   const peEnabled = useSessionStore((s) => s.peEnabled);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const supplementalContext = useSessionStore((s) => s.supplementalContext);
+  const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
   const isGeneratingNotes = useSessionStore((s) => s.isGeneratingNotes);
@@ -28,12 +30,12 @@ export function useNoteGeneration() {
       const templatePrompt = await getTemplatePrompt(templateToUse, fallbackTemplate);
       const peReport = peEnabled ? compilePEReport(peData) : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
-      const contextBlock = supplementalContext.trim()
-        ? `\n\nAdditional Context:\n${supplementalContext.trim()}`
-        : '';
-      const payloadTranscript = peReport
-        ? `${transcript}${contextBlock}\n\nPhysical Examination:\n${peReport}`
-        : `${transcript}${contextBlock}`;
+      const payloadTranscript = buildNotesGenerationInput({
+        transcript,
+        peReport,
+        supplementalContext,
+        clinicKnowledgeBase,
+      });
 
       const response = await supabase.functions.invoke('generate-notes', {
         body: { transcript: payloadTranscript, peData: peEnabled ? peData : null, templatePrompt: fullPrompt },
@@ -49,7 +51,7 @@ export function useNoteGeneration() {
     } finally {
       setIsGeneratingNotes(false);
     }
-  }, [transcript, peData, peEnabled, selectedTemplate, setNotes, setIsGeneratingNotes, supplementalContext]);
+  }, [transcript, peData, peEnabled, selectedTemplate, setNotes, setIsGeneratingNotes, supplementalContext, clinicKnowledgeBase]);
 
   return { notes, isGeneratingNotes, generateNote, setNotes };
 }

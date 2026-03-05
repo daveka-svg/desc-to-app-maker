@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { CLIENT_INSTRUCTIONS_PROMPT } from '@/lib/prompts';
 import { useSessionStore } from '@/stores/useSessionStore';
+import { buildClientInstructionsInput } from '@/lib/clinicContext';
 
 async function parseSSEText(raw: unknown): Promise<string> {
   const text = typeof raw === 'string'
@@ -29,6 +30,7 @@ async function parseSSEText(raw: unknown): Promise<string> {
 export function useClientInstructions() {
   const notes = useSessionStore((s) => s.notes);
   const transcript = useSessionStore((s) => s.transcript);
+  const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
   const setClientInstructions = useSessionStore((s) => s.setClientInstructions);
   const isGeneratingCI = useSessionStore((s) => s.isGeneratingCI);
   const setIsGeneratingCI = useSessionStore((s) => s.setIsGeneratingCI);
@@ -40,7 +42,11 @@ export function useClientInstructions() {
     try {
       const { data, error } = await supabase.functions.invoke('generate-notes', {
         body: {
-          transcript: `${CLIENT_INSTRUCTIONS_PROMPT}\n\nClinical Notes:\n${notes}\n\nTranscript:\n${transcript}`,
+          transcript: `${CLIENT_INSTRUCTIONS_PROMPT}\n\n${buildClientInstructionsInput({
+            notes,
+            transcript,
+            clinicKnowledgeBase,
+          })}`,
           templatePrompt: 'You are a veterinary client communication specialist for Every Tail Vets (London, UK). Write in warm, reassuring UK English. Return only JSON.',
         },
       });
@@ -65,7 +71,7 @@ export function useClientInstructions() {
     } finally {
       setIsGeneratingCI(false);
     }
-  }, [notes, transcript, setClientInstructions, setIsGeneratingCI]);
+  }, [notes, transcript, clinicKnowledgeBase, setClientInstructions, setIsGeneratingCI]);
 
   return { generateInstructions, isGeneratingCI };
 }

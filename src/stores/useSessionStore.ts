@@ -153,6 +153,8 @@ interface SessionStore {
   // Patient
   patientName: string;
   setPatientName: (n: string) => void;
+  clinicKnowledgeBase: string;
+  setClinicKnowledgeBase: (value: string) => void;
   sessionTitle: string;
   setSessionTitle: (title: string) => void;
   sessionDurationSeconds: number;
@@ -348,6 +350,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   // Patient
   patientName: '',
   setPatientName: (n) => set({ patientName: n }),
+  clinicKnowledgeBase: '',
+  setClinicKnowledgeBase: (value) => set({ clinicKnowledgeBase: value }),
   sessionTitle: '',
   setSessionTitle: (title) => set({ sessionTitle: title }),
   sessionDurationSeconds: 0,
