@@ -4,24 +4,26 @@ import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useTaskExtraction } from '@/hooks/useTaskExtraction';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { compilePEReport } from '@/lib/prompts';
-import { Mic, Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy } from 'lucide-react';
+import { Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function NotesPanel() {
   const peIncludeInNotes = useSessionStore((s) => s.peIncludeInNotes);
   const togglePEInNotes = useSessionStore((s) => s.togglePEInNotes);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
+  const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
+  const availableTemplates = useSessionStore((s) => s.availableTemplates);
   const peData = useSessionStore((s) => s.peData);
   const peEnabled = useSessionStore((s) => s.peEnabled);
   const tasks = useSessionStore((s) => s.tasks);
+  const toggleTask = useSessionStore((s) => s.toggleTask);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
-  
-  const toggleTasks = useSessionStore((s) => s.toggleTasks);
   const { generateNote, isGeneratingNotes } = useNoteGeneration();
   const { extractTasks } = useTaskExtraction();
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isSwitchRegenerating, setIsSwitchRegenerating] = useState(false);
   const { toast } = useToast();
   const noteRef = useRef<HTMLDivElement>(null);
   const { canUndo, canRedo, undo, redo, pushState } = useUndoRedo();
@@ -35,9 +37,36 @@ export default function NotesPanel() {
     try {
       await generateNote();
       toast({ title: 'Notes generated', description: 'Clinical notes have been generated from the transcript.' });
-      try { await extractTasks(); } catch {}
+      try {
+        await extractTasks();
+      } catch (error) {
+        console.warn('Task extraction after note generation failed:', error);
+      }
     } catch (err: any) {
       toast({ title: 'Generation failed', description: err.message || 'Could not generate notes.', variant: 'destructive' });
+    }
+  };
+
+  const handleTemplateChange = async (templateName: string) => {
+    if (!templateName || templateName === selectedTemplate) return;
+    setSelectedTemplate(templateName);
+    setIsSwitchRegenerating(true);
+    try {
+      await generateNote(templateName);
+      try {
+        await extractTasks();
+      } catch (error) {
+        console.warn('Task extraction after template switch failed:', error);
+      }
+      toast({ title: 'Template applied', description: `Notes regenerated using ${templateName}.` });
+    } catch (err: any) {
+      toast({
+        title: 'Template regeneration failed',
+        description: err?.message || 'Could not regenerate notes for this template.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSwitchRegenerating(false);
     }
   };
 
@@ -87,16 +116,25 @@ export default function NotesPanel() {
       {/* Toolbar */}
       <div className="flex items-center justify-between px-5 py-2.5 bg-card border-b border-border-light shrink-0">
         <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-sand border border-border rounded-md text-[13px] font-semibold text-bark">
-            <span className="w-4 h-4 bg-forest rounded-[3px] flex items-center justify-center">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /></svg>
+          <select
+            value={selectedTemplate}
+            onChange={(e) => handleTemplateChange(e.target.value)}
+            className="px-3 py-1.5 bg-sand border border-border rounded-md text-[13px] font-semibold text-bark min-w-[220px]"
+          >
+            {availableTemplates.map((template) => (
+              <option key={template} value={template}>
+                {template}
+              </option>
+            ))}
+          </select>
+          {isSwitchRegenerating && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-forest font-semibold">
+              <Loader2 size={12} className="animate-spin" />
+              Applying template...
             </span>
-            {selectedTemplate}
-          </div>
+          )}
         </div>
         <div className="flex items-center gap-1">
-          <ToolBtn title="Dictate" disabled><Mic size={16} /></ToolBtn>
-          <div className="w-px h-5 bg-border mx-1" />
           <ToolBtn title="Undo (Ctrl+Z)" onClick={handleUndo} disabled={!canUndo}><Undo2 size={16} /></ToolBtn>
           <ToolBtn title="Redo (Ctrl+Y)" onClick={handleRedo} disabled={!canRedo}><Redo2 size={16} /></ToolBtn>
           <button
@@ -120,42 +158,68 @@ export default function NotesPanel() {
         </div>
       </div>
 
-      {/* Note content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {isGeneratingNotes && (
-          <div className="flex items-center gap-2 mb-3 text-xs text-forest font-semibold">
-            <Loader2 size={14} className="animate-spin" /> Generating clinical notes...
+      <div className="flex-1 min-h-0 flex">
+        <div className="flex-1 overflow-y-auto p-6">
+          {isGeneratingNotes && (
+            <div className="flex items-center gap-2 mb-3 text-xs text-forest font-semibold">
+              <Loader2 size={14} className="animate-spin" /> Generating clinical notes...
+            </div>
+          )}
+          {!notes && !isGeneratingNotes ? (
+            <div className="max-w-[720px] text-sm text-text-muted py-12 text-center">
+              <p className="mb-2">No notes yet.</p>
+              <p>Record a consultation and notes will be generated automatically.</p>
+            </div>
+          ) : (
+            <div
+              ref={noteRef}
+              className="max-w-[720px] text-sm leading-[1.85] text-text-primary outline-none rounded-md p-1 transition-colors duration-150 hover:bg-bark/[0.02] focus:bg-card focus:shadow-[0_0_0_2px_hsl(var(--sand-deeper))]"
+              contentEditable
+              suppressContentEditableWarning
+              spellCheck
+              onFocus={() => setEditing(true)}
+              onBlur={() => { setEditing(false); handleNoteInput(); }}
+            >
+              {notes.split('\n\n').map((para, i) => (
+                <p key={i} className="mb-3.5">
+                  {para.startsWith('CE:') || para.startsWith('Plan:') || para.startsWith('Adv') || para.startsWith('PE:') ? (
+                    <><span className="text-etv-olive font-bold">{para.split(':')[0]}:</span>{para.substring(para.indexOf(':') + 1)}</>
+                  ) : para}
+                </p>
+              ))}
+              {peIncludeInNotes && peEnabled && peText && (
+                <div className="border-t border-dashed border-border pt-3 mt-1.5">
+                  <p><span className="text-etv-olive font-bold">PE:</span> {peText.substring(3)}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <aside className="w-[280px] border-l border-border-light bg-card/60 p-4 overflow-y-auto">
+          <div className="text-[12px] font-bold uppercase tracking-[0.5px] text-text-muted mb-2">
+            Auto Tasks
           </div>
-        )}
-        {!notes && !isGeneratingNotes ? (
-          <div className="max-w-[720px] text-sm text-text-muted py-12 text-center">
-            <p className="mb-2">No notes yet.</p>
-            <p>Record a consultation or add a transcript, then click <strong className="text-forest">"Generate Summary"</strong> to generate clinical notes with AI.</p>
-          </div>
-        ) : (
-          <div
-            ref={noteRef}
-            className="max-w-[720px] text-sm leading-[1.85] text-text-primary outline-none rounded-md p-1 transition-colors duration-150 hover:bg-bark/[0.02] focus:bg-card focus:shadow-[0_0_0_2px_hsl(var(--sand-deeper))]"
-            contentEditable
-            suppressContentEditableWarning
-            spellCheck
-            onFocus={() => setEditing(true)}
-            onBlur={() => { setEditing(false); handleNoteInput(); }}
-          >
-            {notes.split('\n\n').map((para, i) => (
-              <p key={i} className="mb-3.5">
-                {para.startsWith('CE:') || para.startsWith('Plan:') || para.startsWith('Adv') || para.startsWith('PE:') ? (
-                  <><span className="text-etv-olive font-bold">{para.split(':')[0]}:</span>{para.substring(para.indexOf(':') + 1)}</>
-                ) : para}
-              </p>
-            ))}
-            {peIncludeInNotes && peEnabled && peText && (
-              <div className="border-t border-dashed border-border pt-3 mt-1.5">
-                <p><span className="text-etv-olive font-bold">PE:</span> {peText.substring(3)}</p>
-              </div>
-            )}
-          </div>
-        )}
+          {tasks.length === 0 ? (
+            <div className="text-xs text-text-muted">Tasks will appear here after note generation.</div>
+          ) : (
+            <div className="space-y-2">
+              {tasks.map((task) => (
+                <label key={task.id} className="flex items-start gap-2 text-xs text-text-primary">
+                  <input
+                    type="checkbox"
+                    checked={task.done}
+                    onChange={() => toggleTask(task.id)}
+                    className="mt-0.5"
+                  />
+                  <span className={task.done ? 'line-through text-text-muted' : ''}>
+                    {task.text.length > 110 ? `${task.text.slice(0, 107)}...` : task.text}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+        </aside>
       </div>
 
       {/* Footer */}
@@ -171,7 +235,7 @@ export default function NotesPanel() {
         </div>
         <div className="flex items-center gap-3.5">
           <span className="flex items-center gap-1"><Star size={13} className="opacity-50" /> Personalisation on</span>
-          <span className="flex items-center gap-1 cursor-pointer hover:text-bark transition-colors" onClick={toggleTasks}><ClipboardList size={13} className="opacity-50" /> {tasks.length} tasks</span>
+          <span className="flex items-center gap-1"><ClipboardList size={13} className="opacity-50" /> {tasks.length} tasks</span>
         </div>
       </div>
     </div>

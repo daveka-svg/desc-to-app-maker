@@ -10,10 +10,11 @@ serve(async (req) => {
 
   try {
     const { transcript, peData, templatePrompt } = await req.json();
-    const INCEPTION_API_KEY = Deno.env.get("INCEPTION_API_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!INCEPTION_API_KEY && !LOVABLE_API_KEY) {
-      throw new Error("INCEPTION_API_KEY (preferred) or LOVABLE_API_KEY must be configured");
+    const INCEPTIONLABS_API_KEY =
+      Deno.env.get("INCEPTIONLABS_API_KEY") || Deno.env.get("INCEPTION_API_KEY");
+
+    if (!INCEPTIONLABS_API_KEY) {
+      throw new Error("INCEPTIONLABS_API_KEY must be configured");
     }
 
     const systemPrompt = templatePrompt || `You are a veterinary clinical note generator. Generate structured clinical notes from the consultation transcript. Include:
@@ -27,82 +28,39 @@ Keep the language concise and professional. Use standard veterinary abbreviation
     const peContext = peData ? `\n\nPhysical Examination Data:\n${JSON.stringify(peData, null, 2)}` : '';
     const userPrompt = `Generate clinical notes from the following consultation transcript:${peContext}\n\nTranscript:\n${transcript}`;
 
-    // Preferred provider: Inception (OpenAI-compatible endpoint)
-    if (INCEPTION_API_KEY) {
-      const model = Deno.env.get("INCEPTION_MODEL") || "mercury-2";
-      const reasoningEffort = Deno.env.get("INCEPTION_REASONING_EFFORT") || "instant";
+    const model = Deno.env.get("INCEPTION_MODEL") || "mercury-2";
+    const reasoningEffort = Deno.env.get("INCEPTION_REASONING_EFFORT") || "instant";
 
-      const inceptionResponse = await fetch("https://api.inceptionlabs.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${INCEPTION_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          reasoning_effort: reasoningEffort,
-          max_tokens: 2000,
-        }),
-      });
-
-      if (!inceptionResponse.ok) {
-        const errorText = await inceptionResponse.text();
-        console.error("Inception API error:", inceptionResponse.status, errorText);
-        throw new Error(`Inception API error [${inceptionResponse.status}]`);
-      }
-
-      const data = await inceptionResponse.json();
-      const content = data?.choices?.[0]?.message?.content || "";
-
-      return new Response(JSON.stringify({ content }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Legacy fallback provider
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.inceptionlabs.ai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${INCEPTIONLABS_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-5",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        stream: false,
+        reasoning_effort: reasoningEffort,
+        max_tokens: 2000,
       }),
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Usage limit reached. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      return new Response(JSON.stringify({ error: "AI gateway error" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const errorText = await response.text();
+      console.error("Inception API error:", response.status, errorText);
+      throw new Error(`Inception API error [${response.status}]`);
     }
 
     const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content || "";
+    const rawContent = data?.choices?.[0]?.message?.content;
+    const content = typeof rawContent === "string"
+      ? rawContent
+      : Array.isArray(rawContent)
+      ? rawContent.map((part: { text?: string } | null) => part?.text || "").join("").trim()
+      : "";
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

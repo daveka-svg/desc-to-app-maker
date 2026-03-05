@@ -1,8 +1,12 @@
-import { Calendar, Globe, Loader2 } from 'lucide-react';
+import { Calendar, Globe } from 'lucide-react';
 import { useSessionStore } from '@/stores/useSessionStore';
-import { useNoteGeneration } from '@/hooks/useNoteGeneration';
-import { useTaskExtraction } from '@/hooks/useTaskExtraction';
-import { useToast } from '@/hooks/use-toast';
+
+const statusHelp: Record<string, string> = {
+  idle: 'Open Context and press Start Recording.',
+  recording: 'Recording live. Press End session to finalize transcript and auto-generate notes.',
+  processing: 'Processing audio and generating consultation output...',
+  reviewing: 'Session ready. Switch template in Notes to regenerate.',
+};
 
 export default function TopBar() {
   const patientName = useSessionStore((s) => s.patientName);
@@ -12,38 +16,9 @@ export default function TopBar() {
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const encounterStatus = useSessionStore((s) => s.encounterStatus);
-  const setActiveTab = useSessionStore((s) => s.setActiveTab);
   const saveCurrentSession = useSessionStore((s) => s.saveCurrentSession);
-  const { generateNote, isGeneratingNotes } = useNoteGeneration();
-  const { extractTasks } = useTaskExtraction();
-  const { toast } = useToast();
 
   const fallbackConsultationTitle = `${selectedTemplate} Consultation`;
-
-  const handleCreate = async () => {
-    try {
-      toast({ title: 'Generating...', description: 'Creating clinical notes from transcript.' });
-      setActiveTab('notes');
-      await generateNote();
-      toast({ title: 'Notes generated', description: 'Clinical notes are ready. Extracting tasks...' });
-
-      try {
-        await extractTasks();
-        toast({ title: 'Tasks extracted' });
-      } catch {
-        // non-critical
-      }
-
-      await saveCurrentSession();
-      window.dispatchEvent(new Event('session-saved'));
-    } catch (err: any) {
-      toast({
-        title: 'Generation failed',
-        description: err.message || 'Could not generate notes.',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleSessionTitleBlur = async () => {
     if (!activeSessionId) return;
@@ -95,20 +70,8 @@ export default function TopBar() {
         </span>
       </div>
 
-      <div className="flex items-center gap-3.5">
-        <button
-          onClick={handleCreate}
-          disabled={isGeneratingNotes || encounterStatus === 'processing'}
-          className="bg-sand text-bark border border-border px-[18px] py-2 rounded-md text-[13px] font-semibold cursor-pointer flex items-center gap-1.5 hover:bg-sand-dark transition-colors disabled:opacity-50"
-        >
-          {isGeneratingNotes ? (
-            <>
-              <Loader2 size={14} className="animate-spin" /> Generating...
-            </>
-          ) : (
-            <>Generate Summary</>
-          )}
-        </button>
+      <div className="px-3 py-1.5 rounded-md border border-border bg-sand text-[11px] text-text-secondary max-w-[420px] truncate">
+        {statusHelp[encounterStatus] || statusHelp.idle}
       </div>
     </div>
   );

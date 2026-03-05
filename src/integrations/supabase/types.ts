@@ -50,6 +50,7 @@ export type Database = {
           created_at: string
           id: string
           session_id: string
+          supplemental_context: string | null
           transcript: string | null
           updated_at: string
           user_id: string
@@ -60,6 +61,7 @@ export type Database = {
           created_at?: string
           id?: string
           session_id: string
+          supplemental_context?: string | null
           transcript?: string | null
           updated_at?: string
           user_id: string
@@ -70,6 +72,7 @@ export type Database = {
           created_at?: string
           id?: string
           session_id?: string
+          supplemental_context?: string | null
           transcript?: string | null
           updated_at?: string
           user_id?: string

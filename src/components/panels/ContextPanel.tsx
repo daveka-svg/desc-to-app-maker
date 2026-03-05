@@ -38,7 +38,6 @@ export default function ContextPanel() {
   const appendSupplementalContext = useSessionStore((s) => s.appendSupplementalContext);
   const encounterStatus = useSessionStore((s) => s.encounterStatus);
   const processingSteps = useSessionStore((s) => s.processingSteps);
-  const transcriptMergeWarning = useSessionStore((s) => s.transcriptMergeWarning);
   const {
     isRecording,
     isPaused,
@@ -78,6 +77,17 @@ export default function ContextPanel() {
 
   return (
     <div className="p-5 overflow-y-auto flex-1">
+      <div className="mb-3.5 rounded-lg border border-border-light bg-card p-3.5">
+        <div className="text-[12px] font-bold text-bark mb-1">Quick start</div>
+        <div className="text-[12px] text-text-secondary leading-relaxed">
+          1) Add patient details and template below.
+          <br />
+          2) Press Start Recording.
+          <br />
+          3) Press End session to auto-generate transcript, notes, and tasks.
+        </div>
+      </div>
+
       <div className="bg-card rounded-lg p-[18px] mb-3.5 border border-border-light">
         <div className="flex items-center justify-between mb-2.5">
           <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted">Recording</div>
@@ -158,13 +168,6 @@ export default function ContextPanel() {
           </div>
         )}
       </div>
-
-      {transcriptMergeWarning && (
-        <div className="mb-3.5 rounded-lg border border-warning/40 bg-warning/10 px-3.5 py-3 text-[12px] text-text-primary flex items-start gap-2">
-          <AlertTriangle size={16} className="text-warning mt-px shrink-0" />
-          <span>{transcriptMergeWarning}</span>
-        </div>
-      )}
 
       <div className="bg-card rounded-lg p-[18px] mb-3.5 border border-border-light">
         <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted mb-2.5">Session details</div>

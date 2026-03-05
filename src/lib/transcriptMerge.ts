@@ -108,7 +108,6 @@ export const mergeTranscriptTail = (
     audioTranscript,
     confidence: 'low',
     usedAudioTail: false,
-    warning:
-      'Transcript tail merge had low confidence. Live transcript was kept. Please review for any missing ending lines.',
+    warning: null,
   };
 };

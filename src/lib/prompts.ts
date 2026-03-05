@@ -111,6 +111,8 @@ Section 2: Team Handover (Vet/Nurse)
 
 export const TASK_EXTRACTION_PROMPT = `Given the following veterinary clinical notes, extract all action items. For each item, assign it to: "Vet" (clinical decisions, prescriptions, procedures), "Nurse" (sample collection, monitoring, fluid administration), or "Admin" (estimates, insurance, scheduling).
 
+Write each task as a short, plain instruction (ideally under 12 words).
+
 Return as JSON:
 {
   "prescriptions": [{"text": "...", "assignee": "Vet|Nurse"}],

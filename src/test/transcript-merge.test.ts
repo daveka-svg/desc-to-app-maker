@@ -18,11 +18,11 @@ describe('transcript tail merge', () => {
     expect(result.mergedTranscript).toContain('and is now drinking a little');
   });
 
-  it('keeps live transcript and warns when merge confidence is low', () => {
+  it('keeps live transcript without user-facing warning when merge confidence is low', () => {
     const live = '**Speaker 1:** Bella is much brighter today';
     const result = mergeTranscriptTail(live, 'Completely different wording from another consult');
 
-    expect(result.warning).not.toBeNull();
+    expect(result.warning).toBeNull();
     expect(result.mergedTranscript).toBe(live);
     expect(result.confidence).toBe('low');
   });

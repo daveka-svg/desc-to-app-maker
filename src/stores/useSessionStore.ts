@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { TEMPLATES } from '@/lib/prompts';
 
-export type TabId = 'context' | 'transcript' | 'notes' | 'tasks' | 'chat' | 'dictation';
+export type TabId = 'context' | 'transcript' | 'notes' | 'tasks' | 'chat';
 export type EncounterStatus = 'idle' | 'recording' | 'processing' | 'reviewing';
 export type TranscriptionConnectionState = 'connected' | 'reconnecting' | 'disconnected';
 export type ProcessingStepStatus = 'pending' | 'active' | 'done' | 'error';
@@ -155,6 +155,8 @@ interface SessionStore {
   setPatientName: (n: string) => void;
   sessionTitle: string;
   setSessionTitle: (title: string) => void;
+  sessionDurationSeconds: number;
+  setSessionDurationSeconds: (seconds: number) => void;
 
   // Session management
   sessions: SavedSession[];
@@ -196,6 +198,25 @@ const normalPE: Partial<PEData> = {
 
 const genId = () => crypto.randomUUID();
 const DEFAULT_TEMPLATE_OPTIONS = Object.keys(TEMPLATES);
+
+const formatDurationLabel = (seconds: number): string => {
+  if (!seconds || seconds <= 0) return '0m';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+};
+
+const generateSessionTitle = (
+  patientName: string,
+  sessionType: string,
+  durationSeconds: number,
+  createdAt = new Date()
+): string => {
+  const date = createdAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  const time = createdAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const prefix = patientName.trim() || sessionType || 'Consultation';
+  return `${prefix} - ${date} ${time} - ${formatDurationLabel(durationSeconds)}`;
+};
 
 const createDefaultProcessingSteps = (): ProcessingStep[] => [
   { id: 'stopping-recording', label: 'Stopping recording', status: 'pending' },
@@ -329,6 +350,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setPatientName: (n) => set({ patientName: n }),
   sessionTitle: '',
   setSessionTitle: (title) => set({ sessionTitle: title }),
+  sessionDurationSeconds: 0,
+  setSessionDurationSeconds: (seconds) => set({ sessionDurationSeconds: Math.max(0, seconds) }),
 
   // Session management
   sessions: [],
@@ -341,6 +364,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       activeSessionId: null,
       patientName: '',
       sessionTitle: '',
+      sessionDurationSeconds: 0,
       transcript: '',
       interimTranscript: '',
       supplementalContext: '',
@@ -367,6 +391,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     if (!user) return;
 
     let sessionId = s.activeSessionId;
+    const generatedTitle = generateSessionTitle(
+      s.patientName,
+      s.selectedTemplate,
+      s.sessionDurationSeconds
+    );
+    const currentTitle = s.sessionTitle.trim();
+    const titleLooksLikeDraft = /\b0m$/i.test(currentTitle);
+    const titleToSave = !currentTitle || titleLooksLikeDraft ? generatedTitle : currentTitle;
 
     if (!sessionId) {
       const { data: createdSession, error: createError } = await supabase
@@ -374,11 +406,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         .insert({
           user_id: user.id,
           patient_name: s.patientName || null,
-          title: s.sessionTitle.trim() || null,
+          title: titleToSave,
           session_type: s.selectedTemplate,
           pe_data: s.peEnabled ? (s.peData as any) : null,
           pe_enabled: s.peEnabled,
-          duration_seconds: 0,
+          duration_seconds: s.sessionDurationSeconds,
           status: 'completed',
         })
         .select('id')
@@ -389,20 +421,22 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         return;
       }
       sessionId = createdSession.id;
-      set({ activeSessionId: sessionId });
+      set({ activeSessionId: sessionId, sessionTitle: titleToSave });
     } else {
       await supabase
         .from('sessions')
         .update({
           patient_name: s.patientName || null,
-          title: s.sessionTitle.trim() || null,
+          title: titleToSave,
           session_type: s.selectedTemplate,
           pe_data: s.peEnabled ? (s.peData as any) : null,
           pe_enabled: s.peEnabled,
+          duration_seconds: s.sessionDurationSeconds,
           status: 'completed',
         })
         .eq('id', sessionId)
         .eq('user_id', user.id);
+      set({ sessionTitle: titleToSave });
     }
 
     await supabase.from('notes').delete().eq('session_id', sessionId).eq('user_id', user.id);
@@ -411,6 +445,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       session_id: sessionId,
       content: s.notes,
       transcript: s.transcript,
+      supplemental_context: s.supplementalContext || null,
     });
 
     await supabase.from('tasks').delete().eq('session_id', sessionId).eq('user_id', user.id);
@@ -436,6 +471,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       encounterStatus: 'reviewing',
       activeSessionId: session.id,
       sessionTitle: session.title || '',
+      sessionDurationSeconds: session.duration,
       patientName: session.patientName,
       selectedTemplate: session.consultType,
       transcript: session.transcript,

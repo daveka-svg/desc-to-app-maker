@@ -245,7 +245,7 @@ export default function AllTasksPanel() {
         </div>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {assigneeColumns.map((column) => {
           const columnTasks = getColumnTasks(column.assignee);
           return (
@@ -258,7 +258,7 @@ export default function AllTasksPanel() {
                 setDraggingTaskId(null);
                 setNewTaskAssignee(column.assignee);
               }}
-              className={`rounded-lg border ${column.accent} bg-card min-h-[260px] min-w-[320px] flex-shrink-0`}
+              className={`rounded-lg border ${column.accent} bg-card min-h-[260px]`}
             >
               <div className="px-3 py-2 border-b border-border-light flex items-center justify-between">
                 <span className="text-xs font-semibold text-text-primary">{column.title}</span>

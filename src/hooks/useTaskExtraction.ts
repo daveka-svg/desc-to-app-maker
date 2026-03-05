@@ -35,9 +35,12 @@ export function useTaskExtraction() {
       for (const cat of categories) {
         const items = parsed[cat] || [];
         for (const item of items) {
+          const rawText = typeof item?.text === 'string' ? item.text : String(item?.text || '');
+          const compactText = rawText.replace(/\s+/g, ' ').trim();
+          if (!compactText) continue;
           tasks.push({
             id: crypto.randomUUID(),
-            text: item.text,
+            text: compactText.length > 140 ? `${compactText.slice(0, 137)}...` : compactText,
             category: cat,
             assignee: (item.assignee || 'Vet') as Task['assignee'],
             done: false,

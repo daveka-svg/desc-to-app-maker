@@ -47,6 +47,13 @@ const extractTranscriptText = (payload: any): string => {
   return '';
 };
 
+const makeDraftTitle = (patientName: string, template: string, now = new Date()) => {
+  const date = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const prefix = patientName.trim() || template || 'Consultation';
+  return `${prefix} - ${date} ${time} - 0m`;
+};
+
 export function EncounterControllerProvider({ children }: { children: React.ReactNode }) {
   const {
     isRecording,
@@ -79,10 +86,38 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
       store.setInterimTranscript('');
       store.setSupplementalContext('');
       store.setTranscriptMergeWarning(null);
+      store.setSessionDurationSeconds(0);
       store.setNotes('');
       store.setTasks([]);
       store.setClientInstructions(null);
       store.resetProcessingSteps();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user && !store.activeSessionId) {
+        const draftTitle = makeDraftTitle(store.patientName, store.selectedTemplate);
+        const { data: draftSession, error } = await supabase
+          .from('sessions')
+          .insert({
+            user_id: user.id,
+            patient_name: store.patientName || null,
+            title: draftTitle,
+            session_type: store.selectedTemplate,
+            pe_data: store.peEnabled ? (store.peData as any) : null,
+            pe_enabled: store.peEnabled,
+            duration_seconds: 0,
+            status: 'recording',
+          })
+          .select('id, title')
+          .single();
+
+        if (!error && draftSession) {
+          store.setActiveSessionId(draftSession.id);
+          store.setSessionTitle(draftSession.title || draftTitle);
+          window.dispatchEvent(new Event('session-saved'));
+        }
+      }
 
       await startRecording();
       store.setIsRecording(true);
@@ -133,6 +168,7 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
     store.setEncounterStatus('processing');
     store.resetProcessingSteps();
     store.setTranscriptMergeWarning(null);
+    store.setSessionDurationSeconds(timerSeconds);
 
     let recordedBlob: Blob | null = null;
     markStepActive('stopping-recording');
@@ -182,11 +218,7 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
     markStepActive('merging-transcript-tail');
     try {
       const merged = mergeTranscriptTail(store.transcript, fullAudioTranscript);
-      if (merged.warning) {
-        store.setTranscriptMergeWarning(merged.warning);
-      } else {
-        store.setTranscriptMergeWarning(null);
-      }
+      store.setTranscriptMergeWarning(null);
       if (merged.mergedTranscript.trim()) {
         store.setTranscript(merged.mergedTranscript.trim());
       }

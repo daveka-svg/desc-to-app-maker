@@ -33,6 +33,7 @@ interface DBSession {
   patient_name: string | null;
   session_type: string | null;
   created_at: string;
+  duration_seconds: number | null;
   status: string | null;
   archived_at: string | null;
 }
@@ -45,6 +46,13 @@ interface UserProfile {
 const sortTemplates = (templates: UserTemplate[]) =>
   [...templates].sort((a, b) => a.name.localeCompare(b.name));
 
+const formatDurationLabel = (seconds: number | null): string => {
+  if (!seconds || seconds <= 0) return '0m';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+};
+
 export default function Sidebar() {
   const newSession = useSessionStore((s) => s.newSession);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -54,6 +62,7 @@ export default function Sidebar() {
   const setNotes = useSessionStore((s) => s.setNotes);
   const setTranscript = useSessionStore((s) => s.setTranscript);
   const setInterimTranscript = useSessionStore((s) => s.setInterimTranscript);
+  const setSupplementalContext = useSessionStore((s) => s.setSupplementalContext);
   const setTranscriptMergeWarning = useSessionStore((s) => s.setTranscriptMergeWarning);
   const setTasks = useSessionStore((s) => s.setTasks);
   const setPatientName = useSessionStore((s) => s.setPatientName);
@@ -61,6 +70,7 @@ export default function Sidebar() {
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const setAvailableTemplates = useSessionStore((s) => s.setAvailableTemplates);
   const setSessionTitle = useSessionStore((s) => s.setSessionTitle);
+  const setSessionDurationSeconds = useSessionStore((s) => s.setSessionDurationSeconds);
 
   const [sessions, setSessions] = useState<DBSession[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -97,7 +107,7 @@ export default function Sidebar() {
   const fetchSessions = async () => {
     let query = supabase
       .from('sessions')
-      .select('id, title, patient_name, session_type, created_at, status, archived_at')
+      .select('id, title, patient_name, session_type, created_at, duration_seconds, status, archived_at')
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -384,18 +394,21 @@ export default function Sidebar() {
     setSessionTitle(session.title || '');
     setPatientName(session.patient_name || '');
     setSelectedTemplate(session.session_type || 'General Consult');
+    setSessionDurationSeconds(session.duration_seconds || 0);
 
     const { data: noteData } = await supabase
       .from('notes')
-      .select('content, transcript')
+      .select('content, transcript, supplemental_context')
       .eq('session_id', session.id)
       .single();
     if (noteData) {
       setNotes(noteData.content || '');
       setTranscript(noteData.transcript || '');
+      setSupplementalContext(noteData.supplemental_context || '');
     } else {
       setNotes('');
       setTranscript('');
+      setSupplementalContext('');
     }
     setInterimTranscript('');
     setTranscriptMergeWarning(null);
@@ -445,14 +458,31 @@ export default function Sidebar() {
 
   const getSessionLabel = (session: DBSession) => {
     if (session.title?.trim()) return session.title.trim();
+    const date = new Date(session.created_at).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+    });
     const time = new Date(session.created_at).toLocaleTimeString('en-GB', {
       hour: '2-digit',
       minute: '2-digit',
     });
+    const duration = formatDurationLabel(session.duration_seconds);
     if (session.patient_name) {
-      return `${session.patient_name} - ${session.session_type || 'Consult'} - ${time}`;
+      return `${session.patient_name} - ${date} ${time} - ${duration}`;
     }
-    return `${session.session_type || 'Consult'} - ${time}`;
+    return `${session.session_type || 'Consult'} - ${date} ${time} - ${duration}`;
+  };
+
+  const getSessionMeta = (session: DBSession) => {
+    const time = new Date(session.created_at).toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const duration = formatDurationLabel(session.duration_seconds);
+    const status = session.status === 'recording' ? 'Recording' : null;
+    const bits = [session.session_type || 'General Consult', time, duration];
+    if (status) bits.push(status);
+    return bits.join(' - ');
   };
 
   return (
@@ -537,7 +567,7 @@ export default function Sidebar() {
                           {getSessionLabel(session)}
                         </div>
                         <div className="text-[11px] text-text-muted">
-                          {session.session_type || 'General Consult'}
+                          {getSessionMeta(session)}
                         </div>
                       </div>
                     </div>
