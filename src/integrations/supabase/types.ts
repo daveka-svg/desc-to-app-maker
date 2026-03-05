@@ -21,7 +21,6 @@ export type Database = {
           is_default: boolean | null
           name: string
           system_prompt: string | null
-          updated_at: string
           user_id: string | null
         }
         Insert: {
@@ -30,7 +29,6 @@ export type Database = {
           is_default?: boolean | null
           name: string
           system_prompt?: string | null
-          updated_at?: string
           user_id?: string | null
         }
         Update: {
@@ -39,7 +37,6 @@ export type Database = {
           is_default?: boolean | null
           name?: string
           system_prompt?: string | null
-          updated_at?: string
           user_id?: string | null
         }
         Relationships: []

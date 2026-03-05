@@ -134,7 +134,7 @@ export default function AllTasksPanel() {
     filtered.filter((task) => (task.assignee || 'Vet') === assignee).sort(sortByOrder);
 
   const persistOrder = async (nextTasks: DBTask[], assignees: Assignee[]) => {
-    const updates: Array<Promise<any>> = [];
+    const updates: Array<PromiseLike<any>> = [];
     for (const assignee of assignees) {
       const columnTasks = nextTasks
         .filter((task) => (task.assignee || 'Vet') === assignee)
@@ -142,12 +142,12 @@ export default function AllTasksPanel() {
         .map((task, index) => ({ ...task, assignee, order_index: index + 1 }));
 
       for (const task of columnTasks) {
-        updates.push(
-          supabase
-            .from('tasks')
-            .update({ assignee: task.assignee, order_index: task.order_index })
-            .eq('id', task.id)
-        );
+        const p = supabase
+          .from('tasks')
+          .update({ assignee: task.assignee, order_index: task.order_index } as any)
+          .eq('id', task.id)
+          .then();
+        updates.push(p);
       }
     }
     await Promise.all(updates);
