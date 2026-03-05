@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { TEMPLATES } from '@/lib/prompts';
 
-export type TabId = 'context' | 'transcript' | 'notes' | 'tasks';
+export type TabId = 'context' | 'transcript' | 'notes' | 'tasks' | 'chat' | 'dictation';
 export type EncounterStatus = 'idle' | 'recording' | 'processing' | 'reviewing';
 export type TranscriptionConnectionState = 'connected' | 'reconnecting' | 'disconnected';
 export type ProcessingStepStatus = 'pending' | 'active' | 'done' | 'error';
@@ -111,6 +111,9 @@ interface SessionStore {
   setTranscript: (t: string) => void;
   setInterimTranscript: (t: string) => void;
   appendTranscript: (t: string) => void;
+  supplementalContext: string;
+  setSupplementalContext: (context: string) => void;
+  appendSupplementalContext: (context: string) => void;
   transcriptMergeWarning: string | null;
   setTranscriptMergeWarning: (warning: string | null) => void;
   transcriptionConnectionState: TranscriptionConnectionState;
@@ -251,6 +254,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setTranscript: (t) => set({ transcript: t }),
   setInterimTranscript: (t) => set({ interimTranscript: t }),
   appendTranscript: (t) => set((s) => ({ transcript: s.transcript + t })),
+  supplementalContext: '',
+  setSupplementalContext: (context) => set({ supplementalContext: context }),
+  appendSupplementalContext: (context) => set((state) => ({
+    supplementalContext: state.supplementalContext.trim()
+      ? `${state.supplementalContext.trim()}\n\n${context.trim()}`
+      : context.trim(),
+  })),
   transcriptMergeWarning: null,
   setTranscriptMergeWarning: (warning) => set({ transcriptMergeWarning: warning }),
   transcriptionConnectionState: 'disconnected',
@@ -333,6 +343,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       sessionTitle: '',
       transcript: '',
       interimTranscript: '',
+      supplementalContext: '',
       transcriptMergeWarning: null,
       notes: '',
       peEnabled: true,
@@ -429,6 +440,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       selectedTemplate: session.consultType,
       transcript: session.transcript,
       interimTranscript: '',
+      supplementalContext: '',
       notes: session.notes,
       peEnabled: session.peEnabled,
       tasks: session.tasks,

@@ -1,3 +1,4 @@
+import type { ChangeEvent } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { useEncounterController } from '@/components/encounter/EncounterControllerProvider';
@@ -32,6 +33,9 @@ export default function ContextPanel() {
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const availableTemplates = useSessionStore((s) => s.availableTemplates);
+  const supplementalContext = useSessionStore((s) => s.supplementalContext);
+  const setSupplementalContext = useSessionStore((s) => s.setSupplementalContext);
+  const appendSupplementalContext = useSessionStore((s) => s.appendSupplementalContext);
   const encounterStatus = useSessionStore((s) => s.encounterStatus);
   const processingSteps = useSessionStore((s) => s.processingSteps);
   const transcriptMergeWarning = useSessionStore((s) => s.transcriptMergeWarning);
@@ -49,6 +53,20 @@ export default function ContextPanel() {
   } = useEncounterController();
 
   const isProcessing = encounterStatus === 'processing';
+
+  const handleContextFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    for (const file of files) {
+      const text = await file.text();
+      const clipped = text.trim().slice(0, 7000);
+      if (!clipped) continue;
+      appendSupplementalContext(`Source: ${file.name}\n${clipped}`);
+    }
+
+    event.target.value = '';
+  };
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -169,6 +187,39 @@ export default function ContextPanel() {
               <option key={t}>{t}</option>
             ))}
           </select>
+        </div>
+
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-[12px] font-semibold text-text-secondary">Additional Context (lab/results)</label>
+            <div className="flex items-center gap-2">
+              <label className="px-2.5 py-1 text-[11px] font-semibold bg-sand border border-border rounded-md cursor-pointer hover:bg-sand-dark">
+                Upload text file
+                <input
+                  type="file"
+                  accept=".txt,.md,.csv,.log,.json"
+                  multiple
+                  className="hidden"
+                  onChange={handleContextFileUpload}
+                  disabled={isProcessing}
+                />
+              </label>
+              <button
+                onClick={() => setSupplementalContext('')}
+                disabled={!supplementalContext.trim() || isProcessing}
+                className="px-2.5 py-1 text-[11px] font-semibold bg-card border border-border rounded-md disabled:opacity-40 hover:bg-sand"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+          <textarea
+            value={supplementalContext}
+            onChange={(e) => setSupplementalContext(e.target.value)}
+            disabled={isProcessing}
+            placeholder="Paste lab findings, external notes, or uploaded text context used during summary generation."
+            className="w-full min-h-[96px] px-3 py-2 border border-border rounded-md text-[12px] outline-none bg-card text-text-primary placeholder:text-text-muted focus:border-bark-muted resize-y"
+          />
         </div>
 
         <div className="flex items-center justify-between mt-3 px-3.5 py-2.5 bg-sand rounded-md">

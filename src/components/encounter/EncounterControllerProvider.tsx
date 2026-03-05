@@ -77,6 +77,7 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
       store.setEncounterStatus('recording');
       store.setTranscript('');
       store.setInterimTranscript('');
+      store.setSupplementalContext('');
       store.setTranscriptMergeWarning(null);
       store.setNotes('');
       store.setTasks([]);

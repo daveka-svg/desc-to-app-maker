@@ -31,7 +31,6 @@ export function useTranscription() {
   const [isSupported] = useState(
     typeof window !== 'undefined' && (!!navigator.mediaDevices?.getUserMedia || !!getSpeechRecognitionCtor())
   );
-  const segmentCountRef = useRef(0);
   const connectedRef = useRef(false);
   const connectingRef = useRef(false);
   const browserRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -41,6 +40,10 @@ export function useTranscription() {
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
   const startTranscriptionRef = useRef<(() => Promise<void>) | null>(null);
+  const lastCommittedSegmentRef = useRef<{ normalized: string; at: number }>({
+    normalized: '',
+    at: 0,
+  });
 
   // Keep stable refs for callbacks used inside useScribe config
   const appendTranscriptRef = useRef(appendTranscript);
@@ -61,10 +64,43 @@ export function useTranscription() {
     return '';
   };
 
-  const commitSegment = (text: string) => {
-    if (!text.trim()) return;
-    segmentCountRef.current += 1;
-    const speaker = segmentCountRef.current % 2 === 1 ? 'Speaker 1' : 'Speaker 2';
+  const normalizeSegment = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s']/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const pickSpeakerLabel = (data: any): string => {
+    const fromPayload = data?.speaker ?? data?.speaker_id ?? data?.speaker_label ?? data?.speakerLabel;
+    if (typeof fromPayload === 'number' && Number.isFinite(fromPayload)) {
+      return `Speaker ${Math.max(1, fromPayload + 1)}`;
+    }
+    if (typeof fromPayload === 'string' && fromPayload.trim()) {
+      const cleaned = fromPayload.trim();
+      if (/^speaker\s*\d+$/i.test(cleaned)) {
+        const digits = cleaned.match(/\d+/)?.[0] || '1';
+        return `Speaker ${digits}`;
+      }
+      return cleaned;
+    }
+    return 'Speaker 1';
+  };
+
+  const commitSegment = (data: unknown) => {
+    const text = pickText(data).trim();
+    if (!text) return;
+    const normalized = normalizeSegment(text);
+    const now = Date.now();
+    if (
+      normalized &&
+      normalized === lastCommittedSegmentRef.current.normalized &&
+      now - lastCommittedSegmentRef.current.at < 2500
+    ) {
+      return;
+    }
+    lastCommittedSegmentRef.current = { normalized, at: now };
+    const speaker = pickSpeakerLabel(data);
     const existing = useSessionStore.getState().transcript;
     const prefix = existing ? '\n\n' : '';
     appendTranscriptRef.current(`${prefix}**${speaker}:** ${text.trim()}`);
@@ -132,10 +168,10 @@ export function useTranscription() {
       setInterimTranscriptRef.current(text);
     },
     onCommittedTranscript: (data: unknown) => {
-      commitSegment(pickText(data));
+      commitSegment(data);
     },
     onCommittedTranscriptWithTimestamps: (data: unknown) => {
-      commitSegment(pickText(data));
+      commitSegment(data);
     },
     onError: (err: unknown) => {
       console.error('[Scribe] Error:', err);
@@ -161,7 +197,7 @@ export function useTranscription() {
           const r = event.results[i];
           const t = (r?.[0]?.transcript || '').trim();
           if (!t) continue;
-          if (r.isFinal) commitSegment(t);
+          if (r.isFinal) commitSegment({ text: t, speaker: 'Speaker 1' });
           else interim += `${t} `;
         }
         const iv = interim.trim();
@@ -217,9 +253,7 @@ export function useTranscription() {
       const { data, error } = await supabase.functions.invoke('openai-realtime-token');
       if (error || !data?.token) throw new Error(error?.message || 'No token');
 
-      if (!useSessionStore.getState().transcript.trim()) {
-        segmentCountRef.current = 0;
-      }
+      lastCommittedSegmentRef.current = { normalized: '', at: 0 };
       setInterimText('');
       setInterimTranscriptRef.current('');
       await scribe.connect({

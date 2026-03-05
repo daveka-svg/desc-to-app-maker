@@ -10,6 +10,7 @@ export function useAskETV() {
   const peData = useSessionStore((s) => s.peData);
   const peEnabled = useSessionStore((s) => s.peEnabled);
   const patientName = useSessionStore((s) => s.patientName);
+  const supplementalContext = useSessionStore((s) => s.supplementalContext);
   const addChatMessage = useSessionStore((s) => s.addChatMessage);
   const updateLastAssistantMessage = useSessionStore((s) => s.updateLastAssistantMessage);
   const isChatStreaming = useSessionStore((s) => s.isChatStreaming);
@@ -29,6 +30,7 @@ export function useAskETV() {
       if (transcript) contextParts.push(`Transcript:\n${transcript.slice(0, 3000)}`);
       if (peReport) contextParts.push(`PE Findings:\n${peReport}`);
       if (notes) contextParts.push(`Clinical Notes:\n${notes.slice(0, 3000)}`);
+      if (supplementalContext) contextParts.push(`Additional Context:\n${supplementalContext.slice(0, 3000)}`);
 
       const { data, error } = await supabase.functions.invoke('generate-notes', {
         body: {
@@ -47,7 +49,7 @@ export function useAskETV() {
     } finally {
       setIsChatStreaming(false);
     }
-  }, [transcript, notes, peData, peEnabled, patientName, addChatMessage, updateLastAssistantMessage, setIsChatStreaming]);
+  }, [transcript, notes, peData, peEnabled, patientName, supplementalContext, addChatMessage, updateLastAssistantMessage, setIsChatStreaming]);
 
   return { sendMessage, isChatStreaming };
 }

@@ -10,6 +10,7 @@ export function useNoteGeneration() {
   const peData = useSessionStore((s) => s.peData);
   const peEnabled = useSessionStore((s) => s.peEnabled);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
+  const supplementalContext = useSessionStore((s) => s.supplementalContext);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
   const isGeneratingNotes = useSessionStore((s) => s.isGeneratingNotes);
@@ -27,9 +28,12 @@ export function useNoteGeneration() {
       const templatePrompt = await getTemplatePrompt(templateToUse, fallbackTemplate);
       const peReport = peEnabled ? compilePEReport(peData) : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
+      const contextBlock = supplementalContext.trim()
+        ? `\n\nAdditional Context:\n${supplementalContext.trim()}`
+        : '';
       const payloadTranscript = peReport
-        ? `${transcript}\n\nPhysical Examination:\n${peReport}`
-        : transcript;
+        ? `${transcript}${contextBlock}\n\nPhysical Examination:\n${peReport}`
+        : `${transcript}${contextBlock}`;
 
       const response = await supabase.functions.invoke('generate-notes', {
         body: { transcript: payloadTranscript, peData: peEnabled ? peData : null, templatePrompt: fullPrompt },
@@ -45,7 +49,7 @@ export function useNoteGeneration() {
     } finally {
       setIsGeneratingNotes(false);
     }
-  }, [transcript, peData, peEnabled, selectedTemplate, setNotes, setIsGeneratingNotes]);
+  }, [transcript, peData, peEnabled, selectedTemplate, setNotes, setIsGeneratingNotes, supplementalContext]);
 
   return { notes, isGeneratingNotes, generateNote, setNotes };
 }

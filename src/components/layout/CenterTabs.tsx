@@ -1,11 +1,13 @@
 import { useSessionStore, type TabId } from '@/stores/useSessionStore';
-import { LayoutGrid, Activity, Pen, ClipboardList } from 'lucide-react';
+import { LayoutGrid, Activity, Pen, ClipboardList, MessagesSquare, Mic } from 'lucide-react';
 
 const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'context', label: 'Context', icon: <LayoutGrid size={15} /> },
   { id: 'transcript', label: 'Transcript', icon: <Activity size={15} /> },
   { id: 'notes', label: 'Notes', icon: <Pen size={15} /> },
   { id: 'tasks', label: 'Tasks', icon: <ClipboardList size={15} /> },
+  { id: 'chat', label: 'Chat', icon: <MessagesSquare size={15} /> },
+  { id: 'dictation', label: 'Dictation', icon: <Mic size={15} /> },
 ];
 
 export default function CenterTabs() {
