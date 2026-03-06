@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      allowed_users: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          invited_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id?: string
+          invited_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          invited_by?: string | null
+        }
+        Relationships: []
+      }
       note_templates: {
         Row: {
           created_at: string
@@ -21,6 +45,7 @@ export type Database = {
           is_default: boolean | null
           name: string
           system_prompt: string | null
+          updated_at: string
           user_id: string | null
         }
         Insert: {
@@ -29,6 +54,7 @@ export type Database = {
           is_default?: boolean | null
           name: string
           system_prompt?: string | null
+          updated_at?: string
           user_id?: string | null
         }
         Update: {
@@ -37,6 +63,7 @@ export type Database = {
           is_default?: boolean | null
           name?: string
           system_prompt?: string | null
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: []
@@ -232,7 +259,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_email_allowed: { Args: { _email: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

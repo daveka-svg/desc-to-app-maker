@@ -12,6 +12,7 @@ import {
   Save,
   Settings,
   Trash2,
+  Users,
 } from 'lucide-react';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { supabase } from '@/integrations/supabase/client';
@@ -126,7 +127,7 @@ export default function Sidebar() {
       : query.is('archived_at', null);
 
     const { data } = await query;
-    if (data) setSessions(data);
+    if (data) setSessions(data as unknown as DBSession[]);
   };
 
   const fetchProfile = async () => {
@@ -140,9 +141,10 @@ export default function Sidebar() {
       .eq('user_id', user.id)
       .single();
     if (data) {
-      setProfile(data);
-      if (typeof data.clinic_knowledge_base === 'string' && data.clinic_knowledge_base.trim()) {
-        setClinicKnowledgeBase(data.clinic_knowledge_base);
+      const profileData = data as any;
+      setProfile(profileData);
+      if (typeof profileData.clinic_knowledge_base === 'string' && profileData.clinic_knowledge_base.trim()) {
+        setClinicKnowledgeBase(profileData.clinic_knowledge_base);
       } else {
         setClinicKnowledgeBase(DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE);
       }
@@ -473,7 +475,7 @@ export default function Sidebar() {
           assignee: (task.assignee || 'Vet') as any,
           done: task.done || false,
           orderIndex: task.order_index ?? null,
-          deadlineAt: task.deadline_at ?? null,
+          deadlineAt: (task as any).deadline_at ?? null,
         }))
       );
     } else {
@@ -679,6 +681,12 @@ export default function Sidebar() {
               className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand transition-all duration-100 no-underline"
             >
               <Settings size={17} className="opacity-65 shrink-0" /> Settings
+            </Link>
+            <Link
+              to="/team"
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand transition-all duration-100 no-underline"
+            >
+              <Users size={17} className="opacity-65 shrink-0" /> Team
             </Link>
           </nav>
           <div className="px-3.5 py-3 border-t border-border-light flex items-center gap-2.5">

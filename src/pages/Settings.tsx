@@ -75,13 +75,14 @@ export default function Settings() {
 
         const { data, error } = await supabase
           .from('profiles')
-          .select('clinic_knowledge_base')
+          .select('clinic_knowledge_base' as any)
           .eq('user_id', user.id)
           .single();
 
-        if (!error && typeof data?.clinic_knowledge_base === 'string' && data.clinic_knowledge_base.trim()) {
-          setClinicKnowledgeBase(data.clinic_knowledge_base);
-          setStoreClinicKnowledgeBase(data.clinic_knowledge_base);
+        const profileData = data as any;
+        if (!error && typeof profileData?.clinic_knowledge_base === 'string' && profileData.clinic_knowledge_base.trim()) {
+          setClinicKnowledgeBase(profileData.clinic_knowledge_base);
+          setStoreClinicKnowledgeBase(profileData.clinic_knowledge_base);
         } else {
           setClinicKnowledgeBase(DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE);
           setStoreClinicKnowledgeBase(DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE);
@@ -146,7 +147,7 @@ export default function Settings() {
             {
               user_id: user.id,
               clinic_knowledge_base: payload,
-            },
+            } as any,
             { onConflict: 'user_id' }
           );
 
