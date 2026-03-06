@@ -50,6 +50,7 @@ export interface Task {
   assignee: 'Vet' | 'Nurse' | 'Admin';
   done: boolean;
   orderIndex?: number | null;
+  deadlineAt?: string | null;
 }
 
 export interface ChatMessage {
@@ -337,6 +338,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       {
         ...task,
         id: genId(),
+        deadlineAt: task.deadlineAt || null,
         orderIndex:
           task.orderIndex ??
           (s.tasks.length > 0
@@ -533,6 +535,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           assignee: t.assignee,
           done: t.done,
           order_index: t.orderIndex ?? index + 1,
+          deadline_at: t.deadlineAt || null,
         }))
       );
     }

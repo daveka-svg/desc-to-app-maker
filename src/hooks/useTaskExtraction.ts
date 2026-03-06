@@ -5,6 +5,13 @@ import { useSessionStore, type Task } from '@/stores/useSessionStore';
 import { extractLlmText } from '@/lib/llm';
 import { buildTaskExtractionInput } from '@/lib/clinicContext';
 
+const normalizeDeadline = (value: unknown): string | null => {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+};
+
 export function useTaskExtraction() {
   const notes = useSessionStore((s) => s.notes);
   const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
@@ -50,6 +57,7 @@ export function useTaskExtraction() {
             assignee: (item.assignee || 'Vet') as Task['assignee'],
             done: false,
             orderIndex: tasks.length + 1,
+            deadlineAt: normalizeDeadline(item?.deadline),
           });
         }
       }

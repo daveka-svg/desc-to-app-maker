@@ -11,6 +11,7 @@ interface DBTask {
   category: string | null;
   assignee: Assignee | null;
   done: boolean | null;
+  deadline_at: string | null;
   session_id: string;
   created_at: string;
   order_index: number | null;
@@ -37,6 +38,18 @@ const sortByOrder = (a: DBTask, b: DBTask) => {
   return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
 };
 
+const formatDeadline = (deadline: string | null): string | null => {
+  if (!deadline) return null;
+  const date = new Date(deadline);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 export default function AllTasksPanel() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const [tasks, setTasks] = useState<DBTask[]>([]);
@@ -45,6 +58,7 @@ export default function AllTasksPanel() {
   const [newTaskText, setNewTaskText] = useState('');
   const [newTaskCategory, setNewTaskCategory] = useState<'prescriptions' | 'diagnostics' | 'followup' | 'admin'>('admin');
   const [newTaskAssignee, setNewTaskAssignee] = useState<Assignee>('Vet');
+  const [newTaskDeadline, setNewTaskDeadline] = useState('');
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
 
@@ -110,11 +124,13 @@ export default function AllTasksPanel() {
       assignee: newTaskAssignee,
       done: false,
       order_index: nextOrderIndex,
+      deadline_at: newTaskDeadline ? new Date(newTaskDeadline).toISOString() : null,
     });
 
     setIsAddingTask(false);
     if (!error) {
       setNewTaskText('');
+      setNewTaskDeadline('');
       await fetchAllTasks();
       window.dispatchEvent(new Event('session-saved'));
     }
@@ -193,7 +209,7 @@ export default function AllTasksPanel() {
           disabled={!activeSessionId || isAddingTask}
           className="w-full px-3 py-2 border border-border rounded-md text-xs bg-sand text-text-primary disabled:opacity-50"
         />
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           <select
             value={newTaskCategory}
             onChange={(event) => setNewTaskCategory(event.target.value as any)}
@@ -215,7 +231,15 @@ export default function AllTasksPanel() {
             <option value="Nurse">Nurse</option>
             <option value="Admin">Admin</option>
           </select>
-          <div />
+          <input
+            type="datetime-local"
+            value={newTaskDeadline}
+            onChange={(event) => setNewTaskDeadline(event.target.value)}
+            disabled={!activeSessionId || isAddingTask}
+            className="px-2 py-2 border border-border rounded-md text-xs bg-sand"
+            title="Optional deadline"
+          />
+          <div className="text-[10px] text-text-muted flex items-center">Deadline optional</div>
           <button
             onClick={addManualTask}
             disabled={!activeSessionId || !newTaskText.trim() || isAddingTask}
@@ -293,6 +317,11 @@ export default function AllTasksPanel() {
                               {task.session?.patient_name || task.session?.session_type || 'Session'}
                             </span>
                           </div>
+                          {task.deadline_at && (
+                            <div className="mt-1 text-[10px] text-warning font-semibold">
+                              Due: {formatDeadline(task.deadline_at) || task.deadline_at}
+                            </div>
+                          )}
                         </div>
                         <button
                           title="Delete task"

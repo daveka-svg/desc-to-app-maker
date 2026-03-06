@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef } from 'react';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useTranscription } from '@/hooks/useTranscription';
 import { useNoteGeneration } from '@/hooks/useNoteGeneration';
@@ -77,21 +77,40 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
   const { generateNote } = useNoteGeneration();
   const { extractTasks } = useTaskExtraction();
   const { toast } = useToast();
+  const appendRecordingRef = useRef(false);
+  const baseTranscriptRef = useRef('');
+  const baseDurationRef = useRef(0);
 
   const startEncounter = useCallback(async () => {
     const store = useSessionStore.getState();
     try {
+      const hasExistingSessionContext = Boolean(
+        store.activeSessionId &&
+          (
+            store.transcript.trim() ||
+            store.notes.trim() ||
+            store.supplementalContext.trim() ||
+            store.tasks.length > 0
+          )
+      );
+
+      appendRecordingRef.current = hasExistingSessionContext;
+      baseTranscriptRef.current = hasExistingSessionContext ? store.transcript.trim() : '';
+      baseDurationRef.current = hasExistingSessionContext ? store.sessionDurationSeconds : 0;
+
       store.setEncounterStatus('recording');
-      store.setTranscript('');
       store.setInterimTranscript('');
-      store.setSupplementalContext('');
       store.setTranscriptMergeWarning(null);
-      store.setSessionDurationSeconds(0);
-      store.clearPEAppliedSnapshot();
-      store.setNotes('');
-      store.setTasks([]);
-      store.setClientInstructions(null);
       store.resetProcessingSteps();
+
+      if (!hasExistingSessionContext) {
+        store.setTranscript('');
+        store.setSessionDurationSeconds(0);
+        store.clearPEAppliedSnapshot();
+        store.setNotes('');
+        store.setTasks([]);
+        store.setClientInstructions(null);
+      }
 
       const {
         data: { user },
@@ -157,7 +176,16 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
   const stopEncounter = useCallback(async () => {
     const store = useSessionStore.getState();
     const liveTranscriptBeforeStop = store.transcript.trim();
-    if (timerSeconds < 2 && !liveTranscriptBeforeStop) {
+    const appendMode = appendRecordingRef.current;
+    const baseTranscript = appendMode ? baseTranscriptRef.current.trim() : '';
+    const noNewLiveTranscript = appendMode
+      ? liveTranscriptBeforeStop === baseTranscript
+      : !liveTranscriptBeforeStop;
+
+    if (timerSeconds < 2 && noNewLiveTranscript) {
+      appendRecordingRef.current = false;
+      baseTranscriptRef.current = '';
+      baseDurationRef.current = 0;
       toast({
         title: 'Keep recording a bit longer',
         description: 'Please speak for at least 2 seconds before ending the session.',
@@ -169,7 +197,8 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
     store.setEncounterStatus('processing');
     store.resetProcessingSteps();
     store.setTranscriptMergeWarning(null);
-    store.setSessionDurationSeconds(timerSeconds);
+    const totalDuration = (appendMode ? baseDurationRef.current : 0) + timerSeconds;
+    store.setSessionDurationSeconds(totalDuration);
 
     let recordedBlob: Blob | null = null;
     markStepActive('stopping-recording');
@@ -221,10 +250,27 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
 
     markStepActive('merging-transcript-tail');
     try {
-      const merged = mergeTranscriptTail(store.transcript, fullAudioTranscript);
+      const transcriptBeforeMerge = useSessionStore.getState().transcript.trim();
+      const liveSegment = appendMode
+        ? (
+            baseTranscript && transcriptBeforeMerge.startsWith(baseTranscript)
+              ? transcriptBeforeMerge.slice(baseTranscript.length).trim()
+              : transcriptBeforeMerge
+          )
+        : transcriptBeforeMerge;
+
+      const merged = mergeTranscriptTail(liveSegment, fullAudioTranscript);
       store.setTranscriptMergeWarning(null);
-      if (merged.mergedTranscript.trim()) {
-        store.setTranscript(merged.mergedTranscript.trim());
+      const mergedSegment = merged.mergedTranscript.trim();
+      let nextTranscript = mergedSegment || liveSegment;
+      if (appendMode && baseTranscript) {
+        nextTranscript = mergedSegment
+          ? `${baseTranscript}\n\n${mergedSegment}`.trim()
+          : baseTranscript;
+      }
+
+      if (nextTranscript.trim()) {
+        store.setTranscript(nextTranscript.trim());
       }
       store.setInterimTranscript('');
       markStepDone('merging-transcript-tail');
@@ -236,6 +282,9 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
     const finalTranscript = useSessionStore.getState().transcript.trim();
     if (!finalTranscript) {
       store.setEncounterStatus('idle');
+      appendRecordingRef.current = false;
+      baseTranscriptRef.current = '';
+      baseDurationRef.current = 0;
       toast({
         title: 'No transcript',
         description: 'No speech was detected in this session.',
@@ -285,6 +334,9 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
     }
 
     store.setEncounterStatus('reviewing');
+    appendRecordingRef.current = false;
+    baseTranscriptRef.current = '';
+    baseDurationRef.current = 0;
     return true;
   }, [extractTasks, generateNote, stopRecording, stopTranscription, timerSeconds, toast]);
 

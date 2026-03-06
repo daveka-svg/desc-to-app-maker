@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Mic, MicOff, Send } from 'lucide-react';
+import { Check, Copy, Loader2, Mic, MicOff, Send } from 'lucide-react';
 import { useAskETV } from '@/hooks/useAskETV';
 import { useSessionStore } from '@/stores/useSessionStore';
+import { useToast } from '@/hooks/use-toast';
 
 type BrowserSpeechRecognition = {
   continuous: boolean;
@@ -28,9 +29,11 @@ const quickStarters = [
 
 export default function ChatPanel() {
   const [input, setInput] = useState('');
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const { sendMessage, isChatStreaming } = useAskETV();
   const chatMessages = useSessionStore((s) => s.chatMessages);
   const supplementalContext = useSessionStore((s) => s.supplementalContext);
+  const { toast } = useToast();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const [isDictating, setIsDictating] = useState(false);
@@ -124,6 +127,21 @@ export default function ChatPanel() {
     setDictationInterim('');
   };
 
+  const copyMessage = async (messageId: string, content: string) => {
+    if (!content.trim()) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageId(messageId);
+      window.setTimeout(() => setCopiedMessageId((current) => (current === messageId ? null : current)), 1800);
+    } catch {
+      toast({
+        title: 'Copy failed',
+        description: 'Could not copy the message text.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="px-5 py-3 bg-card border-b border-border-light">
@@ -166,7 +184,25 @@ export default function ChatPanel() {
                   msg.role === 'user' ? 'bg-forest text-primary-foreground' : 'bg-card text-text-primary border border-border-light'
                 }`}
               >
-                {msg.content || (isChatStreaming ? '...' : '')}
+                {msg.content ? (
+                  <>
+                    {msg.content}
+                    {msg.role === 'assistant' && (
+                      <div className="mt-1.5 flex justify-end">
+                        <button
+                          onClick={() => copyMessage(msg.id, msg.content)}
+                          className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-border bg-sand hover:bg-sand-dark text-text-muted"
+                          title="Copy response"
+                        >
+                          {copiedMessageId === msg.id ? <Check size={11} /> : <Copy size={11} />}
+                          {copiedMessageId === msg.id ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : isChatStreaming && msg.role === 'assistant' ? (
+                  <TypingIndicator />
+                ) : null}
               </div>
             </div>
           ))
@@ -211,6 +247,22 @@ export default function ChatPanel() {
           {dictationInterim}
         </div>
       )}
+    </div>
+  );
+}
+
+function TypingIndicator() {
+  return (
+    <div className="inline-flex items-center gap-1.5 py-1">
+      <span className="text-[11px] text-text-muted">Thinking</span>
+      {[0, 1, 2].map((index) => (
+        <span
+          // eslint-disable-next-line react/no-array-index-key
+          key={index}
+          className="w-1.5 h-1.5 rounded-full bg-text-muted animate-pulse"
+          style={{ animationDelay: `${index * 0.18}s` }}
+        />
+      ))}
     </div>
   );
 }

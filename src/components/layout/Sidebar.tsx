@@ -473,6 +473,7 @@ export default function Sidebar() {
           assignee: (task.assignee || 'Vet') as any,
           done: task.done || false,
           orderIndex: task.order_index ?? null,
+          deadlineAt: task.deadline_at ?? null,
         }))
       );
     } else {

@@ -1,6 +1,6 @@
 // AI Prompt Library for ETV Scribe
 
-export const SYSTEM_PROMPT = `You are a veterinary clinical scribe writing notes for the current consultation only. The transcript contains speaker labels (Speaker 1, Speaker 2). Infer who is veterinarian vs owner and attribute content correctly. Include only clinically relevant information for this visit: presenting issue, exam findings, diagnostic reasoning, treatment decisions, and follow-up. Exclude unrelated history unless it changes current risk or management. Use concise UK veterinary style with common abbreviations where appropriate. Do not invent facts. Do not output duplicate physical examination sections.`;
+export const SYSTEM_PROMPT = `You are a veterinary clinical scribe writing notes for the current consultation only. The transcript contains speaker labels (Speaker 1, Speaker 2). Infer who is veterinarian vs owner and attribute content correctly. Include only clinically relevant information for this visit: presenting issue, exam findings, diagnostic reasoning, treatment decisions, and follow-up. Exclude unrelated history unless it changes current risk or management. Use concise UK veterinary style with common abbreviations where appropriate. Keep notes short by default and expand only when case complexity requires it. Do not invent facts. Do not output duplicate physical examination sections.`;
 
 export const TEMPLATES: Record<string, string> = {
   'General Consult': `(Use concise UK veterinary documentation style with common abbreviations where relevant (eg BAR, QAR, NAD, CRT<2, RR, HR, MM, WNL). Keep this exact heading order and omit any item not explicitly supported by transcript/context:
@@ -27,6 +27,7 @@ Strict rules:
 - Never invent patient details, assessment, plan, interventions, evaluation, or continuing-care plans.
 - If detail is missing, omit that bullet/line.
 - Keep output concise, practical, and abbreviation-friendly for clinical readers.
+- Ignore repetitive conversational content and unrelated past issues not affecting today's clinical decision-making.
 - Do not duplicate physical examination content.`,
 
   'Surgical Notes': `(Telegraphic style, vet abbreviations. Blank line between topics. Only include if mentioned.)
@@ -116,13 +117,14 @@ Section 2: Team Handover (Vet/Nurse)
 export const TASK_EXTRACTION_PROMPT = `Given the following veterinary clinical notes, extract all action items. For each item, assign it to: "Vet" (clinical decisions, prescriptions, procedures), "Nurse" (sample collection, monitoring, fluid administration), or "Admin" (estimates, insurance, scheduling).
 
 Write each task as a short, plain instruction (ideally under 12 words).
+Add an optional "deadline" only if the source explicitly includes a due date/time. Otherwise use null.
 
 Return as JSON:
 {
-  "prescriptions": [{"text": "...", "assignee": "Vet|Nurse"}],
-  "diagnostics": [{"text": "...", "assignee": "Vet|Nurse"}],
-  "followup": [{"text": "...", "assignee": "Vet"}],
-  "admin": [{"text": "...", "assignee": "Admin"}]
+  "prescriptions": [{"text": "...", "assignee": "Vet|Nurse", "deadline": "ISO-8601 or null"}],
+  "diagnostics": [{"text": "...", "assignee": "Vet|Nurse", "deadline": "ISO-8601 or null"}],
+  "followup": [{"text": "...", "assignee": "Vet", "deadline": "ISO-8601 or null"}],
+  "admin": [{"text": "...", "assignee": "Admin", "deadline": "ISO-8601 or null"}]
 }
 Only include items explicitly mentioned. Do not invent items. Return ONLY valid JSON, no markdown fences.`;
 

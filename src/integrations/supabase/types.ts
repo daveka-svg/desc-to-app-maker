@@ -185,6 +185,7 @@ export type Database = {
           assignee: string | null
           category: string | null
           created_at: string
+          deadline_at: string | null
           done: boolean | null
           id: string
           order_index: number | null
@@ -196,6 +197,7 @@ export type Database = {
           assignee?: string | null
           category?: string | null
           created_at?: string
+          deadline_at?: string | null
           done?: boolean | null
           id?: string
           order_index?: number | null
@@ -207,6 +209,7 @@ export type Database = {
           assignee?: string | null
           category?: string | null
           created_at?: string
+          deadline_at?: string | null
           done?: boolean | null
           id?: string
           order_index?: number | null

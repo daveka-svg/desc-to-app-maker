@@ -202,8 +202,15 @@ export default function NotesPanel() {
                     onChange={() => toggleTask(task.id)}
                     className="mt-0.5"
                   />
-                  <span className={task.done ? 'line-through text-text-muted' : ''}>
-                    {task.text.length > 110 ? `${task.text.slice(0, 107)}...` : task.text}
+                  <span>
+                    <span className={task.done ? 'line-through text-text-muted' : ''}>
+                      {task.text.length > 110 ? `${task.text.slice(0, 107)}...` : task.text}
+                    </span>
+                    {task.deadlineAt && (
+                      <span className="block text-[10px] text-warning mt-0.5">
+                        Due {new Date(task.deadlineAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
                   </span>
                 </label>
               ))}
