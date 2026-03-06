@@ -93,7 +93,7 @@ export async function syncDefaultTemplatePrompts(): Promise<void> {
     .map(toTemplate)
     .filter((row) => !!TEMPLATES[row.name])
     .filter((row) => {
-      const raw = templateRows.find((item: any) => item.id === row.id);
+      const raw = templateRows.find((item: any) => item.id === row.id) as any;
       const createdAt = raw?.created_at || null;
       const updatedAt = raw?.updated_at || createdAt;
       const untouched = !updatedAt || !createdAt || updatedAt === createdAt;
