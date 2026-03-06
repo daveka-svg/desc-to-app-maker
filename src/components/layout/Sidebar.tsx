@@ -12,6 +12,7 @@ import {
   Save,
   Settings,
   Trash2,
+  Users,
 } from 'lucide-react';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { supabase } from '@/integrations/supabase/client';
