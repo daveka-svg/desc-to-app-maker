@@ -147,7 +147,7 @@ export default function Settings() {
             {
               user_id: user.id,
               clinic_knowledge_base: payload,
-            },
+            } as any,
             { onConflict: 'user_id' }
           );
 
