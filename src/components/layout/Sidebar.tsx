@@ -446,7 +446,7 @@ export default function Sidebar() {
 
     const { data: noteData } = await supabase
       .from('notes')
-      .select('content, transcript, supplemental_context')
+      .select('content, transcript, supplemental_context, vet_notes')
       .eq('session_id', session.id)
       .single();
     if (noteData) {

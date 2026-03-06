@@ -76,6 +76,7 @@ export type Database = {
           session_id: string
           supplemental_context: string | null
           transcript: string | null
+          vet_notes: string | null
           updated_at: string
           user_id: string
           version: number | null
@@ -87,6 +88,7 @@ export type Database = {
           session_id: string
           supplemental_context?: string | null
           transcript?: string | null
+          vet_notes?: string | null
           updated_at?: string
           user_id: string
           version?: number | null
@@ -98,6 +100,7 @@ export type Database = {
           session_id?: string
           supplemental_context?: string | null
           transcript?: string | null
+          vet_notes?: string | null
           updated_at?: string
           user_id?: string
           version?: number | null
