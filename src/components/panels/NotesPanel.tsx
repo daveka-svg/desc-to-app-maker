@@ -174,31 +174,33 @@ export default function NotesPanel() {
               <p>Record a consultation and notes will be generated automatically.</p>
             </div>
           ) : (
-            <div
-              ref={noteRef}
-              className="max-w-[720px] text-sm leading-[1.85] text-text-primary outline-none rounded-md p-1 transition-colors duration-150 hover:bg-bark/[0.02] focus:bg-card focus:shadow-[0_0_0_2px_hsl(var(--sand-deeper))]"
-              contentEditable
-              suppressContentEditableWarning
-              spellCheck
-              onFocus={() => setEditing(true)}
-              onBlur={() => { setEditing(false); handleNoteInput(); }}
-            >
-              {notes.split('\n\n').map((para, i) => (
-                <p key={i} className="mb-3.5">
-                  {para.startsWith('CE:') || para.startsWith('Plan:') || para.startsWith('Adv') || para.startsWith('PE:') ? (
-                    <><span className="text-etv-olive font-bold">{para.split(':')[0]}:</span>{para.substring(para.indexOf(':') + 1)}</>
-                  ) : para}
-                </p>
-              ))}
-            </div>
-            {peIncludeInNotes && peReport.trim() && (
-              <div className="max-w-[720px] mt-4 p-3 rounded-md border border-border-light bg-sand/40">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-bark mb-1.5">
-                  <Stethoscope size={13} /> Physical Examination Findings
-                </div>
-                <p className="text-sm leading-[1.85] text-text-primary">{peReport}</p>
+            <>
+              <div
+                ref={noteRef}
+                className="max-w-[720px] text-sm leading-[1.85] text-text-primary outline-none rounded-md p-1 transition-colors duration-150 hover:bg-bark/[0.02] focus:bg-card focus:shadow-[0_0_0_2px_hsl(var(--sand-deeper))]"
+                contentEditable
+                suppressContentEditableWarning
+                spellCheck
+                onFocus={() => setEditing(true)}
+                onBlur={() => { setEditing(false); handleNoteInput(); }}
+              >
+                {notes.split('\n\n').map((para, i) => (
+                  <p key={i} className="mb-3.5">
+                    {para.startsWith('CE:') || para.startsWith('Plan:') || para.startsWith('Adv') || para.startsWith('PE:') ? (
+                      <><span className="text-etv-olive font-bold">{para.split(':')[0]}:</span>{para.substring(para.indexOf(':') + 1)}</>
+                    ) : para}
+                  </p>
+                ))}
               </div>
-            )}
+              {peIncludeInNotes && peReport.trim() && (
+                <div className="max-w-[720px] mt-4 p-3 rounded-md border border-border-light bg-sand/40">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-bark mb-1.5">
+                    <Stethoscope size={13} /> Physical Examination Findings
+                  </div>
+                  <p className="text-sm leading-[1.85] text-text-primary">{peReport}</p>
+                </div>
+              )}
+            </>
           )}
         </div>
 
