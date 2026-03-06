@@ -126,7 +126,7 @@ export default function Sidebar() {
       : query.is('archived_at', null);
 
     const { data } = await query;
-    if (data) setSessions(data);
+    if (data) setSessions(data as unknown as DBSession[]);
   };
 
   const fetchProfile = async () => {
