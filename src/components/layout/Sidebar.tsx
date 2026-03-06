@@ -71,6 +71,7 @@ export default function Sidebar() {
   const setTranscript = useSessionStore((s) => s.setTranscript);
   const setInterimTranscript = useSessionStore((s) => s.setInterimTranscript);
   const setSupplementalContext = useSessionStore((s) => s.setSupplementalContext);
+  const setVetNotes = useSessionStore((s) => s.setVetNotes);
   const setTranscriptMergeWarning = useSessionStore((s) => s.setTranscriptMergeWarning);
   const setTasks = useSessionStore((s) => s.setTasks);
   const setPatientName = useSessionStore((s) => s.setPatientName);
@@ -445,17 +446,19 @@ export default function Sidebar() {
 
     const { data: noteData } = await supabase
       .from('notes')
-      .select('content, transcript, supplemental_context')
+      .select('content, transcript, supplemental_context, vet_notes')
       .eq('session_id', session.id)
       .single();
     if (noteData) {
       setNotes(noteData.content || '');
       setTranscript(noteData.transcript || '');
       setSupplementalContext(noteData.supplemental_context || '');
+      setVetNotes((noteData as any).vet_notes || '');
     } else {
       setNotes('');
       setTranscript('');
       setSupplementalContext('');
+      setVetNotes('');
     }
     setInterimTranscript('');
     setTranscriptMergeWarning(null);

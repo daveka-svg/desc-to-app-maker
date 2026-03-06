@@ -54,6 +54,7 @@ export const buildClinicProfileContext = (clinicKnowledgeBase: string): string =
 interface NoteInputParams {
   transcript: string;
   peReport?: string;
+  vetNotes?: string;
   supplementalContext?: string;
   clinicKnowledgeBase?: string;
 }
@@ -61,6 +62,7 @@ interface NoteInputParams {
 export const buildNotesGenerationInput = ({
   transcript,
   peReport = '',
+  vetNotes = '',
   supplementalContext = '',
   clinicKnowledgeBase = '',
 }: NoteInputParams): string => {
@@ -69,11 +71,13 @@ export const buildNotesGenerationInput = ({
   const clinicChunk = clipForModel(buildClinicProfileContext(clinicKnowledgeBase), 20000);
   const supplementalChunk = clipForModel(supplementalContext, 12000);
   const peChunk = clipForModel(peReport, 6000);
+  const vetNotesChunk = clipForModel(vetNotes, 8000);
 
   if (transcriptChunk) parts.push(`Consultation transcript:\n${transcriptChunk}`);
   if (clinicChunk) parts.push(`Clinic personalization context:\n${clinicChunk}`);
   if (supplementalChunk) parts.push(`Additional session context:\n${supplementalChunk}`);
   if (peChunk) parts.push(`Physical examination:\n${peChunk}`);
+  if (vetNotesChunk) parts.push(`Vet notes:\n${vetNotesChunk}`);
 
   return parts.join('\n\n');
 };

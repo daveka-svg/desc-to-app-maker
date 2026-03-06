@@ -1,0 +1,43 @@
+[00:00] **Speaker 1 (Vet):** Hi, I am Dr Patel. You are here with Milo today?
+[00:05] **Speaker 2 (Owner):** Yes, Milo, four year old Labrador, male neutered. He has had diarrhoea since yesterday morning.
+[00:14] **Speaker 1 (Vet):** How many episodes?
+[00:16] **Speaker 2 (Owner):** About seven yesterday and three this morning.
+[00:20] **Speaker 1 (Vet):** Stool character? Mucus or blood?
+[00:23] **Speaker 2 (Owner):** Watery with mucus. Tiny red streak once last night.
+[00:28] **Speaker 1 (Vet):** Vomiting?
+[00:29] **Speaker 2 (Owner):** One vomit yesterday afternoon, yellow foam, none since.
+[00:34] **Speaker 1 (Vet):** Appetite, thirst, energy?
+[00:36] **Speaker 2 (Owner):** Reduced appetite, still drinking, a bit quieter but still interactive.
+[00:43] **Speaker 1 (Vet):** Any scavenging or dietary indiscretion?
+[00:46] **Speaker 2 (Owner):** He grabbed sausage and bread at the park.
+[00:50] **Speaker 1 (Vet):** Any chocolate, grapes, onions, xylitol?
+[00:53] **Speaker 2 (Owner):** No.
+[00:55] **Speaker 1 (Vet):** Current meds?
+[00:57] **Speaker 2 (Owner):** I gave Pro-Kolin at home, about 2 ml twice yesterday.
+[01:03] **Speaker 1 (Vet):** Vaccinations up to date?
+[01:05] **Speaker 2 (Owner):** Yes.
+[01:07] **Speaker 1 (Vet):** I will examine him now.
+[01:11] **Speaker 1 (Vet):** Bright, responsive, friendly. Weight 28.4 kg. Temp 38.7 C, HR 108, RR 28.
+[01:20] **Speaker 1 (Vet):** MM pink and moist, CRT under 2 seconds.
+[01:24] **Speaker 1 (Vet):** Mild cranial abdominal discomfort on deep palpation, no mass, no severe guarding.
+[01:31] **Speaker 1 (Vet):** Heart rhythm normal, lungs clear, pulses good.
+[01:35] **Speaker 1 (Vet):** Mild dehydration around five percent.
+[01:39] **Speaker 2 (Owner):** Is that dangerous?
+[01:41] **Speaker 1 (Vet):** Stable for outpatient care today.
+[01:45] **Speaker 1 (Vet):** Impression is acute gastroenteritis, likely dietary indiscretion.
+[01:50] **Speaker 1 (Vet):** Plan is maropitant injection now, then Pro-Kolin 5 ml by mouth every 8 hours for 3 days.
+[01:58] **Speaker 1 (Vet):** Bland diet for 3 days, then transition over 2 to 3 days.
+[02:03] **Speaker 1 (Vet):** Encourage water. Avoid high fat treats and new foods.
+[02:08] **Speaker 2 (Owner):** Midday dose is hard with work.
+[02:10] **Speaker 1 (Vet):** Try for q8h, partner can help if possible.
+[02:14] **Speaker 1 (Vet):** Red flags: repeated vomiting, worsening blood in stool, marked lethargy, worsening abdominal pain, or no improvement in 48 hours.
+[02:23] **Speaker 2 (Owner):** Understood.
+[02:25] **Speaker 1 (Vet):** We will book a nurse call tomorrow afternoon.
+[02:29] **Speaker 1 (Vet):** If not improving, recheck and faecal testing.
+[02:33] **Speaker 2 (Owner):** That works.
+[02:35] **Speaker 1 (Vet):** Reception will send written instructions by email and provide a stool pot.
+[02:40] **Speaker 2 (Owner):** Perfect.
+[02:42] **Speaker 1 (Vet):** Nurse Sarah, please administer maropitant 1 mg/kg SC and dispense Pro-Kolin with q8h instructions.
+[02:49] **Speaker 1 (Vet):** Also schedule nurse progress call tomorrow at 15:30.
+[02:54] **Speaker 2 (Owner):** Thanks.
+[03:00] **Speaker 1 (Vet):** End consult.

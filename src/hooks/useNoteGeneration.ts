@@ -10,7 +10,9 @@ export function useNoteGeneration() {
   const transcript = useSessionStore((s) => s.transcript);
   const peData = useSessionStore((s) => s.peData);
   const peEnabled = useSessionStore((s) => s.peEnabled);
+  const peIncludeInNotes = useSessionStore((s) => s.peIncludeInNotes);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
+  const vetNotes = useSessionStore((s) => s.vetNotes);
   const supplementalContext = useSessionStore((s) => s.supplementalContext);
   const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
   const setPEAppliedSnapshot = useSessionStore((s) => s.setPEAppliedSnapshot);
@@ -30,17 +32,26 @@ export function useNoteGeneration() {
       const templateToUse = templateOverride || selectedTemplate;
       const fallbackTemplate = TEMPLATES[templateToUse] || TEMPLATES['General Consult'];
       const templatePrompt = await getTemplatePrompt(templateToUse, fallbackTemplate);
-      const peReport = peEnabled ? compilePEReport(peData) : '';
+      const includeClinicalContext = peEnabled && peIncludeInNotes;
+      const peReport = includeClinicalContext ? compilePEReport(peData) : '';
+      const vetNotesForGeneration = includeClinicalContext ? vetNotes : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
       const payloadTranscript = buildNotesGenerationInput({
         transcript,
         peReport,
+        vetNotes: vetNotesForGeneration,
         supplementalContext,
         clinicKnowledgeBase,
       });
 
       const response = await supabase.functions.invoke('generate-notes', {
-        body: { transcript: payloadTranscript, peData: peEnabled ? peData : null, templatePrompt: fullPrompt },
+        body: {
+          transcript: payloadTranscript,
+          peData: includeClinicalContext ? peData : null,
+          templatePrompt: fullPrompt,
+          requestType: 'notes',
+          templateName: templateToUse,
+        },
       });
 
       if (response.error) throw new Error(response.error.message);
@@ -62,7 +73,9 @@ export function useNoteGeneration() {
     transcript,
     peData,
     peEnabled,
+    peIncludeInNotes,
     selectedTemplate,
+    vetNotes,
     setNotes,
     setIsGeneratingNotes,
     supplementalContext,

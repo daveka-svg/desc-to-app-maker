@@ -1,4 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import {
+  filterGroundedGeneralConsultPayload,
+  parseGeneralConsultGroundingPayload,
+  renderGeneralConsultFromGroundedPayload,
+} from "./grounding.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -101,27 +106,73 @@ const callOpenAI = async (
   return content;
 };
 
+const stripCodeFences = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("```")) return trimmed;
+  return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+};
+
+const callOpenAIWithFallbacks = async (
+  apiKey: string,
+  modelCandidates: string[],
+  systemPrompt: string,
+  userPrompt: string,
+  maxOutputTokens: number,
+  reasoningEffort: string | null,
+) => {
+  let content = "";
+  let modelUsed = modelCandidates[0] || "gpt-5.4";
+  let lastError: Error | null = null;
+
+  for (const model of modelCandidates) {
+    try {
+      content = await callOpenAI(
+        apiKey,
+        model,
+        systemPrompt,
+        userPrompt,
+        maxOutputTokens,
+        reasoningEffort,
+      );
+      modelUsed = model;
+      break;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.error("OpenAI generation attempt failed:", model, lastError.message);
+    }
+  }
+
+  if (!content.trim()) {
+    throw lastError || new Error("OpenAI generation failed for all candidate models");
+  }
+
+  return { content, modelUsed };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { transcript, peData, templatePrompt } = await req.json();
+    const {
+      transcript,
+      peData,
+      templatePrompt,
+      requestType,
+      templateName,
+    } = await req.json();
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
     if (!OPENAI_API_KEY) {
       throw new Error("OPENAI_API_KEY is not configured");
     }
 
-    const systemPrompt = templatePrompt || `You are a veterinary clinical note generator. Generate structured clinical notes from the consultation transcript. Include:
+    const defaultSystemPrompt = `You are a veterinary clinical note generator. Generate structured clinical notes from the consultation transcript. Include:
 - Chief complaint (C/O)
 - Clinical examination findings (CE)
 - Assessment/differential diagnoses (Adv DDx)
 - Plan
 
 Keep the language concise and professional. Use standard veterinary abbreviations.`;
-
-    const peContext = peData ? `\n\nPhysical Examination Data:\n${JSON.stringify(peData, null, 2)}` : '';
-    const userPrompt = `Generate clinical notes from the following consultation transcript:${peContext}\n\nTranscript:\n${transcript}`;
 
     const primaryModel = Deno.env.get("OPENAI_MODEL") || "gpt-5.4";
     const fallbackRaw = Deno.env.get("OPENAI_MODEL_FALLBACKS") || "gpt-5,gpt-5-mini";
@@ -130,33 +181,80 @@ Keep the language concise and professional. Use standard veterinary abbreviation
     );
     const reasoningEffort = Deno.env.get("OPENAI_REASONING_EFFORT") || "low";
     const maxOutputTokens = Number(Deno.env.get("OPENAI_MAX_OUTPUT_TOKENS") || "2000");
+    const resolvedMaxTokens = Number.isFinite(maxOutputTokens) ? maxOutputTokens : 2000;
 
-    let content = "";
-    let modelUsed = modelCandidates[0] || primaryModel;
-    let lastError: Error | null = null;
-    for (const model of modelCandidates) {
-      try {
-        content = await callOpenAI(
-          OPENAI_API_KEY,
-          model,
-          systemPrompt,
-          userPrompt,
-          Number.isFinite(maxOutputTokens) ? maxOutputTokens : 2000,
-          reasoningEffort,
-        );
-        modelUsed = model;
-        break;
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        console.error("OpenAI generation attempt failed:", model, lastError.message);
+    if (requestType === "notes" && String(templateName || "").trim() === "General Consult") {
+      const extractionSystemPrompt = `You are a strict veterinary evidence extractor.
+Output ONLY JSON with this schema:
+{
+  "complexity": "routine" | "complex",
+  "sections": {
+    "TREATMENT": [{"text":"...", "evidence":"..."}],
+    "OBJECTIVE": [{"text":"...", "evidence":"..."}],
+    "ASSESSMENT": [{"text":"...", "evidence":"..."}],
+    "PLAN": [{"text":"...", "evidence":"..."}],
+    "COMMUNICATION": [{"text":"...", "evidence":"..."}]
+  }
+}
+
+Rules:
+- "evidence" must be a direct short quote copied from source text.
+- Use only explicit source content; do not infer or invent.
+- Keep text concise and clinically relevant to this consult only.
+- Omit empty sections by returning [].
+- Max items: TREATMENT/OBJECTIVE/COMMUNICATION up to 4 each; ASSESSMENT/PLAN up to 3 each.`;
+
+      const extractionUserPrompt = `Extract grounded consultation facts from this source:
+
+${transcript}`;
+
+      const groundedExtraction = await callOpenAIWithFallbacks(
+        OPENAI_API_KEY,
+        modelCandidates,
+        extractionSystemPrompt,
+        extractionUserPrompt,
+        Math.max(resolvedMaxTokens, 2600),
+        reasoningEffort,
+      );
+
+      const parsedPayload = parseGeneralConsultGroundingPayload(
+        stripCodeFences(groundedExtraction.content),
+      );
+      if (!parsedPayload) {
+        throw new Error("Could not parse grounded extraction payload");
       }
+
+      const filteredPayload = filterGroundedGeneralConsultPayload(parsedPayload, String(transcript || ""));
+      const content = renderGeneralConsultFromGroundedPayload(filteredPayload);
+
+      return new Response(JSON.stringify({
+        content,
+        provider: "openai",
+        model: groundedExtraction.modelUsed,
+        grounded: true,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    if (!content.trim()) {
-      throw lastError || new Error("OpenAI generation failed for all candidate models");
-    }
+    const systemPrompt = templatePrompt || defaultSystemPrompt;
+    const peContext = peData ? `\n\nPhysical Examination Data:\n${JSON.stringify(peData, null, 2)}` : "";
+    const userPrompt = `Generate clinical notes from the following consultation transcript:${peContext}\n\nTranscript:\n${transcript}`;
 
-    return new Response(JSON.stringify({ content, provider: "openai", model: modelUsed }), {
+    const generated = await callOpenAIWithFallbacks(
+      OPENAI_API_KEY,
+      modelCandidates,
+      systemPrompt,
+      userPrompt,
+      resolvedMaxTokens,
+      reasoningEffort,
+    );
+
+    return new Response(JSON.stringify({
+      content: generated.content,
+      provider: "openai",
+      model: generated.modelUsed,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

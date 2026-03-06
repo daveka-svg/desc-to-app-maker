@@ -1,12 +1,13 @@
 import type { ChangeEvent, ReactNode } from 'react';
-import { useMemo, useState } from 'react';
-import { Download, FileAudio, FileText, Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Download, FileAudio, FileText, Loader2, Mic, MicOff, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { useEncounterController } from '@/components/encounter/EncounterControllerProvider';
 import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useTaskExtraction } from '@/hooks/useTaskExtraction';
 import { useToast } from '@/hooks/use-toast';
 import PEForm from '@/components/pe-form/PEForm';
+import { MOCK_DOG_DIARRHOEA_20MIN_TRANSCRIPT } from '@/dev/mockConsultation';
 
 const connectionMeta: Record<
   'connected' | 'reconnecting' | 'disconnected',
@@ -48,8 +49,27 @@ const formatBytes = (value: number): string => {
   return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: any) => void) | null;
+  onerror: ((event: any) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+const getSpeechRecognitionCtor = (): (new () => BrowserSpeechRecognition) | null => {
+  const w = window as any;
+  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+};
+
 export default function ContextPanel() {
   const [isApplyingContextUpdates, setIsApplyingContextUpdates] = useState(false);
+  const [isVetNotesDictating, setIsVetNotesDictating] = useState(false);
+  const [vetNotesInterim, setVetNotesInterim] = useState('');
+  const vetNotesRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const peEnabled = useSessionStore((s) => s.peEnabled);
   const togglePE = useSessionStore((s) => s.togglePE);
   const patientName = useSessionStore((s) => s.patientName);
@@ -57,9 +77,16 @@ export default function ContextPanel() {
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const availableTemplates = useSessionStore((s) => s.availableTemplates);
+  const vetNotes = useSessionStore((s) => s.vetNotes);
+  const setVetNotes = useSessionStore((s) => s.setVetNotes);
   const supplementalContext = useSessionStore((s) => s.supplementalContext);
   const setSupplementalContext = useSessionStore((s) => s.setSupplementalContext);
   const appendSupplementalContext = useSessionStore((s) => s.appendSupplementalContext);
+  const setTranscript = useSessionStore((s) => s.setTranscript);
+  const setInterimTranscript = useSessionStore((s) => s.setInterimTranscript);
+  const setNotes = useSessionStore((s) => s.setNotes);
+  const setTasks = useSessionStore((s) => s.setTasks);
+  const setEncounterStatus = useSessionStore((s) => s.setEncounterStatus);
   const encounterStatus = useSessionStore((s) => s.encounterStatus);
   const recordingArtifacts = useSessionStore((s) => s.recordingArtifacts);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -87,6 +114,10 @@ export default function ContextPanel() {
 
   const isProcessing = encounterStatus === 'processing';
   const connectionUi = connectionMeta[transcriptionConnectionState];
+  const canDictateVetNotes = useMemo(
+    () => typeof window !== 'undefined' && !!getSpeechRecognitionCtor(),
+    []
+  );
 
   const visibleRecordings = useMemo(() => {
     if (!activeSessionId) return recordingArtifacts;
@@ -160,6 +191,96 @@ export default function ContextPanel() {
     }
   };
 
+  const loadMockConsultation = () => {
+    setPatientName('Milo (Mock)');
+    setSelectedTemplate('General Consult');
+    setTranscript(MOCK_DOG_DIARRHOEA_20MIN_TRANSCRIPT);
+    setInterimTranscript('');
+    setNotes('');
+    setVetNotes('');
+    setTasks([]);
+    setEncounterStatus('reviewing');
+    setActiveTab('transcript');
+    toast({
+      title: 'Mock consultation loaded',
+      description: 'Dog diarrhoea 20-minute transcript loaded for QA.',
+    });
+  };
+
+  const startVetNotesDictation = () => {
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor || isProcessing) return;
+    if (vetNotesRecognitionRef.current) {
+      try {
+        vetNotesRecognitionRef.current.stop();
+      } catch {
+        // no-op
+      }
+    }
+
+    const recognition = new Ctor();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-GB';
+
+    recognition.onresult = (event: any) => {
+      let interim = '';
+      const finalParts: string[] = [];
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const text = (result?.[0]?.transcript || '').trim();
+        if (!text) continue;
+        if (result.isFinal) finalParts.push(text);
+        else interim += `${text} `;
+      }
+      setVetNotesInterim(interim.trim());
+      if (finalParts.length > 0) {
+        const current = useSessionStore.getState().vetNotes;
+        setVetNotes(`${current}\n${finalParts.join(' ')}`.trim());
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsVetNotesDictating(false);
+      setVetNotesInterim('');
+    };
+
+    recognition.onend = () => {
+      setIsVetNotesDictating(false);
+      setVetNotesInterim('');
+    };
+
+    vetNotesRecognitionRef.current = recognition;
+    recognition.start();
+    setIsVetNotesDictating(true);
+  };
+
+  const stopVetNotesDictation = () => {
+    try {
+      vetNotesRecognitionRef.current?.stop();
+    } catch {
+      // no-op
+    }
+    setIsVetNotesDictating(false);
+    setVetNotesInterim('');
+  };
+
+  useEffect(() => {
+    if (!peEnabled && isVetNotesDictating) {
+      stopVetNotesDictation();
+    }
+  }, [isVetNotesDictating, peEnabled]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        vetNotesRecognitionRef.current?.stop();
+      } catch {
+        // no-op
+      }
+    };
+  }, []);
+
   return (
     <div className="p-5 overflow-y-auto flex-1">
       <div className="bg-card rounded-lg p-[18px] mb-3.5 border border-border-light">
@@ -217,6 +338,14 @@ export default function ContextPanel() {
                 </>
               )}
             </div>
+            {import.meta.env.DEV && !isRecording && (
+              <button
+                onClick={loadMockConsultation}
+                className="inline-flex items-center justify-center gap-1.5 px-[14px] py-[6px] rounded-md text-[12px] font-semibold border border-border bg-sand text-text-secondary cursor-pointer hover:bg-sand-dark transition-all duration-[120ms]"
+              >
+                Load Mock 20m Consult
+              </button>
+            )}
             {canAppendRecording && !isRecording && (
               <div className="text-[11px] text-text-muted text-center">
                 New recording will be appended to this session and notes will regenerate from combined context.
@@ -303,6 +432,41 @@ export default function ContextPanel() {
             placeholder="Paste lab findings, external notes, or uploaded text context used during summary generation."
             className="w-full min-h-[96px] px-3 py-2 border border-border rounded-md text-[12px] outline-none bg-card text-text-primary placeholder:text-text-muted focus:border-bark-muted resize-y"
           />
+        </div>
+
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-[12px] font-semibold text-text-secondary">Vet Notes (optional)</label>
+            {canDictateVetNotes ? (
+              <button
+                onClick={isVetNotesDictating ? stopVetNotesDictation : startVetNotesDictation}
+                disabled={isProcessing || !peEnabled}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-md border ${
+                  isVetNotesDictating
+                    ? 'bg-error text-primary-foreground border-error'
+                    : 'bg-card border-border hover:bg-sand'
+                } disabled:opacity-40`}
+              >
+                {isVetNotesDictating ? <MicOff size={12} /> : <Mic size={12} />}
+                {isVetNotesDictating ? 'Stop dictation' : 'Dictate'}
+              </button>
+            ) : null}
+          </div>
+          <textarea
+            value={vetNotes}
+            onChange={(e) => setVetNotes(e.target.value)}
+            disabled={isProcessing || !peEnabled}
+            placeholder="Add extra clinical notes from vet exam, clarifications, or observations."
+            className="w-full min-h-[84px] px-3 py-2 border border-border rounded-md text-[12px] outline-none bg-card text-text-primary placeholder:text-text-muted focus:border-bark-muted resize-y"
+          />
+          {vetNotesInterim && (
+            <div className="text-[11px] text-text-muted italic">{vetNotesInterim}</div>
+          )}
+          <div className="text-[11px] text-text-muted">
+            {peEnabled
+              ? 'Included in summary generation together with PE when "Include PE + Vet Notes" is enabled in Notes.'
+              : 'Enable Physical Examination to add and include vet notes.'}
+          </div>
         </div>
 
         <div className="flex items-center justify-between mt-3 px-3.5 py-2.5 bg-sand rounded-md">

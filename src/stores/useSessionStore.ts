@@ -77,6 +77,7 @@ export interface SavedSession {
   duration: number;
   transcript: string;
   notes: string;
+  vetNotes: string;
   peData: PEData;
   peEnabled: boolean;
   tasks: Task[];
@@ -126,6 +127,8 @@ interface SessionStore {
   supplementalContext: string;
   setSupplementalContext: (context: string) => void;
   appendSupplementalContext: (context: string) => void;
+  vetNotes: string;
+  setVetNotes: (notes: string) => void;
   transcriptMergeWarning: string | null;
   setTranscriptMergeWarning: (warning: string | null) => void;
   transcriptionConnectionState: TranscriptionConnectionState;
@@ -144,6 +147,7 @@ interface SessionStore {
   // Tasks
   tasks: Task[];
   setTasks: (t: Task[]) => void;
+  persistSessionTasks: (tasksOverride?: Task[]) => Promise<void>;
   toggleTask: (id: string) => void;
   addTask: (task: Omit<Task, 'id'>) => void;
   isExtractingTasks: boolean;
@@ -308,6 +312,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       ? `${state.supplementalContext.trim()}\n\n${context.trim()}`
       : context.trim(),
   })),
+  vetNotes: '',
+  setVetNotes: (notes) => set({ vetNotes: notes }),
   transcriptMergeWarning: null,
   setTranscriptMergeWarning: (warning) => set({ transcriptMergeWarning: warning }),
   transcriptionConnectionState: 'disconnected',
@@ -329,9 +335,64 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   // Tasks
   tasks: [],
   setTasks: (t) => set({ tasks: t }),
-  toggleTask: (id) => set((s) => ({
-    tasks: s.tasks.map((t) => t.id === id ? { ...t, done: !t.done } : t),
-  })),
+  persistSessionTasks: async (tasksOverride) => {
+    let s = get();
+    if (!s.activeSessionId) {
+      await s.saveCurrentSession();
+      s = get();
+    }
+    const sessionId = s.activeSessionId;
+    if (!sessionId) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const tasksToPersist = tasksOverride ?? s.tasks;
+
+    await supabase.from('tasks').delete().eq('session_id', sessionId).eq('user_id', user.id);
+    if (tasksToPersist.length === 0) return;
+
+    await supabase.from('tasks').insert(
+      tasksToPersist.map((task, index) => ({
+        id: task.id,
+        user_id: user.id,
+        session_id: sessionId,
+        text: task.text,
+        category: task.category,
+        assignee: task.assignee,
+        done: task.done,
+        order_index: task.orderIndex ?? index + 1,
+        deadline_at: task.deadlineAt || null,
+      }))
+    );
+  },
+  toggleTask: (id) => {
+    const currentTask = get().tasks.find((task) => task.id === id);
+    if (!currentTask) return;
+    const nextDone = !currentTask.done;
+
+    set((s) => ({
+      tasks: s.tasks.map((t) => t.id === id ? { ...t, done: nextDone } : t),
+    }));
+
+    void (async () => {
+      const s = get();
+      if (!s.activeSessionId) return;
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase
+        .from('tasks')
+        .update({ done: nextDone })
+        .eq('id', id)
+        .eq('session_id', s.activeSessionId)
+        .eq('user_id', user.id);
+      window.dispatchEvent(new Event('session-saved'));
+    })();
+  },
   addTask: (task) => set((s) => ({
     tasks: [
       ...s.tasks,
@@ -442,6 +503,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       transcript: '',
       interimTranscript: '',
       supplementalContext: '',
+      vetNotes: '',
       transcriptMergeWarning: null,
       peAppliedAt: null,
       peAppliedSummary: '',
@@ -522,12 +584,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       content: s.notes,
       transcript: s.transcript,
       supplemental_context: s.supplementalContext || null,
+      vet_notes: s.vetNotes || null,
     });
 
     await supabase.from('tasks').delete().eq('session_id', sessionId).eq('user_id', user.id);
     if (s.tasks.length > 0) {
       await supabase.from('tasks').insert(
         s.tasks.map((t, index) => ({
+          id: t.id,
           user_id: user.id,
           session_id: sessionId!,
           text: t.text,
@@ -554,6 +618,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       transcript: session.transcript,
       interimTranscript: '',
       supplementalContext: '',
+      vetNotes: session.vetNotes || '',
       notes: session.notes,
       peEnabled: session.peEnabled,
       tasks: session.tasks,

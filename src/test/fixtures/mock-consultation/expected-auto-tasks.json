@@ -1,0 +1,40 @@
+{
+  "prescriptions": [
+    {
+      "text": "Administer maropitant 1 mg/kg SC in clinic",
+      "assignee": "Nurse",
+      "deadline": null
+    },
+    {
+      "text": "Dispense Pro-Kolin 5 ml PO q8h x3 days instructions",
+      "assignee": "Nurse",
+      "deadline": null
+    }
+  ],
+  "diagnostics": [
+    {
+      "text": "Arrange faecal testing if no improvement by 48h",
+      "assignee": "Vet",
+      "deadline": null
+    }
+  ],
+  "followup": [
+    {
+      "text": "Book nurse progress call for tomorrow at 15:30",
+      "assignee": "Admin",
+      "deadline": null
+    }
+  ],
+  "admin": [
+    {
+      "text": "Email written care instructions to owner",
+      "assignee": "Admin",
+      "deadline": null
+    },
+    {
+      "text": "Provide stool sample pot at checkout",
+      "assignee": "Nurse",
+      "deadline": null
+    }
+  ]
+}

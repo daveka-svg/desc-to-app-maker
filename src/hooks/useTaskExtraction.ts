@@ -4,18 +4,13 @@ import { TASK_EXTRACTION_PROMPT } from '@/lib/prompts';
 import { useSessionStore, type Task } from '@/stores/useSessionStore';
 import { extractLlmText } from '@/lib/llm';
 import { buildTaskExtractionInput } from '@/lib/clinicContext';
-
-const normalizeDeadline = (value: unknown): string | null => {
-  if (typeof value !== 'string' || !value.trim()) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString();
-};
+import { normalizeExtractedTasks } from '@/lib/taskExtraction';
 
 export function useTaskExtraction() {
   const notes = useSessionStore((s) => s.notes);
   const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
   const setTasks = useSessionStore((s) => s.setTasks);
+  const persistSessionTasks = useSessionStore((s) => s.persistSessionTasks);
   const isExtractingTasks = useSessionStore((s) => s.isExtractingTasks);
   const setIsExtractingTasks = useSessionStore((s) => s.setIsExtractingTasks);
 
@@ -41,35 +36,18 @@ export function useTaskExtraction() {
       }
 
       const parsed = JSON.parse(jsonStr);
-      const tasks: Task[] = [];
-      const categories = ['prescriptions', 'diagnostics', 'followup', 'admin'] as const;
-
-      for (const cat of categories) {
-        const items = parsed[cat] || [];
-        for (const item of items) {
-          const rawText = typeof item?.text === 'string' ? item.text : String(item?.text || '');
-          const compactText = rawText.replace(/\s+/g, ' ').trim();
-          if (!compactText) continue;
-          tasks.push({
-            id: crypto.randomUUID(),
-            text: compactText.length > 140 ? `${compactText.slice(0, 137)}...` : compactText,
-            category: cat,
-            assignee: (item.assignee || 'Vet') as Task['assignee'],
-            done: false,
-            orderIndex: tasks.length + 1,
-            deadlineAt: normalizeDeadline(item?.deadline),
-          });
-        }
-      }
+      const tasks: Task[] = normalizeExtractedTasks(parsed);
 
       setTasks(tasks);
+      await persistSessionTasks(tasks);
+      window.dispatchEvent(new Event('session-saved'));
     } catch (err) {
       console.error('Task extraction error:', err);
       throw err;
     } finally {
       setIsExtractingTasks(false);
     }
-  }, [notes, clinicKnowledgeBase, setTasks, setIsExtractingTasks]);
+  }, [notes, clinicKnowledgeBase, setTasks, persistSessionTasks, setIsExtractingTasks]);
 
   return { extractTasks, isExtractingTasks };
 }

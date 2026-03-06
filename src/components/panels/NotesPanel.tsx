@@ -12,11 +12,13 @@ export default function NotesPanel() {
   const togglePEInNotes = useSessionStore((s) => s.togglePEInNotes);
   const peData = useSessionStore((s) => s.peData);
   const peEnabled = useSessionStore((s) => s.peEnabled);
+  const vetNotes = useSessionStore((s) => s.vetNotes);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const availableTemplates = useSessionStore((s) => s.availableTemplates);
   const tasks = useSessionStore((s) => s.tasks);
   const toggleTask = useSessionStore((s) => s.toggleTask);
+  const saveCurrentSession = useSessionStore((s) => s.saveCurrentSession);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
   const { generateNote, isGeneratingNotes } = useNoteGeneration();
@@ -42,6 +44,8 @@ export default function NotesPanel() {
       } catch (error) {
         console.warn('Task extraction after note generation failed:', error);
       }
+      await saveCurrentSession();
+      window.dispatchEvent(new Event('session-saved'));
     } catch (err: any) {
       toast({ title: 'Generation failed', description: err.message || 'Could not generate notes.', variant: 'destructive' });
     }
@@ -58,6 +62,8 @@ export default function NotesPanel() {
       } catch (error) {
         console.warn('Task extraction after template switch failed:', error);
       }
+      await saveCurrentSession();
+      window.dispatchEvent(new Event('session-saved'));
       toast({ title: 'Template applied', description: `Notes regenerated using ${templateName}.` });
     } catch (err: any) {
       toast({
@@ -76,6 +82,9 @@ export default function NotesPanel() {
     let text = noteRef.current?.innerText || notes;
     if (peIncludeInNotes && peReport.trim()) {
       text = `${text}\n\n${peReport}`;
+    }
+    if (peIncludeInNotes && vetNotes.trim()) {
+      text = `${text}\n\nVet Notes:\n${vetNotes.trim()}`;
     }
     try {
       await navigator.clipboard.writeText(text);
@@ -219,6 +228,14 @@ export default function NotesPanel() {
                   <p className="text-sm leading-[1.85] text-text-primary">{peReport}</p>
                 </div>
               )}
+              {peIncludeInNotes && vetNotes.trim() && (
+                <div className="max-w-[720px] mt-4 p-3 rounded-md border border-border-light bg-sand/40">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-bark mb-1.5">
+                    <ClipboardList size={13} /> Vet Notes
+                  </div>
+                  <p className="text-sm leading-[1.85] text-text-primary whitespace-pre-wrap">{vetNotes.trim()}</p>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -259,7 +276,7 @@ export default function NotesPanel() {
       {/* Footer */}
       <div className="px-5 py-2.5 bg-card border-t border-border-light flex items-center justify-between text-xs text-text-muted shrink-0">
         <div className="flex items-center gap-3.5">
-          <span className="flex items-center gap-1 text-[11px]"><ClipboardList size={13} className="opacity-50" /> Include PE findings</span>
+          <span className="flex items-center gap-1 text-[11px]"><ClipboardList size={13} className="opacity-50" /> Include PE + Vet Notes</span>
           <div
             className={`relative w-[34px] h-[18px] rounded-[10px] cursor-pointer transition-colors duration-200 ${peIncludeInNotes ? 'bg-forest' : 'bg-sand-deeper'}`}
             onClick={togglePEInNotes}

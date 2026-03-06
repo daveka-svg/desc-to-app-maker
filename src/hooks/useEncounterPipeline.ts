@@ -72,7 +72,13 @@ export function useEncounterPipeline() {
         : transcript;
 
       const response = await supabase.functions.invoke('generate-notes', {
-        body: { transcript: userContent, peData, templatePrompt: fullPrompt },
+        body: {
+          transcript: userContent,
+          peData,
+          templatePrompt: fullPrompt,
+          requestType: 'notes',
+          templateName: store.selectedTemplate,
+        },
       });
 
       if (response.error) throw new Error(response.error.message);
@@ -185,11 +191,13 @@ export function useEncounterPipeline() {
             session_id: session.id,
             content: currentState.notes,
             transcript: currentState.transcript,
+            vet_notes: currentState.vetNotes || null,
           });
 
           if (currentState.tasks.length > 0) {
             await supabase.from('tasks').insert(
               currentState.tasks.map(t => ({
+                id: t.id,
                 user_id: user.id,
                 session_id: session.id,
                 text: t.text,
