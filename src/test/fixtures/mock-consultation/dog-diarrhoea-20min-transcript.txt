@@ -1,43 +1,307 @@
-[00:00] **Speaker 1 (Vet):** Hi, I am Dr Patel. You are here with Milo today?
-[00:05] **Speaker 2 (Owner):** Yes, Milo, four year old Labrador, male neutered. He has had diarrhoea since yesterday morning.
-[00:14] **Speaker 1 (Vet):** How many episodes?
-[00:16] **Speaker 2 (Owner):** About seven yesterday and three this morning.
-[00:20] **Speaker 1 (Vet):** Stool character? Mucus or blood?
-[00:23] **Speaker 2 (Owner):** Watery with mucus. Tiny red streak once last night.
-[00:28] **Speaker 1 (Vet):** Vomiting?
-[00:29] **Speaker 2 (Owner):** One vomit yesterday afternoon, yellow foam, none since.
-[00:34] **Speaker 1 (Vet):** Appetite, thirst, energy?
-[00:36] **Speaker 2 (Owner):** Reduced appetite, still drinking, a bit quieter but still interactive.
-[00:43] **Speaker 1 (Vet):** Any scavenging or dietary indiscretion?
-[00:46] **Speaker 2 (Owner):** He grabbed sausage and bread at the park.
-[00:50] **Speaker 1 (Vet):** Any chocolate, grapes, onions, xylitol?
-[00:53] **Speaker 2 (Owner):** No.
-[00:55] **Speaker 1 (Vet):** Current meds?
-[00:57] **Speaker 2 (Owner):** I gave Pro-Kolin at home, about 2 ml twice yesterday.
-[01:03] **Speaker 1 (Vet):** Vaccinations up to date?
-[01:05] **Speaker 2 (Owner):** Yes.
-[01:07] **Speaker 1 (Vet):** I will examine him now.
-[01:11] **Speaker 1 (Vet):** Bright, responsive, friendly. Weight 28.4 kg. Temp 38.7 C, HR 108, RR 28.
-[01:20] **Speaker 1 (Vet):** MM pink and moist, CRT under 2 seconds.
-[01:24] **Speaker 1 (Vet):** Mild cranial abdominal discomfort on deep palpation, no mass, no severe guarding.
-[01:31] **Speaker 1 (Vet):** Heart rhythm normal, lungs clear, pulses good.
-[01:35] **Speaker 1 (Vet):** Mild dehydration around five percent.
-[01:39] **Speaker 2 (Owner):** Is that dangerous?
-[01:41] **Speaker 1 (Vet):** Stable for outpatient care today.
-[01:45] **Speaker 1 (Vet):** Impression is acute gastroenteritis, likely dietary indiscretion.
-[01:50] **Speaker 1 (Vet):** Plan is maropitant injection now, then Pro-Kolin 5 ml by mouth every 8 hours for 3 days.
-[01:58] **Speaker 1 (Vet):** Bland diet for 3 days, then transition over 2 to 3 days.
-[02:03] **Speaker 1 (Vet):** Encourage water. Avoid high fat treats and new foods.
-[02:08] **Speaker 2 (Owner):** Midday dose is hard with work.
-[02:10] **Speaker 1 (Vet):** Try for q8h, partner can help if possible.
-[02:14] **Speaker 1 (Vet):** Red flags: repeated vomiting, worsening blood in stool, marked lethargy, worsening abdominal pain, or no improvement in 48 hours.
-[02:23] **Speaker 2 (Owner):** Understood.
-[02:25] **Speaker 1 (Vet):** We will book a nurse call tomorrow afternoon.
-[02:29] **Speaker 1 (Vet):** If not improving, recheck and faecal testing.
-[02:33] **Speaker 2 (Owner):** That works.
-[02:35] **Speaker 1 (Vet):** Reception will send written instructions by email and provide a stool pot.
-[02:40] **Speaker 2 (Owner):** Perfect.
-[02:42] **Speaker 1 (Vet):** Nurse Sarah, please administer maropitant 1 mg/kg SC and dispense Pro-Kolin with q8h instructions.
-[02:49] **Speaker 1 (Vet):** Also schedule nurse progress call tomorrow at 15:30.
-[02:54] **Speaker 2 (Owner):** Thanks.
-[03:00] **Speaker 1 (Vet):** End consult.
+[00:00] **Speaker 1 (Vet):** Hi, I'm Dr Patel. Thanks for waiting. You're here with Milo today, right?
+
+[00:06] **Speaker 2 (Owner):** Yes, Milo, he's four, Labrador, male neutered. He's had diarrhoea since yesterday morning.
+
+[00:15] **Speaker 1 (Vet):** Okay, tell me from the beginning. When did you first notice it and how many episodes?
+
+[00:24] **Speaker 2 (Owner):** First one was about 6am yesterday. Then maybe six or seven times yesterday, and three times this morning before we came.
+
+[00:36] **Speaker 1 (Vet):** Got it. What's the stool like? Fully watery, soft, mucus, any blood?
+
+[00:44] **Speaker 2 (Owner):** Mostly watery with some mucus. I saw a tiny streak of red once last night, then none after that.
+
+[00:55] **Speaker 1 (Vet):** Any vomiting?
+
+[00:58] **Speaker 2 (Owner):** One vomit yesterday afternoon, yellow foamy stuff. None overnight.
+
+[01:05] **Speaker 1 (Vet):** Appetite and drinking?
+
+[01:08] **Speaker 2 (Owner):** Appetite lower. He ignored breakfast today, which is unusual. He is still drinking, maybe a bit more than normal.
+
+[01:19] **Speaker 1 (Vet):** Energy level?
+
+[01:22] **Speaker 2 (Owner):** Slightly quieter but still waggy and wanting to go out. Not collapsed or anything.
+
+[01:30] **Speaker 1 (Vet):** Any straining, urgency, accidents in the house?
+
+[01:35] **Speaker 2 (Owner):** Yes, urgency. He asked to go out at 2am. No house accident, just barely made it outside.
+
+[01:44] **Speaker 1 (Vet):** Any cough, sneeze, breathing change, or urinary issues?
+
+[01:49] **Speaker 2 (Owner):** No cough or sneeze. Peeing seems normal.
+
+[01:56] **Speaker 1 (Vet):** Has he eaten anything unusual? New treats, bin raiding, park scavenging?
+
+[02:03] **Speaker 2 (Owner):** We were in the park Saturday and there was a picnic. He grabbed some sausage and maybe a bit of bread before I could stop him.
+
+[02:15] **Speaker 1 (Vet):** Any cooked bones, fatty leftovers, grapes, chocolate, onions, xylitol?
+
+[02:23] **Speaker 2 (Owner):** No chocolate or onions. Definitely no grapes this time. He did have a grape incident a year ago but he was fine after treatment.
+
+[02:35] **Speaker 1 (Vet):** Thanks, that's useful. Any travel, kennel stay, or contact with dogs who had tummy bugs?
+
+[02:42] **Speaker 2 (Owner):** No travel. He goes to daycare once a week, and one dog there had loose stools last week.
+
+[02:52] **Speaker 1 (Vet):** Current medications or supplements?
+
+[02:55] **Speaker 2 (Owner):** Nothing regular. I gave Pro-Kolin paste at home, about 2 ml twice yesterday, but I guessed the amount.
+
+[03:06] **Speaker 1 (Vet):** Any flea/worm treatment recently?
+
+[03:10] **Speaker 2 (Owner):** Wormed about six weeks ago. Flea treatment three weeks ago.
+
+[03:17] **Speaker 1 (Vet):** Any previous GI disease, pancreatitis, food allergy diagnosis?
+
+[03:22] **Speaker 2 (Owner):** No formal diagnosis. He had mild diarrhoea once after stealing cat food, resolved in two days.
+
+[03:31] **Speaker 1 (Vet):** Is he up to date with vaccinations?
+
+[03:34] **Speaker 2 (Owner):** Yes, all up to date. Last booster was around four months ago.
+
+[03:41] **Speaker 1 (Vet):** Great. Any chance he got into household chemicals or garden products?
+
+[03:47] **Speaker 2 (Owner):** Not that I know of. We keep that stuff in a locked cupboard.
+
+[03:54] **Speaker 1 (Vet):** Any known drug allergies?
+
+[03:57] **Speaker 2 (Owner):** None known.
+
+[04:02] **Speaker 1 (Vet):** I'll do a full exam now. We'll check hydration, tummy comfort, temp, heart, lungs, and gums.
+
+[04:11] **Speaker 2 (Owner):** Sure.
+
+[04:16] **Speaker 1 (Vet):** Milo's bright and responsive, a bit quieter than typical but still friendly. Weight today is 28.4 kg.
+
+[04:27] **Speaker 1 (Vet):** Temp is 38.7°C. HR 108, RR 28. Mucous membranes pink and moist, CRT under 2 seconds.
+
+[04:40] **Speaker 1 (Vet):** Mild abdominal discomfort on deep cranial palpation, no obvious mass, no severe guarding.
+
+[04:50] **Speaker 1 (Vet):** Lungs clear, heart sounds normal rhythm, peripheral pulses good quality.
+
+[04:58] **Speaker 1 (Vet):** Hydration looks mildly reduced, around 5%, mainly from tackier gums and history.
+
+[05:06] **Speaker 2 (Owner):** Okay, so he's not dangerously dehydrated?
+
+[05:10] **Speaker 1 (Vet):** Not at this stage, no. He's stable for outpatient treatment today.
+
+[05:18] **Speaker 1 (Vet):** Based on history and exam, this is most consistent with acute gastroenteritis, likely dietary indiscretion.
+
+[05:29] **Speaker 1 (Vet):** I'm not seeing signs right now that force immediate hospitalisation, but we should monitor closely over 24–48 hours.
+
+[05:39] **Speaker 2 (Owner):** That's a relief. I was worried it might be something severe.
+
+[05:44] **Speaker 1 (Vet):** Fair concern. Severe concerns would be persistent vomiting, blood-heavy diarrhoea, collapse, marked lethargy, or worsening pain.
+
+[05:56] **Speaker 2 (Owner):** Understood.
+
+[06:00] **Speaker 1 (Vet):** For treatment, I recommend an anti-nausea injection now: maropitant 1 mg/kg SC in clinic.
+
+[06:10] **Speaker 1 (Vet):** Then at home: Pro-Kolin 5 ml by mouth every 8 hours for 3 days, and a bland diet in small frequent meals.
+
+[06:22] **Speaker 2 (Owner):** 5 ml every 8 hours, okay. He can be fussy with tablets.
+
+[06:27] **Speaker 1 (Vet):** That's fine; this is paste, usually easier than tablets. If he spits it out, place small amounts at the side of the mouth.
+
+[06:37] **Speaker 2 (Owner):** Perfect. How long bland diet?
+
+[06:40] **Speaker 1 (Vet):** Start 3 days, then gradually transition to normal food over 2–3 days if stools improve.
+
+[06:49] **Speaker 2 (Owner):** Water intake okay as normal?
+
+[06:52] **Speaker 1 (Vet):** Yes, encourage water, small frequent drinks are good. Avoid high-fat treats and no new foods this week.
+
+[07:00] **Speaker 1 (Vet):** We can discuss stool testing if he doesn't improve in 48 hours, or sooner if signs worsen.
+
+[07:08] **Speaker 2 (Owner):** Should we do stool PCR now?
+
+[07:11] **Speaker 1 (Vet):** Optional today. Given he's stable and this is short duration, many cases resolve with supportive care. If persistent, then faecal panel is sensible.
+
+[07:23] **Speaker 2 (Owner):** Let's hold for now and monitor.
+
+[07:26] **Speaker 1 (Vet):** Agreed.
+
+[07:30] **Speaker 1 (Vet):** Any insurance constraints I should know about?
+
+[07:34] **Speaker 2 (Owner):** We have insurance but prefer to keep first step simple if safe.
+
+[07:39] **Speaker 1 (Vet):** That's reasonable with current clinical picture.
+
+[07:44] **Speaker 2 (Owner):** Sorry, he also ate a sock once last year, but he passed it.
+
+[07:49] **Speaker 1 (Vet):** Thanks. Any concern he swallowed fabric this week?
+
+[07:53] **Speaker 2 (Owner):** No, not this week.
+
+[07:56] **Speaker 1 (Vet):** Okay.
+
+[08:00] **Speaker 1 (Vet):** Let me just repeat key red flags so we're aligned.
+
+[08:05] **Speaker 1 (Vet):** Please call urgently if: repeated vomiting, unable to keep water down, blood increasing in stool, marked lethargy, abdominal pain, or no improvement by 48 hours.
+
+[08:18] **Speaker 2 (Owner):** Yes, I'll watch for those.
+
+[08:22] **Speaker 1 (Vet):** For admin and follow-up, I'd like a nurse call tomorrow afternoon to check progress.
+
+[08:29] **Speaker 1 (Vet):** If still loose by then, we'll book recheck and likely stool test.
+
+[08:35] **Speaker 2 (Owner):** Tomorrow afternoon works.
+
+[08:38] **Speaker 1 (Vet):** Great. Reception can schedule that before you leave.
+
+[08:44] **Speaker 2 (Owner):** Is probiotic yogurt okay?
+
+[08:47] **Speaker 1 (Vet):** Better to avoid extras for now; stick to prescribed GI support and bland diet to keep variables controlled.
+
+[08:56] **Speaker 2 (Owner):** Makes sense.
+
+[09:00] **Speaker 1 (Vet):** Any concerns giving paste three times daily?
+
+[09:04] **Speaker 2 (Owner):** Morning and evening easy. Midday is hard when I'm at work.
+
+[09:09] **Speaker 1 (Vet):** If midday impossible, do best practical schedule and keep me updated; ideally q8h, but partial adherence is still better than none.
+
+[09:19] **Speaker 2 (Owner):** Okay, I can ask my partner to do lunchtime dose.
+
+[09:24] **Speaker 1 (Vet):** Good plan. Also, short lead walks only today, mainly for toileting.
+
+[09:30] **Speaker 2 (Owner):** He'll hate that, but okay.
+
+[09:34] **Speaker 1 (Vet):** I know. Labs love chaos.
+
+[09:37] **Speaker 2 (Owner):** He really does. He stole a sandwich in Hyde Park last month.
+
+[09:42] **Speaker 1 (Vet):** That tracks perfectly with this breed.
+
+[09:46] **Speaker 1 (Vet):** I'll have nurse Sarah give the maropitant injection now and dispense Pro-Kolin with printed instructions.
+
+[09:54] **Speaker 2 (Owner):** Great, thank you.
+
+[09:58] **Speaker 1 (Vet):** Before we finish, quick recap:
+
+[10:01] **Speaker 1 (Vet):** Acute diarrhoea, one vomit, mild dehydration, stable exam, likely acute gastroenteritis/dietary indiscretion.
+
+[10:11] **Speaker 1 (Vet):** Plan is antiemetic injection today, Pro-Kolin 5 ml PO q8h x3 days, bland diet, monitor red flags, nurse follow-up tomorrow.
+
+[10:21] **Speaker 2 (Owner):** Clear, thank you.
+
+[10:25] **Speaker 2 (Owner):** Should I send stool photos by WhatsApp?
+
+[10:29] **Speaker 1 (Vet):** Yes, that can help if anything changes. Include timestamp and whether he ate beforehand.
+
+[10:36] **Speaker 2 (Owner):** He also has a grooming appointment next week, can he still go?
+
+[10:41] **Speaker 1 (Vet):** If fully recovered, yes. If still GI signs, better postpone.
+
+[10:47] **Speaker 2 (Owner):** Is chicken and rice definitely okay?
+
+[10:50] **Speaker 1 (Vet):** Yes, small frequent portions. If he refuses chicken/rice, use a commercial GI diet instead.
+
+[10:58] **Speaker 2 (Owner):** We can do that.
+
+[11:02] **Speaker 1 (Vet):** Any concern about worms despite recent treatment?
+
+[11:06] **Speaker 2 (Owner):** Not sure, he sniffs fox poo constantly.
+
+[11:10] **Speaker 1 (Vet):** If diarrhoea persists, we'll include parasite testing and consider targeted treatment based on results.
+
+[11:18] **Speaker 2 (Owner):** Okay.
+
+[11:20] **Speaker 1 (Vet):** Any other questions before I bring nurse in?
+
+[11:24] **Speaker 2 (Owner):** No, that covers it.
+
+[11:28] **Speaker 1 (Vet):** Perfect. I'll document this now.
+
+[11:31] **Speaker 2 (Owner):** Thanks, doctor.
+
+[11:36] **Speaker 1 (Vet):** (to nurse, in room) Sarah, please do maropitant 1 mg/kg SC for Milo, 28.4 kg, then dispense Pro-Kolin with q8h instructions.
+
+[11:48] **Speaker 1 (Vet):** Also please ask reception to set a nurse progress call for tomorrow afternoon.
+
+[11:55] **Speaker 2 (Owner):** Thank you both.
+
+[12:00] **Speaker 1 (Vet):** While Sarah prepares that, one final thing: if he becomes very lethargic overnight, call emergency immediately.
+
+[12:09] **Speaker 2 (Owner):** I will.
+
+[12:12] **Speaker 1 (Vet):** Great. We'll check in tomorrow and decide if stool diagnostics are needed.
+
+[12:18] **Speaker 2 (Owner):** Sounds good.
+
+[12:22] **Speaker 1 (Vet):** Has he passed stool since arriving?
+
+[12:25] **Speaker 2 (Owner):** Not yet.
+
+[12:27] **Speaker 1 (Vet):** If he does, we can provide a pot and sample instructions in case we need testing quickly.
+
+[12:34] **Speaker 2 (Owner):** Yes, please give me a pot just in case.
+
+[12:38] **Speaker 1 (Vet):** Will do.
+
+[12:42] **Speaker 1 (Vet):** Do you want us to email the care plan as well?
+
+[12:46] **Speaker 2 (Owner):** Email please, easier to share with my partner.
+
+[12:50] **Speaker 1 (Vet):** Noted.
+
+[12:54] **Speaker 2 (Owner):** Sorry, one more random thing, he's due nail trim.
+
+[12:58] **Speaker 1 (Vet):** Let's defer non-urgent handling today so we keep stress low.
+
+[13:03] **Speaker 2 (Owner):** Fair enough.
+
+[13:06] **Speaker 1 (Vet):** Recap dose again: Pro-Kolin 5 ml, every 8 hours, for 3 days.
+
+[13:13] **Speaker 2 (Owner):** 5 ml q8h x3 days, got it.
+
+[13:17] **Speaker 1 (Vet):** Perfect.
+
+[13:20] **Speaker 1 (Vet):** If stool normalises sooner, still complete the planned course.
+
+[13:25] **Speaker 2 (Owner):** Okay.
+
+[13:27] **Speaker 1 (Vet):** If no improvement by 48 hours, call us; we'll recheck and run faecal testing.
+
+[13:33] **Speaker 2 (Owner):** Understood.
+
+[13:36] **Speaker 1 (Vet):** Any current meds at all, including human supplements, fish oils, herbal products?
+
+[13:42] **Speaker 2 (Owner):** None.
+
+[13:44] **Speaker 1 (Vet):** Great.
+
+[13:47] **Speaker 1 (Vet):** We'll avoid empirical antibiotics unless clinical picture changes.
+
+[13:52] **Speaker 2 (Owner):** I'm happy with that.
+
+[13:55] **Speaker 1 (Vet):** Nice. I'll hand over now.
+
+[13:58] **Speaker 2 (Owner):** Thank you.
+
+[14:02] **Speaker 1 (Vet):** (after injection) Injection done, he tolerated it well.
+
+[14:07] **Speaker 2 (Owner):** Brave boy, yes.
+
+[14:10] **Speaker 1 (Vet):** Reception has booked nurse phone update for tomorrow at 15:30.
+
+[14:16] **Speaker 2 (Owner):** Perfect.
+
+[14:19] **Speaker 1 (Vet):** You'll get email instructions and a stool pot on checkout.
+
+[14:24] **Speaker 2 (Owner):** Great, thanks.
+
+[14:27] **Speaker 1 (Vet):** Safe trip home. Call anytime if worried.
+
+[14:31] **Speaker 2 (Owner):** Will do, thanks again.
+
+[14:35] **Speaker 1 (Vet):** Bye Milo.
+
+[14:37] **Speaker 2 (Owner):** Bye.
+
+[14:40] **Speaker 1 (Vet):** (end of consult notes spoken) Diagnosis discussed as likely acute gastroenteritis/dietary indiscretion; no evidence today for severe systemic compromise.
+
+[14:50] **Speaker 1 (Vet):** Outpatient management agreed. Red flags and follow-up clearly communicated to owner.
+
+[15:00] **Speaker 1 (Vet):** (admin handover) Tasks: nurse follow-up call tomorrow 15:30; provide stool pot; email care plan; reception to tag case for 48h review if no improvement.
+
+[15:11] **Speaker 1 (Vet):** End recording.
