@@ -3,12 +3,15 @@ import { useSessionStore } from '@/stores/useSessionStore';
 import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useTaskExtraction } from '@/hooks/useTaskExtraction';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
-import { Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy } from 'lucide-react';
+import { Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy, Stethoscope } from 'lucide-react';
+import { compilePEReport } from '@/lib/prompts';
 import { useToast } from '@/hooks/use-toast';
 
 export default function NotesPanel() {
   const peIncludeInNotes = useSessionStore((s) => s.peIncludeInNotes);
   const togglePEInNotes = useSessionStore((s) => s.togglePEInNotes);
+  const peData = useSessionStore((s) => s.peData);
+  const peEnabled = useSessionStore((s) => s.peEnabled);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const availableTemplates = useSessionStore((s) => s.availableTemplates);
@@ -67,8 +70,13 @@ export default function NotesPanel() {
     }
   };
 
+  const peReport = peEnabled ? compilePEReport(peData) : '';
+
   const handleCopy = async () => {
-    const text = noteRef.current?.innerText || notes;
+    let text = noteRef.current?.innerText || notes;
+    if (peIncludeInNotes && peReport.trim()) {
+      text = `${text}\n\n${peReport}`;
+    }
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -166,23 +174,33 @@ export default function NotesPanel() {
               <p>Record a consultation and notes will be generated automatically.</p>
             </div>
           ) : (
-            <div
-              ref={noteRef}
-              className="max-w-[720px] text-sm leading-[1.85] text-text-primary outline-none rounded-md p-1 transition-colors duration-150 hover:bg-bark/[0.02] focus:bg-card focus:shadow-[0_0_0_2px_hsl(var(--sand-deeper))]"
-              contentEditable
-              suppressContentEditableWarning
-              spellCheck
-              onFocus={() => setEditing(true)}
-              onBlur={() => { setEditing(false); handleNoteInput(); }}
-            >
-              {notes.split('\n\n').map((para, i) => (
-                <p key={i} className="mb-3.5">
-                  {para.startsWith('CE:') || para.startsWith('Plan:') || para.startsWith('Adv') || para.startsWith('PE:') ? (
-                    <><span className="text-etv-olive font-bold">{para.split(':')[0]}:</span>{para.substring(para.indexOf(':') + 1)}</>
-                  ) : para}
-                </p>
-              ))}
-            </div>
+            <>
+              <div
+                ref={noteRef}
+                className="max-w-[720px] text-sm leading-[1.85] text-text-primary outline-none rounded-md p-1 transition-colors duration-150 hover:bg-bark/[0.02] focus:bg-card focus:shadow-[0_0_0_2px_hsl(var(--sand-deeper))]"
+                contentEditable
+                suppressContentEditableWarning
+                spellCheck
+                onFocus={() => setEditing(true)}
+                onBlur={() => { setEditing(false); handleNoteInput(); }}
+              >
+                {notes.split('\n\n').map((para, i) => (
+                  <p key={i} className="mb-3.5">
+                    {para.startsWith('CE:') || para.startsWith('Plan:') || para.startsWith('Adv') || para.startsWith('PE:') ? (
+                      <><span className="text-etv-olive font-bold">{para.split(':')[0]}:</span>{para.substring(para.indexOf(':') + 1)}</>
+                    ) : para}
+                  </p>
+                ))}
+              </div>
+              {peIncludeInNotes && peReport.trim() && (
+                <div className="max-w-[720px] mt-4 p-3 rounded-md border border-border-light bg-sand/40">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-bark mb-1.5">
+                    <Stethoscope size={13} /> Physical Examination Findings
+                  </div>
+                  <p className="text-sm leading-[1.85] text-text-primary">{peReport}</p>
+                </div>
+              )}
+            </>
           )}
         </div>
 

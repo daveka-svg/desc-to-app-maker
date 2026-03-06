@@ -143,7 +143,7 @@ export default function Team() {
                   required
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
-                  placeholder="name@everytailvets.co.uk"
+                  placeholder="name@example.com"
                   className="text-sm"
                 />
               </div>

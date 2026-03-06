@@ -88,9 +88,25 @@ export function useTranscription() {
     return 'Speaker 1';
   };
 
+  const isFillerOnly = (text: string): boolean => {
+    const cleaned = text
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s']/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    // Common filler sounds / non-words to ignore
+    const fillers = new Set([
+      'uh', 'um', 'erm', 'er', 'ah', 'hmm', 'hm', 'mm', 'mhm', 'uhh', 'umm',
+      'ahh', 'ehh', 'eh', 'oh', 'ooh', 'shh', 'huh', 'ugh',
+    ]);
+    const words = cleaned.split(' ').filter(Boolean);
+    return words.length > 0 && words.every((w) => fillers.has(w));
+  };
+
   const commitSegment = (data: unknown) => {
     const text = pickText(data).trim();
     if (!text) return;
+    if (isFillerOnly(text)) return;
     const normalized = normalizeSegment(text);
     const now = Date.now();
 
