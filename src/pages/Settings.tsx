@@ -75,7 +75,7 @@ export default function Settings() {
 
         const { data, error } = await supabase
           .from('profiles')
-          .select('clinic_knowledge_base')
+          .select('clinic_knowledge_base' as any)
           .eq('user_id', user.id)
           .single();
 
