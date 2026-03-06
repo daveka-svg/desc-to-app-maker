@@ -70,8 +70,13 @@ export default function NotesPanel() {
     }
   };
 
+  const peReport = peEnabled ? compilePEReport(peData) : '';
+
   const handleCopy = async () => {
-    const text = noteRef.current?.innerText || notes;
+    let text = noteRef.current?.innerText || notes;
+    if (peIncludeInNotes && peReport.trim()) {
+      text = `${text}\n\n${peReport}`;
+    }
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
