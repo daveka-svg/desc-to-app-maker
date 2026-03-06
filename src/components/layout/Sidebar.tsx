@@ -682,6 +682,11 @@ export default function Sidebar() {
             >
               <Settings size={17} className="opacity-65 shrink-0" /> Settings
             </Link>
+            <Link
+              to="/team"
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium cursor-pointer text-text-secondary hover:bg-sand transition-all duration-100 no-underline"
+            >
+              <Users size={17} className="opacity-65 shrink-0" /> Team
           </nav>
           <div className="px-3.5 py-3 border-t border-border-light flex items-center gap-2.5">
             <div className="w-[30px] h-[30px] rounded-full bg-lavender flex items-center justify-center text-[11px] font-bold text-primary-foreground">
