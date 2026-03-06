@@ -73,7 +73,7 @@ export default function Auth() {
 
         <h2 className="text-xl font-semibold mb-1 text-text-primary">Welcome</h2>
         <p className="text-sm mb-6 text-text-muted">
-          Sign in with your Every Tail Vets Google account
+          Sign in with your Google account
         </p>
 
         <Button

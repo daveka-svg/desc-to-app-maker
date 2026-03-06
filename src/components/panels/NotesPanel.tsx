@@ -191,6 +191,14 @@ export default function NotesPanel() {
                 </p>
               ))}
             </div>
+            {peIncludeInNotes && peReport.trim() && (
+              <div className="max-w-[720px] mt-4 p-3 rounded-md border border-border-light bg-sand/40">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-bark mb-1.5">
+                  <Stethoscope size={13} /> Physical Examination Findings
+                </div>
+                <p className="text-sm leading-[1.85] text-text-primary">{peReport}</p>
+              </div>
+            )}
           )}
         </div>
 
