@@ -140,9 +140,10 @@ export default function Sidebar() {
       .eq('user_id', user.id)
       .single();
     if (data) {
-      setProfile(data);
-      if (typeof data.clinic_knowledge_base === 'string' && data.clinic_knowledge_base.trim()) {
-        setClinicKnowledgeBase(data.clinic_knowledge_base);
+      const profileData = data as any;
+      setProfile(profileData);
+      if (typeof profileData.clinic_knowledge_base === 'string' && profileData.clinic_knowledge_base.trim()) {
+        setClinicKnowledgeBase(profileData.clinic_knowledge_base);
       } else {
         setClinicKnowledgeBase(DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE);
       }
