@@ -3,7 +3,8 @@ import { useSessionStore } from '@/stores/useSessionStore';
 import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useTaskExtraction } from '@/hooks/useTaskExtraction';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
-import { Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy } from 'lucide-react';
+import { Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy, Stethoscope } from 'lucide-react';
+import { compilePEReport } from '@/lib/prompts';
 import { useToast } from '@/hooks/use-toast';
 
 export default function NotesPanel() {
