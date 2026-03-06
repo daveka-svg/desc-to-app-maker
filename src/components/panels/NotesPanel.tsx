@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 export default function NotesPanel() {
   const peIncludeInNotes = useSessionStore((s) => s.peIncludeInNotes);
   const togglePEInNotes = useSessionStore((s) => s.togglePEInNotes);
+  const peData = useSessionStore((s) => s.peData);
+  const peEnabled = useSessionStore((s) => s.peEnabled);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const availableTemplates = useSessionStore((s) => s.availableTemplates);
