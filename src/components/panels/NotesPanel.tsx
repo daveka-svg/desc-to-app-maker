@@ -186,9 +186,28 @@ export default function NotesPanel() {
               >
                 {notes.split('\n\n').map((para, i) => (
                   <p key={i} className="mb-3.5">
-                    {para.startsWith('CE:') || para.startsWith('Plan:') || para.startsWith('Adv') || para.startsWith('PE:') ? (
-                      <><span className="text-etv-olive font-bold">{para.split(':')[0]}:</span>{para.substring(para.indexOf(':') + 1)}</>
-                    ) : para}
+                    {(() => {
+                      const splitIndex = para.indexOf(':');
+                      if (splitIndex <= 0) return para;
+                      const label = para.slice(0, splitIndex).trim();
+                      const normalized = label.toUpperCase();
+                      const highlightedLabels = new Set([
+                        'CE',
+                        'PE',
+                        'PLAN',
+                        'ASSESSMENT',
+                        'TREATMENT',
+                        'OBJECTIVE',
+                        'COMMUNICATION',
+                      ]);
+                      if (!highlightedLabels.has(normalized) && !normalized.startsWith('ADV')) return para;
+                      return (
+                        <>
+                          <span className="text-etv-olive font-bold">{label}:</span>
+                          {para.substring(splitIndex + 1)}
+                        </>
+                      );
+                    })()}
                   </p>
                 ))}
               </div>
