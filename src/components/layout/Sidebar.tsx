@@ -464,10 +464,11 @@ export default function Sidebar() {
       .eq('session_id', session.id)
       .single();
     if (noteData) {
-      setNotes(noteData.content || '');
-      setTranscript(noteData.transcript || '');
-      setSupplementalContext(noteData.supplemental_context || '');
-      setVetNotes((noteData as any).vet_notes || '');
+      const nd = noteData as any;
+      setNotes(nd.content || '');
+      setTranscript(nd.transcript || '');
+      setSupplementalContext(nd.supplemental_context || '');
+      setVetNotes(nd.vet_notes || '');
     } else {
       setNotes('');
       setTranscript('');
