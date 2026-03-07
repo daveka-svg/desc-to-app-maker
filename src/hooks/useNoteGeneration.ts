@@ -13,7 +13,6 @@ export function useNoteGeneration() {
   const peIncludeInNotes = useSessionStore((s) => s.peIncludeInNotes);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const vetNotes = useSessionStore((s) => s.vetNotes);
-  const supplementalContext = useSessionStore((s) => s.supplementalContext);
   const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
   const setPEAppliedSnapshot = useSessionStore((s) => s.setPEAppliedSnapshot);
   const clearPEAppliedSnapshot = useSessionStore((s) => s.clearPEAppliedSnapshot);
@@ -40,7 +39,6 @@ export function useNoteGeneration() {
         transcript,
         peReport,
         vetNotes: vetNotesForGeneration,
-        supplementalContext,
         clinicKnowledgeBase,
       });
 
@@ -78,7 +76,6 @@ export function useNoteGeneration() {
     vetNotes,
     setNotes,
     setIsGeneratingNotes,
-    supplementalContext,
     clinicKnowledgeBase,
     setPEAppliedSnapshot,
     clearPEAppliedSnapshot,

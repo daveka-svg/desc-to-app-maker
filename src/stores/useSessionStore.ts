@@ -147,8 +147,11 @@ interface SessionStore {
   // Tasks
   tasks: Task[];
   setTasks: (t: Task[]) => void;
+  tasksNeedReview: boolean;
+  setTasksNeedReview: (value: boolean) => void;
   persistSessionTasks: (tasksOverride?: Task[]) => Promise<void>;
   toggleTask: (id: string) => void;
+  deleteAllTasks: () => Promise<void>;
   addTask: (task: Omit<Task, 'id'>) => void;
   isExtractingTasks: boolean;
   setIsExtractingTasks: (v: boolean) => void;
@@ -335,6 +338,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   // Tasks
   tasks: [],
   setTasks: (t) => set({ tasks: t }),
+  tasksNeedReview: false,
+  setTasksNeedReview: (value) => set({ tasksNeedReview: value }),
   persistSessionTasks: async (tasksOverride) => {
     let s = get();
     if (!s.activeSessionId) {
@@ -367,6 +372,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         deadline_at: task.deadlineAt || null,
       }))
     );
+    set({ tasks: tasksToPersist, tasksNeedReview: false });
   },
   toggleTask: (id) => {
     const currentTask = get().tasks.find((task) => task.id === id);
@@ -392,6 +398,29 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         .eq('user_id', user.id);
       window.dispatchEvent(new Event('session-saved'));
     })();
+  },
+  deleteAllTasks: async () => {
+    const s = get();
+    if (!s.activeSessionId) {
+      set({ tasks: [], tasksNeedReview: false });
+      return;
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      set({ tasks: [], tasksNeedReview: false });
+      return;
+    }
+
+    await supabase
+      .from('tasks')
+      .delete()
+      .eq('session_id', s.activeSessionId)
+      .eq('user_id', user.id);
+
+    set({ tasks: [], tasksNeedReview: false });
+    window.dispatchEvent(new Event('session-saved'));
   },
   addTask: (task) => set((s) => ({
     tasks: [
@@ -511,6 +540,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       peEnabled: true,
       peIncludeInNotes: true,
       tasks: [],
+      tasksNeedReview: false,
       clientInstructions: null,
       chatMessages: [],
       activeTab: 'context',
@@ -587,21 +617,23 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       vet_notes: s.vetNotes || null,
     });
 
-    await supabase.from('tasks').delete().eq('session_id', sessionId).eq('user_id', user.id);
-    if (s.tasks.length > 0) {
-      await supabase.from('tasks').insert(
-        s.tasks.map((t, index) => ({
-          id: t.id,
-          user_id: user.id,
-          session_id: sessionId!,
-          text: t.text,
-          category: t.category,
-          assignee: t.assignee,
-          done: t.done,
-          order_index: t.orderIndex ?? index + 1,
-          deadline_at: t.deadlineAt || null,
-        }))
-      );
+    if (!s.tasksNeedReview) {
+      await supabase.from('tasks').delete().eq('session_id', sessionId).eq('user_id', user.id);
+      if (s.tasks.length > 0) {
+        await supabase.from('tasks').insert(
+          s.tasks.map((t, index) => ({
+            id: t.id,
+            user_id: user.id,
+            session_id: sessionId!,
+            text: t.text,
+            category: t.category,
+            assignee: t.assignee,
+            done: t.done,
+            order_index: t.orderIndex ?? index + 1,
+            deadline_at: t.deadlineAt || null,
+          }))
+        );
+      }
     }
   },
 
@@ -622,6 +654,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       notes: session.notes,
       peEnabled: session.peEnabled,
       tasks: session.tasks,
+      tasksNeedReview: false,
       clientInstructions: session.clientInstructions,
       chatMessages: [],
       activeTab: 'notes',

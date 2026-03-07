@@ -74,6 +74,7 @@ export default function Sidebar() {
   const setVetNotes = useSessionStore((s) => s.setVetNotes);
   const setTranscriptMergeWarning = useSessionStore((s) => s.setTranscriptMergeWarning);
   const setTasks = useSessionStore((s) => s.setTasks);
+  const setTasksNeedReview = useSessionStore((s) => s.setTasksNeedReview);
   const setPatientName = useSessionStore((s) => s.setPatientName);
   const setClinicKnowledgeBase = useSessionStore((s) => s.setClinicKnowledgeBase);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
@@ -481,8 +482,10 @@ export default function Sidebar() {
           deadlineAt: (task as any).deadline_at ?? null,
         }))
       );
+      setTasksNeedReview(false);
     } else {
       setTasks([]);
+      setTasksNeedReview(false);
     }
 
     setEncounterStatus('reviewing');
@@ -714,7 +717,7 @@ export default function Sidebar() {
       </aside>
 
       <Sheet open={tasksSheetOpen} onOpenChange={setTasksSheetOpen}>
-        <SheetContent side="left" className="w-[480px] sm:w-[540px] p-0">
+        <SheetContent side="left" className="w-[92vw] max-w-[820px] sm:max-w-[820px] p-0">
           <SheetHeader className="px-5 py-4 border-b border-border-light">
             <SheetTitle className="text-[15px] font-bold text-bark">All Tasks</SheetTitle>
             <SheetDescription className="sr-only">

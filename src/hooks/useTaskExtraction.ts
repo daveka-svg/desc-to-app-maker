@@ -10,7 +10,7 @@ export function useTaskExtraction() {
   const notes = useSessionStore((s) => s.notes);
   const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
   const setTasks = useSessionStore((s) => s.setTasks);
-  const persistSessionTasks = useSessionStore((s) => s.persistSessionTasks);
+  const setTasksNeedReview = useSessionStore((s) => s.setTasksNeedReview);
   const isExtractingTasks = useSessionStore((s) => s.isExtractingTasks);
   const setIsExtractingTasks = useSessionStore((s) => s.setIsExtractingTasks);
 
@@ -39,15 +39,14 @@ export function useTaskExtraction() {
       const tasks: Task[] = normalizeExtractedTasks(parsed);
 
       setTasks(tasks);
-      await persistSessionTasks(tasks);
-      window.dispatchEvent(new Event('session-saved'));
+      setTasksNeedReview(tasks.length > 0);
     } catch (err) {
       console.error('Task extraction error:', err);
       throw err;
     } finally {
       setIsExtractingTasks(false);
     }
-  }, [notes, clinicKnowledgeBase, setTasks, persistSessionTasks, setIsExtractingTasks]);
+  }, [notes, clinicKnowledgeBase, setTasks, setTasksNeedReview, setIsExtractingTasks]);
 
   return { extractTasks, isExtractingTasks };
 }

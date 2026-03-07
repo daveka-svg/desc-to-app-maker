@@ -10,7 +10,30 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const parseResponseText = (payload: Record<string, unknown>): string => {
+const parseInceptionContent = (payload: Record<string, unknown>): string => {
+  const choices = Array.isArray(payload.choices) ? payload.choices : [];
+  const firstChoice = choices[0] as Record<string, unknown> | undefined;
+  const message = firstChoice && typeof firstChoice.message === "object"
+    ? firstChoice.message as Record<string, unknown>
+    : null;
+  const content = message?.content;
+
+  if (typeof content === "string" && content.trim()) {
+    return content.trim();
+  }
+
+  if (Array.isArray(content)) {
+    const chunks = content
+      .map((part) => {
+        if (!part || typeof part !== "object") return "";
+        const row = part as Record<string, unknown>;
+        if (typeof row.text === "string") return row.text;
+        return "";
+      })
+      .filter(Boolean);
+    if (chunks.length > 0) return chunks.join("").trim();
+  }
+
   if (typeof payload.output_text === "string" && payload.output_text.trim()) {
     return payload.output_text.trim();
   }
@@ -19,62 +42,42 @@ const parseResponseText = (payload: Record<string, unknown>): string => {
   const chunks: string[] = [];
   for (const item of output) {
     if (!item || typeof item !== "object") continue;
-    const content = Array.isArray((item as Record<string, unknown>).content)
-      ? (item as Record<string, unknown>).content as Array<Record<string, unknown>>
+    const row = item as Record<string, unknown>;
+    const parts = Array.isArray(row.content)
+      ? row.content as Array<Record<string, unknown>>
       : [];
-    for (const part of content) {
+    for (const part of parts) {
       if (!part || typeof part !== "object") continue;
-      if (part.type === "output_text" && typeof part.text === "string") {
-        chunks.push(part.text);
-      }
-      if (part.type === "text" && typeof part.text === "string") {
-        chunks.push(part.text);
-      }
+      if (typeof part.text === "string") chunks.push(part.text);
     }
   }
-
-  if (chunks.length > 0) return chunks.join("").trim();
-
-  const choices = Array.isArray(payload.choices) ? payload.choices : [];
-  const firstChoice = choices[0] as Record<string, unknown> | undefined;
-  const message = firstChoice && typeof firstChoice.message === "object"
-    ? firstChoice.message as Record<string, unknown>
-    : null;
-  if (message && typeof message.content === "string") {
-    return message.content.trim();
-  }
-
-  return "";
+  return chunks.join("").trim();
 };
 
-const callOpenAI = async (
+const callInception = async (
   apiKey: string,
   model: string,
   systemPrompt: string,
   userPrompt: string,
   maxOutputTokens: number,
-  reasoningEffort: string | null,
 ) => {
   const body: Record<string, unknown> = {
     model,
-    input: [
+    messages: [
       {
         role: "system",
-        content: [{ type: "input_text", text: systemPrompt }],
+        content: systemPrompt,
       },
       {
         role: "user",
-        content: [{ type: "input_text", text: userPrompt }],
+        content: userPrompt,
       },
     ],
-    max_output_tokens: maxOutputTokens,
+    max_tokens: maxOutputTokens,
+    temperature: 0,
   };
 
-  if (reasoningEffort) {
-    body.reasoning = { effort: reasoningEffort };
-  }
-
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const response = await fetch("https://api.inceptionlabs.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -95,12 +98,12 @@ const callOpenAI = async (
     const errorMessage = typeof (parsed as any)?.error?.message === "string"
       ? (parsed as any).error.message
       : text;
-    throw new Error(`OpenAI API error [${response.status}] (${model}): ${errorMessage}`);
+    throw new Error(`Inception API error [${response.status}] (${model}): ${errorMessage}`);
   }
 
-  const content = parseResponseText(parsed);
+  const content = parseInceptionContent(parsed);
   if (!content) {
-    throw new Error(`OpenAI API returned empty content (${model})`);
+    throw new Error(`Inception API returned empty content (${model})`);
   }
 
   return content;
@@ -112,38 +115,36 @@ const stripCodeFences = (value: string): string => {
   return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 };
 
-const callOpenAIWithFallbacks = async (
+const callInceptionWithFallbacks = async (
   apiKey: string,
   modelCandidates: string[],
   systemPrompt: string,
   userPrompt: string,
   maxOutputTokens: number,
-  reasoningEffort: string | null,
 ) => {
   let content = "";
-  let modelUsed = modelCandidates[0] || "gpt-5.4";
+  let modelUsed = modelCandidates[0] || "mercury-2";
   let lastError: Error | null = null;
 
   for (const model of modelCandidates) {
     try {
-      content = await callOpenAI(
+      content = await callInception(
         apiKey,
         model,
         systemPrompt,
         userPrompt,
         maxOutputTokens,
-        reasoningEffort,
       );
       modelUsed = model;
       break;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      console.error("OpenAI generation attempt failed:", model, lastError.message);
+      console.error("Inception generation attempt failed:", model, lastError.message);
     }
   }
 
   if (!content.trim()) {
-    throw lastError || new Error("OpenAI generation failed for all candidate models");
+    throw lastError || new Error("Inception generation failed for all candidate models");
   }
 
   return { content, modelUsed };
@@ -160,10 +161,10 @@ serve(async (req) => {
       requestType,
       templateName,
     } = await req.json();
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const INCEPTIONLABS_API_KEY = Deno.env.get("INCEPTIONLABS_API_KEY");
 
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY is not configured");
+    if (!INCEPTIONLABS_API_KEY) {
+      throw new Error("INCEPTIONLABS_API_KEY is not configured");
     }
 
     const defaultSystemPrompt = `You are a veterinary clinical note generator. Generate structured clinical notes from the consultation transcript. Include:
@@ -174,13 +175,12 @@ serve(async (req) => {
 
 Keep the language concise and professional. Use standard veterinary abbreviations.`;
 
-    const primaryModel = Deno.env.get("OPENAI_MODEL") || "gpt-5.4";
-    const fallbackRaw = Deno.env.get("OPENAI_MODEL_FALLBACKS") || "gpt-5,gpt-5-mini";
+    const primaryModel = Deno.env.get("INCEPTIONLABS_MODEL") || "mercury-2";
+    const fallbackRaw = Deno.env.get("INCEPTIONLABS_MODEL_FALLBACKS") || "";
     const modelCandidates = Array.from(
       new Set([primaryModel, ...fallbackRaw.split(",").map((item) => item.trim()).filter(Boolean)])
     );
-    const reasoningEffort = Deno.env.get("OPENAI_REASONING_EFFORT") || "low";
-    const maxOutputTokens = Number(Deno.env.get("OPENAI_MAX_OUTPUT_TOKENS") || "2000");
+    const maxOutputTokens = Number(Deno.env.get("INCEPTIONLABS_MAX_OUTPUT_TOKENS") || "2000");
     const resolvedMaxTokens = Number.isFinite(maxOutputTokens) ? maxOutputTokens : 2000;
 
     if (requestType === "notes" && String(templateName || "").trim() === "General Consult") {
@@ -208,13 +208,12 @@ Rules:
 
 ${transcript}`;
 
-      const groundedExtraction = await callOpenAIWithFallbacks(
-        OPENAI_API_KEY,
+      const groundedExtraction = await callInceptionWithFallbacks(
+        INCEPTIONLABS_API_KEY,
         modelCandidates,
         extractionSystemPrompt,
         extractionUserPrompt,
         Math.max(resolvedMaxTokens, 2600),
-        reasoningEffort,
       );
 
       const parsedPayload = parseGeneralConsultGroundingPayload(
@@ -229,7 +228,7 @@ ${transcript}`;
 
       return new Response(JSON.stringify({
         content,
-        provider: "openai",
+        provider: "inceptionlabs",
         model: groundedExtraction.modelUsed,
         grounded: true,
       }), {
@@ -241,18 +240,17 @@ ${transcript}`;
     const peContext = peData ? `\n\nPhysical Examination Data:\n${JSON.stringify(peData, null, 2)}` : "";
     const userPrompt = `Generate clinical notes from the following consultation transcript:${peContext}\n\nTranscript:\n${transcript}`;
 
-    const generated = await callOpenAIWithFallbacks(
-      OPENAI_API_KEY,
+    const generated = await callInceptionWithFallbacks(
+      INCEPTIONLABS_API_KEY,
       modelCandidates,
       systemPrompt,
       userPrompt,
       resolvedMaxTokens,
-      reasoningEffort,
     );
 
     return new Response(JSON.stringify({
       content: generated.content,
-      provider: "openai",
+      provider: "inceptionlabs",
       model: generated.modelUsed,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

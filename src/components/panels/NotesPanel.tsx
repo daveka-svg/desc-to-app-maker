@@ -3,7 +3,7 @@ import { useSessionStore } from '@/stores/useSessionStore';
 import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useTaskExtraction } from '@/hooks/useTaskExtraction';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
-import { Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy, Stethoscope } from 'lucide-react';
+import { Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy, Stethoscope, Save, Trash2 } from 'lucide-react';
 import { compilePEReport } from '@/lib/prompts';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,7 +17,10 @@ export default function NotesPanel() {
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const availableTemplates = useSessionStore((s) => s.availableTemplates);
   const tasks = useSessionStore((s) => s.tasks);
-  const toggleTask = useSessionStore((s) => s.toggleTask);
+  const persistSessionTasks = useSessionStore((s) => s.persistSessionTasks);
+  const setTasksNeedReview = useSessionStore((s) => s.setTasksNeedReview);
+  const deleteAllTasks = useSessionStore((s) => s.deleteAllTasks);
+  const tasksNeedReview = useSessionStore((s) => s.tasksNeedReview);
   const saveCurrentSession = useSessionStore((s) => s.saveCurrentSession);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
@@ -26,6 +29,7 @@ export default function NotesPanel() {
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isSwitchRegenerating, setIsSwitchRegenerating] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const { toast } = useToast();
   const noteRef = useRef<HTMLDivElement>(null);
   const { canUndo, canRedo, undo, redo, pushState } = useUndoRedo();
@@ -34,6 +38,10 @@ export default function NotesPanel() {
     if (notes) pushState(notes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setSelectedTaskIds(tasks.map((task) => task.id));
+  }, [tasks]);
 
   const handleRegenerate = async () => {
     try {
@@ -77,6 +85,61 @@ export default function NotesPanel() {
   };
 
   const peReport = peEnabled ? compilePEReport(peData) : '';
+  const selectedTaskSet = new Set(selectedTaskIds);
+
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds((current) =>
+      current.includes(taskId)
+        ? current.filter((id) => id !== taskId)
+        : [...current, taskId]
+    );
+  };
+
+  const handleSaveSelectedTasks = async () => {
+    const selected = tasks.filter((task) => selectedTaskSet.has(task.id));
+    if (selected.length === 0) {
+      toast({
+        title: 'No tasks selected',
+        description: 'Select at least one task to save.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await persistSessionTasks(selected);
+      setTasksNeedReview(false);
+      await saveCurrentSession();
+      window.dispatchEvent(new Event('session-saved'));
+      toast({
+        title: 'Tasks saved',
+        description: `${selected.length} task${selected.length === 1 ? '' : 's'} saved to task board.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Task save failed',
+        description: error?.message || 'Could not save selected tasks.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteAllTasks = async () => {
+    try {
+      await deleteAllTasks();
+      setSelectedTaskIds([]);
+      toast({
+        title: 'Tasks cleared',
+        description: 'All tasks were removed for this session.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Delete failed',
+        description: error?.message || 'Could not delete tasks.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleCopy = async () => {
     let text = noteRef.current?.innerText || notes;
@@ -240,10 +303,47 @@ export default function NotesPanel() {
           )}
         </div>
 
-        <aside className="w-[280px] border-l border-border-light bg-card/60 p-4 overflow-y-auto">
+        <aside className="w-[360px] border-l border-border-light bg-card/60 p-4 overflow-y-auto">
           <div className="text-[12px] font-bold uppercase tracking-[0.5px] text-text-muted mb-2">
             Auto Tasks
           </div>
+          <div className="flex items-center gap-1.5 mb-3">
+            <button
+              onClick={handleSaveSelectedTasks}
+              disabled={tasks.length === 0}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold hover:bg-sand disabled:opacity-40"
+              title="Save selected tasks to tasks board"
+            >
+              <Save size={11} /> Save Selected
+            </button>
+            <button
+              onClick={() => setSelectedTaskIds(tasks.map((task) => task.id))}
+              disabled={tasks.length === 0}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold hover:bg-sand disabled:opacity-40"
+            >
+              Select all
+            </button>
+            <button
+              onClick={() => setSelectedTaskIds([])}
+              disabled={tasks.length === 0}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold hover:bg-sand disabled:opacity-40"
+            >
+              Clear
+            </button>
+            <button
+              onClick={handleDeleteAllTasks}
+              disabled={tasks.length === 0}
+              className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold text-error hover:bg-sand disabled:opacity-40"
+              title="Delete all tasks"
+            >
+              <Trash2 size={11} /> Delete all
+            </button>
+          </div>
+          {tasksNeedReview && tasks.length > 0 && (
+            <div className="text-[11px] text-warning mb-2">
+              Review tasks and save selected ones to publish them in the Tasks tab.
+            </div>
+          )}
           {tasks.length === 0 ? (
             <div className="text-xs text-text-muted">Tasks will appear here after note generation.</div>
           ) : (
@@ -252,14 +352,12 @@ export default function NotesPanel() {
                 <label key={task.id} className="flex items-start gap-2 text-xs text-text-primary">
                   <input
                     type="checkbox"
-                    checked={task.done}
-                    onChange={() => toggleTask(task.id)}
+                    checked={selectedTaskSet.has(task.id)}
+                    onChange={() => toggleTaskSelection(task.id)}
                     className="mt-0.5"
                   />
                   <span>
-                    <span className={task.done ? 'line-through text-text-muted' : ''}>
-                      {task.text.length > 110 ? `${task.text.slice(0, 107)}...` : task.text}
-                    </span>
+                    <span>{task.text.length > 110 ? `${task.text.slice(0, 107)}...` : task.text}</span>
                     {task.deadlineAt && (
                       <span className="block text-[10px] text-warning mt-0.5">
                         Due {new Date(task.deadlineAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}

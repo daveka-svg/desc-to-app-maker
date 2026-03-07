@@ -1,10 +1,8 @@
 import type { ChangeEvent, ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, FileAudio, FileText, Loader2, Mic, MicOff, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Download, FileAudio, FileText, Loader2, Mic, MicOff, Save, Wifi, WifiOff } from 'lucide-react';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { useEncounterController } from '@/components/encounter/EncounterControllerProvider';
-import { useNoteGeneration } from '@/hooks/useNoteGeneration';
-import { useTaskExtraction } from '@/hooks/useTaskExtraction';
 import { useToast } from '@/hooks/use-toast';
 import PEForm from '@/components/pe-form/PEForm';
 import { MOCK_DOG_DIARRHOEA_20MIN_TRANSCRIPT } from '@/dev/mockConsultation';
@@ -65,8 +63,31 @@ const getSpeechRecognitionCtor = (): (new () => BrowserSpeechRecognition) | null
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 };
 
+const extractPdfText = async (file: File): Promise<string> => {
+  const pdfjs = await import('pdfjs-dist');
+  const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+
+  const data = new Uint8Array(await file.arrayBuffer());
+  const doc = await pdfjs.getDocument({ data }).promise;
+  const chunks: string[] = [];
+
+  for (let pageNo = 1; pageNo <= doc.numPages; pageNo += 1) {
+    const page = await doc.getPage(pageNo);
+    const text = await page.getTextContent();
+    const pageText = text.items
+      .map((item) => ('str' in item ? String(item.str) : ''))
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (pageText) chunks.push(pageText);
+  }
+
+  return chunks.join('\n');
+};
+
 export default function ContextPanel() {
-  const [isApplyingContextUpdates, setIsApplyingContextUpdates] = useState(false);
+  const [isSavingContext, setIsSavingContext] = useState(false);
   const [isVetNotesDictating, setIsVetNotesDictating] = useState(false);
   const [vetNotesInterim, setVetNotesInterim] = useState('');
   const vetNotesRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -96,8 +117,6 @@ export default function ContextPanel() {
   const peAppliedSummary = useSessionStore((s) => s.peAppliedSummary);
   const saveCurrentSession = useSessionStore((s) => s.saveCurrentSession);
   const setActiveTab = useSessionStore((s) => s.setActiveTab);
-  const { generateNote, isGeneratingNotes } = useNoteGeneration();
-  const { extractTasks, isExtractingTasks } = useTaskExtraction();
   const { toast } = useToast();
   const {
     isRecording,
@@ -144,10 +163,27 @@ export default function ContextPanel() {
     if (files.length === 0) return;
 
     for (const file of files) {
-      const text = await file.text();
-      const clipped = text.trim().slice(0, 7000);
-      if (!clipped) continue;
-      appendSupplementalContext(`Source: ${file.name} (${new Date().toLocaleString('en-GB')})\n${clipped}`);
+      try {
+        let text = '';
+        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          text = await extractPdfText(file);
+        } else {
+          text = await file.text();
+        }
+
+        const clipped = text.trim().slice(0, 12000);
+        if (!clipped) continue;
+        appendSupplementalContext(
+          `Source: ${file.name} (${new Date().toLocaleString('en-GB')})\n${clipped}`
+        );
+      } catch (error) {
+        console.error('Context file parsing failed:', error);
+        toast({
+          title: 'File parse failed',
+          description: `Could not read ${file.name}.`,
+          variant: 'destructive',
+        });
+      }
     }
 
     event.target.value = '';
@@ -159,35 +195,23 @@ export default function ContextPanel() {
     return `${String(mins).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   };
 
-  const handleApplyContextUpdates = async () => {
-    if (!transcript.trim()) {
-      toast({
-        title: 'No transcript available',
-        description: 'Record or load a session transcript before regenerating notes.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsApplyingContextUpdates(true);
+  const handleSaveContext = async () => {
+    setIsSavingContext(true);
     try {
-      await generateNote();
-      await extractTasks();
       await saveCurrentSession();
       window.dispatchEvent(new Event('session-saved'));
-      setActiveTab('notes');
       toast({
-        title: 'Session updated',
-        description: 'Notes and tasks were regenerated with the latest context.',
+        title: 'Context saved',
+        description: 'Additional context is saved and available in chat.',
       });
     } catch (error: any) {
       toast({
-        title: 'Update failed',
-        description: error?.message || 'Could not apply the latest context to notes.',
+        title: 'Save failed',
+        description: error?.message || 'Could not save additional context.',
         variant: 'destructive',
       });
     } finally {
-      setIsApplyingContextUpdates(false);
+      setIsSavingContext(false);
     }
   };
 
@@ -361,82 +385,14 @@ export default function ContextPanel() {
       </div>
 
       <div className="bg-card rounded-lg p-[18px] mb-3.5 border border-border-light">
-        <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted mb-2.5">Session details</div>
-        <div className="flex gap-2.5 mt-1">
-          <input
-            type="text"
-            placeholder="Patient name (optional)"
-            className="flex-1 px-3 py-2 border border-border rounded-md text-[13px] outline-none bg-card text-text-primary placeholder:text-text-muted focus:border-bark-muted"
-            value={patientName}
-            onChange={(e) => setPatientName(e.target.value)}
-            disabled={isProcessing}
-          />
-          <select
-            className="flex-1 px-3 py-2 border border-border rounded-md text-[13px] outline-none bg-card text-text-primary"
-            value={selectedTemplate}
-            onChange={(e) => setSelectedTemplate(e.target.value)}
-            disabled={isProcessing}
-          >
-            {availableTemplates.map((template) => (
-              <option key={template}>{template}</option>
-            ))}
-          </select>
+        <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted mb-2.5">
+          Vet Notes (dictation)
         </div>
-
-        <div className="mt-3 space-y-2">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-[12px] font-semibold text-text-secondary">Additional Context (lab/results)</label>
-            <div className="flex items-center gap-2">
-              <label className="px-2.5 py-1 text-[11px] font-semibold bg-sand border border-border rounded-md cursor-pointer hover:bg-sand-dark">
-                Upload text file
-                <input
-                  type="file"
-                  accept=".txt,.md,.csv,.log,.json"
-                  multiple
-                  className="hidden"
-                  onChange={handleContextFileUpload}
-                  disabled={isProcessing}
-                />
-              </label>
-              <button
-                onClick={() => setSupplementalContext('')}
-                disabled={!supplementalContext.trim() || isProcessing}
-                className="px-2.5 py-1 text-[11px] font-semibold bg-card border border-border rounded-md disabled:opacity-40 hover:bg-sand"
-              >
-                Clear
-              </button>
-              <button
-                onClick={handleApplyContextUpdates}
-                disabled={
-                  isProcessing ||
-                  !transcript.trim() ||
-                  isApplyingContextUpdates ||
-                  isGeneratingNotes ||
-                  isExtractingTasks
-                }
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-card border border-border rounded-md disabled:opacity-40 hover:bg-sand"
-              >
-                {(isApplyingContextUpdates || isGeneratingNotes || isExtractingTasks) ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <RefreshCw size={12} />
-                )}
-                Regenerate Notes
-              </button>
-            </div>
-          </div>
-          <textarea
-            value={supplementalContext}
-            onChange={(e) => setSupplementalContext(e.target.value)}
-            disabled={isProcessing}
-            placeholder="Paste lab findings, external notes, or uploaded text context used during summary generation."
-            className="w-full min-h-[96px] px-3 py-2 border border-border rounded-md text-[12px] outline-none bg-card text-text-primary placeholder:text-text-muted focus:border-bark-muted resize-y"
-          />
-        </div>
-
-        <div className="mt-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-[12px] font-semibold text-text-secondary">Vet Notes (optional)</label>
+            <label className="text-[12px] font-semibold text-text-secondary">
+              Notes captured after recording (used with PE toggle)
+            </label>
             {canDictateVetNotes ? (
               <button
                 onClick={isVetNotesDictating ? stopVetNotesDictation : startVetNotesDictation}
@@ -456,49 +412,12 @@ export default function ContextPanel() {
             value={vetNotes}
             onChange={(e) => setVetNotes(e.target.value)}
             disabled={isProcessing || !peEnabled}
-            placeholder="Add extra clinical notes from vet exam, clarifications, or observations."
-            className="w-full min-h-[84px] px-3 py-2 border border-border rounded-md text-[12px] outline-none bg-card text-text-primary placeholder:text-text-muted focus:border-bark-muted resize-y"
+            placeholder="Add concise vet notes from physical exam, clarifications, and key observations."
+            className="w-full min-h-[92px] px-3 py-2 border border-border rounded-md text-[12px] outline-none bg-card text-text-primary placeholder:text-text-muted focus:border-bark-muted resize-y"
           />
           {vetNotesInterim && (
             <div className="text-[11px] text-text-muted italic">{vetNotesInterim}</div>
           )}
-          <div className="text-[11px] text-text-muted">
-            {peEnabled
-              ? 'Included in summary generation together with PE when "Include PE + Vet Notes" is enabled in Notes.'
-              : 'Enable Physical Examination to add and include vet notes.'}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mt-3 px-3.5 py-2.5 bg-sand rounded-md">
-          <span className="text-[13px] font-medium text-text-secondary flex items-center gap-[7px]">
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="opacity-50"
-            >
-              <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" />
-              <rect x="8" y="2" width="8" height="4" rx="1" />
-            </svg>
-            Physical Examination
-          </span>
-          <div
-            className={`relative w-[38px] h-5 rounded-[10px] cursor-pointer transition-colors duration-200 ${
-              peEnabled ? 'bg-forest' : 'bg-sand-deeper'
-            }`}
-            onClick={() => {
-              if (!isProcessing) togglePE();
-            }}
-          >
-            <div
-              className={`absolute top-[2px] w-4 h-4 bg-card rounded-full transition-[left] duration-200 shadow-sm ${
-                peEnabled ? 'left-5' : 'left-[2px]'
-              }`}
-            />
-          </div>
         </div>
       </div>
 
@@ -583,7 +502,117 @@ export default function ContextPanel() {
         </details>
       </div>
 
+      <div className="bg-card rounded-lg p-[18px] mb-3.5 border border-border-light">
+        <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted mb-2.5">Session details</div>
+        <div className="flex gap-2.5 mt-1">
+          <input
+            type="text"
+            placeholder="Patient name (optional)"
+            className="flex-1 px-3 py-2 border border-border rounded-md text-[13px] outline-none bg-card text-text-primary placeholder:text-text-muted focus:border-bark-muted"
+            value={patientName}
+            onChange={(e) => setPatientName(e.target.value)}
+            disabled={isProcessing}
+          />
+          <select
+            className="flex-1 px-3 py-2 border border-border rounded-md text-[13px] outline-none bg-card text-text-primary"
+            value={selectedTemplate}
+            onChange={(e) => setSelectedTemplate(e.target.value)}
+            disabled={isProcessing}
+          >
+            {availableTemplates.map((template) => (
+              <option key={template}>{template}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-lg p-[18px] mb-3.5 border border-border-light">
+        <div className="flex items-center justify-between px-3.5 py-2.5 bg-sand rounded-md">
+          <span className="text-[13px] font-medium text-text-secondary flex items-center gap-[7px]">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="opacity-50"
+            >
+              <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" />
+              <rect x="8" y="2" width="8" height="4" rx="1" />
+            </svg>
+            Physical Examination
+          </span>
+          <div
+            className={`relative w-[38px] h-5 rounded-[10px] cursor-pointer transition-colors duration-200 ${
+              peEnabled ? 'bg-forest' : 'bg-sand-deeper'
+            }`}
+            onClick={() => {
+              if (!isProcessing) togglePE();
+            }}
+          >
+            <div
+              className={`absolute top-[2px] w-4 h-4 bg-card rounded-full transition-[left] duration-200 shadow-sm ${
+                peEnabled ? 'left-5' : 'left-[2px]'
+              }`}
+            />
+          </div>
+        </div>
+      </div>
+
       {peEnabled && <PEForm />}
+
+      <div className="bg-card rounded-lg p-[18px] mb-3.5 border border-border-light">
+        <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted mb-2.5">
+          Additional Context (chat only)
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-[12px] font-semibold text-text-secondary">
+              Upload labs/results/docs for chat reasoning (not used for transcript or note generation)
+            </label>
+            <div className="flex items-center gap-2">
+              <label className="px-2.5 py-1 text-[11px] font-semibold bg-sand border border-border rounded-md cursor-pointer hover:bg-sand-dark">
+                Upload files
+                <input
+                  type="file"
+                  accept=".pdf,.txt,.md,.csv,.log,.json"
+                  multiple
+                  className="hidden"
+                  onChange={handleContextFileUpload}
+                  disabled={isProcessing}
+                />
+              </label>
+              <button
+                onClick={() => setSupplementalContext('')}
+                disabled={!supplementalContext.trim() || isProcessing}
+                className="px-2.5 py-1 text-[11px] font-semibold bg-card border border-border rounded-md disabled:opacity-40 hover:bg-sand"
+              >
+                Clear
+              </button>
+              <button
+                onClick={handleSaveContext}
+                disabled={isProcessing || isSavingContext}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-card border border-border rounded-md disabled:opacity-40 hover:bg-sand"
+              >
+                {isSavingContext ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Save size={12} />
+                )}
+                Save Context
+              </button>
+            </div>
+          </div>
+          <textarea
+            value={supplementalContext}
+            onChange={(e) => setSupplementalContext(e.target.value)}
+            disabled={isProcessing}
+            placeholder="Paste or upload lab findings and extra documents for chat/Q&A."
+            className="w-full min-h-[110px] px-3 py-2 border border-border rounded-md text-[12px] outline-none bg-card text-text-primary placeholder:text-text-muted focus:border-bark-muted resize-y"
+          />
+        </div>
+      </div>
     </div>
   );
 }

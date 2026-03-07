@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Pencil, Save, Trash2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/stores/useSessionStore';
+import { useToast } from '@/hooks/use-toast';
 
 type Assignee = 'Vet' | 'Nurse' | 'Admin';
 type TaskCategory = 'prescriptions' | 'diagnostics' | 'followup' | 'admin';
@@ -106,6 +107,7 @@ const sessionLabel = (session: SessionMeta | null | undefined): string => {
 
 export default function AllTasksPanel() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const { toast } = useToast();
   const [tasks, setTasks] = useState<DBTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'done'>('all');
@@ -143,14 +145,49 @@ export default function AllTasksPanel() {
   };
 
   const updateTaskDone = async (taskId: string, nextDone: boolean) => {
-    await supabase.from('tasks').update({ done: nextDone }).eq('id', taskId);
+    const { error } = await supabase.from('tasks').update({ done: nextDone }).eq('id', taskId);
+    if (error) {
+      toast({
+        title: 'Task update failed',
+        description: 'Could not update task status.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, done: nextDone } : task)));
     window.dispatchEvent(new Event('session-saved'));
   };
 
   const deleteTask = async (taskId: string) => {
-    await supabase.from('tasks').delete().eq('id', taskId);
+    const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+    if (error) {
+      toast({
+        title: 'Delete failed',
+        description: 'Could not delete task.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setTasks((prev) => prev.filter((task) => task.id !== taskId));
+    window.dispatchEvent(new Event('session-saved'));
+  };
+
+  const deleteVisibleTasks = async () => {
+    if (visibleTasks.length === 0) return;
+    const confirmed = window.confirm(`Delete ${visibleTasks.length} visible task(s)? This cannot be undone.`);
+    if (!confirmed) return;
+
+    const ids = visibleTasks.map((task) => task.id);
+    const { error } = await supabase.from('tasks').delete().in('id', ids);
+    if (error) {
+      toast({
+        title: 'Delete failed',
+        description: 'Could not delete the selected tasks.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setTasks((prev) => prev.filter((task) => !ids.includes(task.id)));
     window.dispatchEvent(new Event('session-saved'));
   };
 
@@ -189,6 +226,12 @@ export default function AllTasksPanel() {
       setNewTaskDeadline('');
       await fetchAllTasks();
       window.dispatchEvent(new Event('session-saved'));
+    } else {
+      toast({
+        title: 'Add task failed',
+        description: error.message || 'Could not add task.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -207,7 +250,14 @@ export default function AllTasksPanel() {
   const saveEdit = async () => {
     if (!editingTask) return;
     const trimmedText = editingTask.text.trim();
-    if (!trimmedText) return;
+    if (!trimmedText) {
+      toast({
+        title: 'Task text required',
+        description: 'Please enter task text before saving.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const payload = {
       text: trimmedText,
@@ -216,7 +266,15 @@ export default function AllTasksPanel() {
       deadline_at: toIsoOrNull(editingTask.deadline),
     };
 
-    await supabase.from('tasks').update(payload).eq('id', editingTask.id);
+    const { error } = await supabase.from('tasks').update(payload).eq('id', editingTask.id);
+    if (error) {
+      toast({
+        title: 'Save failed',
+        description: error.message || 'Could not save task edits.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setTasks((prev) =>
       prev.map((task) =>
         task.id === editingTask.id
@@ -330,7 +388,16 @@ export default function AllTasksPanel() {
 
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[15px] font-bold text-bark">Tasks by Appointment</h2>
-        <div className="flex gap-1">
+        <div className="flex gap-1.5 items-center">
+          <button
+            onClick={deleteVisibleTasks}
+            disabled={visibleTasks.length === 0}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-border bg-card text-error hover:bg-sand disabled:opacity-40"
+            title="Delete all visible tasks"
+          >
+            <Trash2 size={12} />
+            Delete All
+          </button>
           {(['all', 'pending', 'done'] as const).map((value) => (
             <button
               key={value}
@@ -485,4 +552,5 @@ export default function AllTasksPanel() {
     </div>
   );
 }
+
 
