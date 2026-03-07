@@ -79,6 +79,7 @@ export type Database = {
           updated_at: string
           user_id: string
           version: number | null
+          vet_notes: string | null
         }
         Insert: {
           content?: string | null
@@ -90,6 +91,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           version?: number | null
+          vet_notes?: string | null
         }
         Update: {
           content?: string | null
@@ -101,6 +103,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           version?: number | null
+          vet_notes?: string | null
         }
         Relationships: [
           {
