@@ -257,7 +257,6 @@ function TypingIndicator() {
       <span className="text-[11px] text-text-muted">Thinking</span>
       {[0, 1, 2].map((index) => (
         <span
-          // eslint-disable-next-line react/no-array-index-key
           key={index}
           className="w-1.5 h-1.5 rounded-full bg-text-muted animate-pulse"
           style={{ animationDelay: `${index * 0.18}s` }}

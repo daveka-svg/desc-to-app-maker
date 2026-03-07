@@ -104,7 +104,7 @@ export function useEncounterPipeline() {
           },
         });
 
-        let taskContent = await extractLlmText(taskResponse.data);
+        const taskContent = await extractLlmText(taskResponse.data);
 
         let cleanJson = taskContent.trim();
         if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
@@ -144,7 +144,7 @@ export function useEncounterPipeline() {
           },
         });
 
-        let ciContent = await extractLlmText(ciResponse.data);
+        const ciContent = await extractLlmText(ciResponse.data);
 
         let cleanJson = ciContent.trim();
         if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
