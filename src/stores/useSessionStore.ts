@@ -179,6 +179,7 @@ interface SessionStore {
   setPEAppliedSnapshot: (summary: string, appliedAt?: number) => void;
   clearPEAppliedSnapshot: () => void;
   recordingArtifacts: RecordingArtifact[];
+  setRecordingArtifacts: (artifacts: RecordingArtifact[]) => void;
   addRecordingArtifact: (blob: Blob, sessionId: string | null, durationSeconds: number) => void;
   clearRecordingArtifacts: () => void;
   sessionTitle: string;
@@ -411,7 +412,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         .eq('id', id)
         .eq('session_id', s.activeSessionId)
         .eq('user_id', user.id);
-      window.dispatchEvent(new Event('session-saved'));
     })();
   },
   deleteAllTasks: async () => {
@@ -490,6 +490,20 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   }),
   clearPEAppliedSnapshot: () => set({ peAppliedSummary: '', peAppliedAt: null }),
   recordingArtifacts: [],
+  setRecordingArtifacts: (artifacts) =>
+    set((state) => {
+      const nextIds = new Set(artifacts.map((item) => item.id));
+      state.recordingArtifacts.forEach((item) => {
+        if (!nextIds.has(item.id) && item.objectUrl.startsWith('blob:')) {
+          try {
+            URL.revokeObjectURL(item.objectUrl);
+          } catch {
+            // ignore revoke failures
+          }
+        }
+      });
+      return { recordingArtifacts: artifacts };
+    }),
   addRecordingArtifact: (blob, sessionId, durationSeconds) =>
     set((state) => {
       const now = Date.now();

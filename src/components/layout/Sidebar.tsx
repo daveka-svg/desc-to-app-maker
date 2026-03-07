@@ -22,6 +22,7 @@ import AllTasksPanel from '@/components/panels/AllTasksPanel';
 import { useToast } from '@/hooks/use-toast';
 import { compilePEReport } from '@/lib/prompts';
 import { DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE } from '@/lib/defaultClinicKnowledgeBase';
+import { createRecordingSignedUrl, getRecordingFileNameFromPath } from '@/lib/recordings';
 import {
   bootstrapUserTemplates,
   cleanupDuplicateTemplates,
@@ -37,6 +38,7 @@ interface DBSession {
   id: string;
   title: string | null;
   patient_name: string | null;
+  audio_url: string | null;
   session_type: string | null;
   created_at: string;
   duration_seconds: number | null;
@@ -85,6 +87,8 @@ export default function Sidebar() {
   const setSessionDurationSeconds = useSessionStore((s) => s.setSessionDurationSeconds);
   const setPEAppliedSnapshot = useSessionStore((s) => s.setPEAppliedSnapshot);
   const clearPEAppliedSnapshot = useSessionStore((s) => s.clearPEAppliedSnapshot);
+  const recordingArtifacts = useSessionStore((s) => s.recordingArtifacts);
+  const setRecordingArtifacts = useSessionStore((s) => s.setRecordingArtifacts);
 
   const [sessions, setSessions] = useState<DBSession[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -121,7 +125,7 @@ export default function Sidebar() {
   const fetchSessions = async () => {
     let query = supabase
       .from('sessions')
-      .select('id, title, patient_name, session_type, created_at, duration_seconds, pe_data, pe_enabled, status, archived_at')
+      .select('id, title, patient_name, audio_url, session_type, created_at, duration_seconds, pe_data, pe_enabled, status, archived_at')
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -495,6 +499,29 @@ export default function Sidebar() {
     } else {
       setTasks([]);
       setTasksNeedReview(false);
+    }
+
+    const otherArtifacts = recordingArtifacts.filter((item) => item.sessionId !== session.id);
+    if (session.audio_url) {
+      const signedUrl = await createRecordingSignedUrl(session.audio_url);
+      if (signedUrl) {
+        setRecordingArtifacts([
+          {
+            id: `remote-${session.id}`,
+            sessionId: session.id,
+            fileName: getRecordingFileNameFromPath(session.audio_url),
+            objectUrl: signedUrl,
+            createdAt: new Date(session.created_at).getTime(),
+            durationSeconds: session.duration_seconds || 0,
+            sizeBytes: 0,
+          },
+          ...otherArtifacts,
+        ]);
+      } else {
+        setRecordingArtifacts(otherArtifacts);
+      }
+    } else {
+      setRecordingArtifacts(otherArtifacts);
     }
 
     setEncounterStatus('reviewing');

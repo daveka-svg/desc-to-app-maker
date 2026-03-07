@@ -12,7 +12,6 @@ export default function NotesPanel() {
   const togglePEInNotes = useSessionStore((s) => s.togglePEInNotes);
   const peData = useSessionStore((s) => s.peData);
   const peEnabled = useSessionStore((s) => s.peEnabled);
-  const vetNotes = useSessionStore((s) => s.vetNotes);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const availableTemplates = useSessionStore((s) => s.availableTemplates);
@@ -99,8 +98,8 @@ export default function NotesPanel() {
     const selected = tasks.filter((task) => selectedTaskSet.has(task.id));
     if (selected.length === 0) {
       toast({
-        title: 'No tasks selected',
-        description: 'Select at least one task to save.',
+        title: 'No tasks checked',
+        description: 'Check at least one task to save.',
         variant: 'destructive',
       });
       return;
@@ -118,7 +117,7 @@ export default function NotesPanel() {
     } catch (error: any) {
       toast({
         title: 'Task save failed',
-        description: error?.message || 'Could not save selected tasks.',
+        description: error?.message || 'Could not save checked tasks.',
         variant: 'destructive',
       });
     }
@@ -145,9 +144,6 @@ export default function NotesPanel() {
     let text = noteRef.current?.innerText || notes;
     if (peIncludeInNotes && peReport.trim()) {
       text = `${text}\n\n${peReport}`;
-    }
-    if (peIncludeInNotes && vetNotes.trim()) {
-      text = `${text}\n\nVet Notes:\n${vetNotes.trim()}`;
     }
     try {
       await navigator.clipboard.writeText(text);
@@ -291,14 +287,6 @@ export default function NotesPanel() {
                   <p className="text-sm leading-[1.85] text-text-primary">{peReport}</p>
                 </div>
               )}
-              {peIncludeInNotes && vetNotes.trim() && (
-                <div className="max-w-[720px] mt-4 p-3 rounded-md border border-border-light bg-sand/40">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-bark mb-1.5">
-                    <ClipboardList size={13} /> Vet Notes
-                  </div>
-                  <p className="text-sm leading-[1.85] text-text-primary whitespace-pre-wrap">{vetNotes.trim()}</p>
-                </div>
-              )}
             </>
           )}
         </div>
@@ -312,23 +300,23 @@ export default function NotesPanel() {
               onClick={handleSaveSelectedTasks}
               disabled={tasks.length === 0}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold hover:bg-sand disabled:opacity-40"
-              title="Save selected tasks to tasks board"
+              title="Save checked tasks to tasks board"
             >
-              <Save size={11} /> Save Selected
+              <Save size={11} /> Save
             </button>
             <button
               onClick={() => setSelectedTaskIds(tasks.map((task) => task.id))}
               disabled={tasks.length === 0}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold hover:bg-sand disabled:opacity-40"
             >
-              Select all
+              Check all
             </button>
             <button
               onClick={() => setSelectedTaskIds([])}
               disabled={tasks.length === 0}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold hover:bg-sand disabled:opacity-40"
             >
-              Clear
+              Uncheck all
             </button>
             <button
               onClick={handleDeleteAllTasks}
@@ -341,7 +329,7 @@ export default function NotesPanel() {
           </div>
           {tasksNeedReview && tasks.length > 0 && (
             <div className="text-[11px] text-warning mb-2">
-              Review tasks and save selected ones to publish them in the Tasks tab.
+              Review tasks and save checked ones to publish them in the Tasks tab.
             </div>
           )}
           {tasks.length === 0 ? (

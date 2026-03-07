@@ -7,6 +7,7 @@ import { type ProcessingStepId, useSessionStore } from '@/stores/useSessionStore
 import { supabase } from '@/integrations/supabase/client';
 import { mergeTranscriptTail } from '@/lib/transcriptMerge';
 import { useToast } from '@/hooks/use-toast';
+import { uploadSessionRecording } from '@/lib/recordings';
 
 interface EncounterControllerValue {
   isRecording: boolean;
@@ -207,6 +208,28 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
       markStepDone('stopping-recording');
       if (recordedBlob) {
         store.addRecordingArtifact(recordedBlob, store.activeSessionId, timerSeconds);
+        if (store.activeSessionId) {
+          try {
+            const remoteArtifact = await uploadSessionRecording({
+              blob: recordedBlob,
+              sessionId: store.activeSessionId,
+              durationSeconds: timerSeconds,
+            });
+            if (remoteArtifact) {
+              const currentArtifacts = useSessionStore.getState().recordingArtifacts;
+              const others = currentArtifacts.filter((item) => item.sessionId !== store.activeSessionId);
+              useSessionStore.getState().setRecordingArtifacts([remoteArtifact, ...others]);
+              window.dispatchEvent(new Event('session-saved'));
+            }
+          } catch (uploadError) {
+            console.warn('Recording upload failed:', uploadError);
+            toast({
+              title: 'Recording kept locally',
+              description: 'Cloud upload failed. Download is still available in this session.',
+              variant: 'destructive',
+            });
+          }
+        }
       }
     } catch (err) {
       console.error('Stop recording failed:', err);

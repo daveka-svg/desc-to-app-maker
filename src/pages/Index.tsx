@@ -1,6 +1,5 @@
 import Sidebar from '@/components/layout/Sidebar';
 import TopBar from '@/components/layout/TopBar';
-import BottomBar from '@/components/layout/BottomBar';
 import CenterTabs from '@/components/layout/CenterTabs';
 import ContextPanel from '@/components/panels/ContextPanel';
 import TranscriptPanel from '@/components/panels/TranscriptPanel';
@@ -29,7 +28,6 @@ const Index = () => {
               {activeTab === 'chat' && <ChatPanel />}
             </div>
           </div>
-          <BottomBar />
         </div>
       </div>
     </EncounterControllerProvider>

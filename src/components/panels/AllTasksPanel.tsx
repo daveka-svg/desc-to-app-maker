@@ -155,7 +155,6 @@ export default function AllTasksPanel() {
       return;
     }
     setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, done: nextDone } : task)));
-    window.dispatchEvent(new Event('session-saved'));
   };
 
   const deleteTask = async (taskId: string) => {
