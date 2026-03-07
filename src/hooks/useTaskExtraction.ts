@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { TASK_EXTRACTION_PROMPT } from '@/lib/prompts';
 import { useSessionStore, type Task } from '@/stores/useSessionStore';
 import { extractLlmText } from '@/lib/llm';
 import { buildTaskExtractionInput } from '@/lib/clinicContext';
 import { normalizeExtractedTasks } from '@/lib/taskExtraction';
+import { getTaskExtractionPrompt } from '@/lib/promptSettings';
 
 export function useTaskExtraction() {
   const notes = useSessionStore((s) => s.notes);
@@ -19,9 +19,10 @@ export function useTaskExtraction() {
 
     setIsExtractingTasks(true);
     try {
+      const taskExtractionPrompt = getTaskExtractionPrompt();
       const { data, error } = await supabase.functions.invoke('generate-notes', {
         body: {
-          transcript: `${TASK_EXTRACTION_PROMPT}\n\n${buildTaskExtractionInput({
+          transcript: `${taskExtractionPrompt}\n\n${buildTaskExtractionInput({
             notes,
             clinicKnowledgeBase,
           })}`,

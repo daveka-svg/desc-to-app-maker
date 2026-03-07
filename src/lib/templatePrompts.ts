@@ -9,6 +9,9 @@ export interface UserTemplate {
   updatedAt: string;
 }
 
+const normalizeTemplateName = (name: string): string =>
+  name.trim().toLowerCase().replace(/\s+/g, ' ');
+
 const toTemplate = (row: any): UserTemplate => ({
   id: row.id,
   name: row.name,
@@ -25,10 +28,7 @@ const getUserId = async (): Promise<string | null> => {
   return auth.user?.id || null;
 };
 
-export async function listUserTemplates(): Promise<UserTemplate[]> {
-  const userId = await getUserId();
-  if (!userId) return [];
-
+const fetchUserTemplatesRaw = async (userId: string): Promise<UserTemplate[]> => {
   const withUpdated = await supabase
     .from('note_templates')
     .select(TEMPLATE_COLUMNS_WITH_UPDATED)
@@ -47,6 +47,63 @@ export async function listUserTemplates(): Promise<UserTemplate[]> {
 
   if (legacy.error) throw legacy.error;
   return (legacy.data || []).map(toTemplate);
+};
+
+const dedupeTemplatesByName = (templates: UserTemplate[]): UserTemplate[] => {
+  const seen = new Set<string>();
+  const deduped: UserTemplate[] = [];
+  for (const template of templates) {
+    const key = normalizeTemplateName(template.name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push({
+      ...template,
+      name: template.name.trim(),
+    });
+  }
+  return deduped;
+};
+
+export async function listUserTemplates(): Promise<UserTemplate[]> {
+  const userId = await getUserId();
+  if (!userId) return [];
+
+  const rows = await fetchUserTemplatesRaw(userId);
+  return dedupeTemplatesByName(rows);
+}
+
+export async function cleanupDuplicateTemplates(): Promise<number> {
+  const userId = await getUserId();
+  if (!userId) return 0;
+
+  const rows = await fetchUserTemplatesRaw(userId);
+  const seen = new Set<string>();
+  const duplicateIds: string[] = [];
+
+  for (const row of rows) {
+    const key = normalizeTemplateName(row.name);
+    if (!key) continue;
+    if (seen.has(key)) {
+      duplicateIds.push(row.id);
+      continue;
+    }
+    seen.add(key);
+  }
+
+  if (duplicateIds.length === 0) return 0;
+
+  const { error } = await supabase
+    .from('note_templates')
+    .delete()
+    .in('id', duplicateIds)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.warn('Could not clean duplicate templates:', error.message);
+    return 0;
+  }
+
+  return duplicateIds.length;
 }
 
 export async function bootstrapUserTemplates(): Promise<UserTemplate[]> {
@@ -116,6 +173,11 @@ export async function syncDefaultTemplatePrompts(): Promise<void> {
 export async function createTemplate(name: string, systemPrompt: string): Promise<UserTemplate> {
   const userId = await getUserId();
   if (!userId) throw new Error('Not signed in');
+  const normalizedName = normalizeTemplateName(name);
+  const existing = await listUserTemplates();
+  if (existing.some((template) => normalizeTemplateName(template.name) === normalizedName)) {
+    throw new Error('Template name already exists');
+  }
 
   const { data, error } = await supabase
     .from('note_templates')
@@ -200,26 +262,29 @@ export async function getTemplatePrompt(templateName: string, fallbackPrompt: st
 
   const { data, error } = await supabase
     .from('note_templates')
-    .select('system_prompt')
+    .select('name, system_prompt, updated_at, created_at')
     .eq('user_id', user.id)
-    .eq('name', templateName)
-    .order('updated_at', { ascending: false })
-    .limit(1);
+    .order('updated_at', { ascending: false });
 
   if (!error && data?.length) {
-    const prompt = data[0]?.system_prompt?.trim();
+    const match = data.find((row: any) =>
+      normalizeTemplateName(String(row?.name || '')) === normalizeTemplateName(templateName)
+    );
+    const prompt = match?.system_prompt?.trim();
     return prompt || fallbackPrompt;
   }
 
   const legacy = await supabase
     .from('note_templates')
-    .select('system_prompt')
+    .select('name, system_prompt')
     .eq('user_id', user.id)
-    .eq('name', templateName)
     .order('created_at', { ascending: false })
-    .limit(1);
+    .limit(100);
 
   if (legacy.error || !legacy.data?.length) return fallbackPrompt;
-  const prompt = legacy.data[0]?.system_prompt?.trim();
+  const match = legacy.data.find((row: any) =>
+    normalizeTemplateName(String(row?.name || '')) === normalizeTemplateName(templateName)
+  );
+  const prompt = match?.system_prompt?.trim();
   return prompt || fallbackPrompt;
 }

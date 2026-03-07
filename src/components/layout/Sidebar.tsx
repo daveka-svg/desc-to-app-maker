@@ -24,6 +24,7 @@ import { compilePEReport } from '@/lib/prompts';
 import { DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE } from '@/lib/defaultClinicKnowledgeBase';
 import {
   bootstrapUserTemplates,
+  cleanupDuplicateTemplates,
   createTemplate,
   deleteTemplate,
   listUserTemplates,
@@ -169,9 +170,17 @@ export default function Sidebar() {
     try {
       await bootstrapUserTemplates();
       await syncDefaultTemplatePrompts();
+      const removedDuplicates = await cleanupDuplicateTemplates();
       const rows = sortTemplates(await listUserTemplates());
       setTemplates(rows);
       setAvailableTemplates(rows.map((row) => row.name));
+
+      if (removedDuplicates > 0) {
+        toast({
+          title: 'Template list cleaned',
+          description: `Removed ${removedDuplicates} duplicate template${removedDuplicates === 1 ? '' : 's'}.`,
+        });
+      }
 
       if (!activeTemplateId || !rows.some((row) => row.id === activeTemplateId)) {
         const selected = rows.find((row) => row.name === selectedTemplate);

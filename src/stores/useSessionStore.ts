@@ -226,6 +226,8 @@ const normalPE: Partial<PEData> = {
 
 const genId = () => crypto.randomUUID();
 const DEFAULT_TEMPLATE_OPTIONS = Object.keys(TEMPLATES);
+const normalizeTemplateName = (value: string): string =>
+  value.trim().toLowerCase().replace(/\s+/g, ' ');
 
 const formatDurationLabel = (seconds: number): string => {
   if (!seconds || seconds <= 0) return '0m';
@@ -273,11 +275,24 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setSelectedTemplate: (t) => set({ selectedTemplate: t }),
   availableTemplates: [...DEFAULT_TEMPLATE_OPTIONS],
   setAvailableTemplates: (templates) => {
-    const uniqueTemplates = Array.from(new Set(templates.filter(Boolean)));
+    const seen = new Set<string>();
+    const uniqueTemplates = templates
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .filter((value) => {
+        const key = normalizeTemplateName(value);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     set((state) => ({
       availableTemplates: uniqueTemplates.length > 0 ? uniqueTemplates : [...DEFAULT_TEMPLATE_OPTIONS],
-      selectedTemplate: uniqueTemplates.includes(state.selectedTemplate)
-        ? state.selectedTemplate
+      selectedTemplate: uniqueTemplates.some(
+        (template) => normalizeTemplateName(template) === normalizeTemplateName(state.selectedTemplate)
+      )
+        ? (uniqueTemplates.find(
+            (template) => normalizeTemplateName(template) === normalizeTemplateName(state.selectedTemplate)
+          ) || state.selectedTemplate)
         : uniqueTemplates[0] || 'General Consult',
     }));
   },

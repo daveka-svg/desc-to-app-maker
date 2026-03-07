@@ -5,6 +5,11 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE } from '@/lib/defaultClinicKnowledgeBase';
+import {
+  getTaskExtractionPrompt,
+  resetTaskExtractionPrompt,
+  setTaskExtractionPrompt,
+} from '@/lib/promptSettings';
 
 interface AppSettings {
   language: string;
@@ -36,6 +41,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 const SETTINGS_STORAGE_KEY = 'etv-scribe-settings';
 const KNOWLEDGE_BASE_MAX_CHARS = 500000;
+const TASK_PROMPT_MAX_CHARS = 40000;
 
 const loadSettings = (): AppSettings => {
   try {
@@ -55,6 +61,7 @@ const isMissingKnowledgeBaseColumn = (message: string): boolean =>
 export default function Settings() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [clinicKnowledgeBase, setClinicKnowledgeBase] = useState(DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE);
+  const [taskExtractionPrompt, setTaskExtractionPromptState] = useState(getTaskExtractionPrompt);
   const [saved, setSaved] = useState(false);
   const [loadingKnowledge, setLoadingKnowledge] = useState(true);
   const [savingKnowledge, setSavingKnowledge] = useState(false);
@@ -130,6 +137,7 @@ export default function Settings() {
   const handleSave = async () => {
     setSavingKnowledge(true);
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    setTaskExtractionPrompt(taskExtractionPrompt.slice(0, TASK_PROMPT_MAX_CHARS));
 
     let knowledgeSaved = false;
     let knowledgeColumnMissing = false;
@@ -258,6 +266,51 @@ export default function Settings() {
             )}
           </Section>
 
+          <Section
+            title="Task Extraction Prompt"
+            description="Edit the exact instruction used when AI extracts tasks from generated notes."
+          >
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setTaskExtractionPromptState(resetTaskExtractionPrompt());
+                  setSaved(false);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:bg-sand"
+              >
+                <Trash2 size={13} />
+                Reset to default
+              </button>
+            </div>
+
+            <textarea
+              value={taskExtractionPrompt}
+              onChange={(event) => {
+                setTaskExtractionPromptState(event.target.value.slice(0, TASK_PROMPT_MAX_CHARS));
+                setSaved(false);
+              }}
+              className="settings-textarea"
+              placeholder="Task extraction prompt"
+            />
+
+            <div className="text-[11px] text-text-muted">
+              Stored: {taskExtractionPrompt.length.toLocaleString()} / {TASK_PROMPT_MAX_CHARS.toLocaleString()} characters.
+            </div>
+
+            <Field
+              label="What is sent to AI"
+              description="This is the exact structure submitted during task extraction."
+            >
+              <pre className="settings-codeblock">{`${taskExtractionPrompt.trim() || '(empty prompt)'}
+
+Clinic personalization context:
+<clinic profile + knowledge base, clipped>
+
+Clinical Notes:
+<generated notes, clipped>`}</pre>
+            </Field>
+          </Section>
+
           <Section title="Language & Recording" description="Speech recognition and transcription settings">
             <Field label="Language" description="Language for speech recognition">
               <select value={settings.language} onChange={(e) => update('language', e.target.value)} className="settings-input">
@@ -361,6 +414,16 @@ export default function Settings() {
         }
         .settings-textarea:focus {
           border-color: hsl(var(--bark-muted));
+        }
+        .settings-codeblock {
+          white-space: pre-wrap;
+          font-size: 11px;
+          line-height: 1.5;
+          background: hsl(var(--sand));
+          border: 1px solid hsl(var(--border));
+          border-radius: 6px;
+          padding: 10px 12px;
+          color: hsl(var(--text-secondary));
         }
       `}</style>
     </div>
