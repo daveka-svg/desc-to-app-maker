@@ -4,6 +4,12 @@ import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/stores/useSessionStore';
+import {
+  AI_GENERATION_OPTIONS,
+  DEFAULT_AI_GENERATION_MODE,
+  SETTINGS_STORAGE_KEY,
+  type AiGenerationMode,
+} from '@/lib/appSettings';
 import { DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE } from '@/lib/defaultClinicKnowledgeBase';
 import {
   getTaskExtractionPrompt,
@@ -12,6 +18,7 @@ import {
 } from '@/lib/promptSettings';
 
 interface AppSettings {
+  aiGenerationMode: AiGenerationMode;
   language: string;
   autoTranscribe: boolean;
   autoSave: boolean;
@@ -26,6 +33,7 @@ interface AppSettings {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
+  aiGenerationMode: DEFAULT_AI_GENERATION_MODE,
   language: 'en-GB',
   autoTranscribe: true,
   autoSave: true,
@@ -39,7 +47,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   dataRetentionDays: 365,
 };
 
-const SETTINGS_STORAGE_KEY = 'etv-scribe-settings';
 const KNOWLEDGE_BASE_MAX_CHARS = 500000;
 const TASK_PROMPT_MAX_CHARS = 40000;
 
@@ -216,6 +223,27 @@ export default function Settings() {
           <h1 className="text-[22px] font-bold text-bark mb-1">Settings</h1>
           <p className="text-sm text-text-muted mb-8">Configure your ETV Scribe preferences</p>
 
+          <Section title="AI Model" description="Choose the model used for notes, tasks, client text, and chat. Switch and regenerate to compare outputs.">
+            <Field label="Generation model">
+              <select
+                value={settings.aiGenerationMode}
+                onChange={(e) => update('aiGenerationMode', e.target.value as AiGenerationMode)}
+                className="settings-input"
+              >
+                {AI_GENERATION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div className="text-[11px] text-text-muted">
+              {
+                AI_GENERATION_OPTIONS.find((option) => option.value === settings.aiGenerationMode)?.description
+              }
+            </div>
+          </Section>
+
           <Section title="Clinic Knowledge Base" description="Upload your clinic style guide, contact wording, communication preferences, and reusable policy text. This context is injected separately from templates.">
             {loadingKnowledge ? (
               <div className="flex items-center gap-2 text-sm text-text-muted">
@@ -305,6 +333,9 @@ export default function Settings() {
 
 Clinic personalization context:
 <clinic profile + knowledge base, clipped>
+
+Consultation transcript:
+<transcript, clipped>
 
 Clinical Notes:
 <generated notes, clipped>`}</pre>

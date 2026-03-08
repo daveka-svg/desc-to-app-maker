@@ -3,15 +3,13 @@ import { useSessionStore } from '@/stores/useSessionStore';
 import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useTaskExtraction } from '@/hooks/useTaskExtraction';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
-import { Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy, Stethoscope, Save, Trash2 } from 'lucide-react';
-import { compilePEReport } from '@/lib/prompts';
+import { Undo2, Redo2, RefreshCw, Pen, ClipboardList, Star, Loader2, Check, Copy, Save, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getAiGenerationConfig } from '@/lib/appSettings';
 
 export default function NotesPanel() {
   const peIncludeInNotes = useSessionStore((s) => s.peIncludeInNotes);
   const togglePEInNotes = useSessionStore((s) => s.togglePEInNotes);
-  const peData = useSessionStore((s) => s.peData);
-  const peEnabled = useSessionStore((s) => s.peEnabled);
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const availableTemplates = useSessionStore((s) => s.availableTemplates);
@@ -32,6 +30,7 @@ export default function NotesPanel() {
   const { toast } = useToast();
   const noteRef = useRef<HTMLDivElement>(null);
   const { canUndo, canRedo, undo, redo, pushState } = useUndoRedo();
+  const aiConfig = getAiGenerationConfig();
 
   useEffect(() => {
     if (notes) pushState(notes);
@@ -83,7 +82,6 @@ export default function NotesPanel() {
     }
   };
 
-  const peReport = peEnabled ? compilePEReport(peData) : '';
   const selectedTaskSet = new Set(selectedTaskIds);
 
   const toggleTaskSelection = (taskId: string) => {
@@ -141,10 +139,7 @@ export default function NotesPanel() {
   };
 
   const handleCopy = async () => {
-    let text = noteRef.current?.innerText || notes;
-    if (peIncludeInNotes && peReport.trim()) {
-      text = `${text}\n\n${peReport}`;
-    }
+    const text = noteRef.current?.innerText || notes;
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -204,6 +199,9 @@ export default function NotesPanel() {
               Applying template...
             </span>
           )}
+          <span className="inline-flex items-center gap-1 text-[11px] text-text-muted font-semibold">
+            AI: {aiConfig.label}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <ToolBtn title="Undo (Ctrl+Z)" onClick={handleUndo} disabled={!canUndo}><Undo2 size={16} /></ToolBtn>
@@ -280,14 +278,6 @@ export default function NotesPanel() {
                   </p>
                 ))}
               </div>
-              {peIncludeInNotes && peReport.trim() && (
-                <div className="max-w-[720px] mt-4 p-3 rounded-md border border-border-light bg-sand/40">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-bark mb-1.5">
-                    <Stethoscope size={13} /> Physical Examination Findings
-                  </div>
-                  <p className="text-sm leading-[1.85] text-text-primary">{peReport}</p>
-                </div>
-              )}
             </>
           )}
         </div>

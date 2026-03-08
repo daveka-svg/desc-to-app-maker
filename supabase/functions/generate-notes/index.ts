@@ -15,7 +15,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const parseInceptionContent = (payload: Record<string, unknown>): string => {
+const extractProviderContent = (payload: Record<string, unknown>): string => {
   const choices = Array.isArray(payload.choices) ? payload.choices : [];
   const firstChoice = choices[0] as Record<string, unknown> | undefined;
   const message = firstChoice && typeof firstChoice.message === "object"
@@ -58,6 +58,8 @@ const parseInceptionContent = (payload: Record<string, unknown>): string => {
   }
   return chunks.join("").trim();
 };
+
+type LlmProvider = "inception" | "openai";
 
 const callInception = async (
   apiKey: string,
@@ -106,9 +108,63 @@ const callInception = async (
     throw new Error(`Inception API error [${response.status}] (${model}): ${errorMessage}`);
   }
 
-  const content = parseInceptionContent(parsed);
+  const content = extractProviderContent(parsed);
   if (!content) {
     throw new Error(`Inception API returned empty content (${model})`);
+  }
+
+  return content;
+};
+
+const callOpenAI = async (
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  maxOutputTokens: number,
+) => {
+  const body: Record<string, unknown> = {
+    model,
+    input: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    reasoning: {
+      effort: "none",
+    },
+    text: {
+      verbosity: "low",
+    },
+    max_output_tokens: maxOutputTokens,
+  };
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const text = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    parsed = {};
+  }
+
+  if (!response.ok) {
+    const errorMessage = typeof (parsed as any)?.error?.message === "string"
+      ? (parsed as any).error.message
+      : text;
+    throw new Error(`OpenAI API error [${response.status}] (${model}): ${errorMessage}`);
+  }
+
+  const content = extractProviderContent(parsed);
+  if (!content) {
+    throw new Error(`OpenAI API returned empty content (${model})`);
   }
 
   return content;
@@ -120,7 +176,18 @@ const stripCodeFences = (value: string): string => {
   return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 };
 
-const callInceptionWithFallbacks = async (
+const sanitizePlainClinicalText = (value: string): string =>
+  value
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/^\s*#{1,6}\s+/gm, "")
+    .replace(/\*\*/g, "")
+    .replace(/__/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+
+const callModelWithFallbacks = async (
+  provider: LlmProvider,
   apiKey: string,
   modelCandidates: string[],
   systemPrompt: string,
@@ -128,28 +195,24 @@ const callInceptionWithFallbacks = async (
   maxOutputTokens: number,
 ) => {
   let content = "";
-  let modelUsed = modelCandidates[0] || "mercury-2";
+  let modelUsed = modelCandidates[0] || (provider === "openai" ? "gpt-5.2-chat-latest" : "mercury-2");
   let lastError: Error | null = null;
 
   for (const model of modelCandidates) {
     try {
-      content = await callInception(
-        apiKey,
-        model,
-        systemPrompt,
-        userPrompt,
-        maxOutputTokens,
-      );
+      content = provider === "openai"
+        ? await callOpenAI(apiKey, model, systemPrompt, userPrompt, maxOutputTokens)
+        : await callInception(apiKey, model, systemPrompt, userPrompt, maxOutputTokens);
       modelUsed = model;
       break;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      console.error("Inception generation attempt failed:", model, lastError.message);
+      console.error("Generation attempt failed:", provider, model, lastError.message);
     }
   }
 
   if (!content.trim()) {
-    throw lastError || new Error("Inception generation failed for all candidate models");
+    throw lastError || new Error(`${provider} generation failed for all candidate models`);
   }
 
   return { content, modelUsed };
@@ -165,12 +228,10 @@ serve(async (req) => {
       templatePrompt,
       requestType,
       templateName,
+      llmProvider,
+      llmModel,
     } = await req.json();
-    const INCEPTIONLABS_API_KEY = Deno.env.get("INCEPTIONLABS_API_KEY");
-
-    if (!INCEPTIONLABS_API_KEY) {
-      throw new Error("INCEPTIONLABS_API_KEY is not configured");
-    }
+    const provider: LlmProvider = llmProvider === "openai" ? "openai" : "inception";
 
     const defaultSystemPrompt = `You are a veterinary clinical note generator. Generate structured clinical notes from the consultation transcript. Include:
 - Chief complaint (C/O)
@@ -180,8 +241,22 @@ serve(async (req) => {
 
 Keep the language concise and professional. Use standard veterinary abbreviations.`;
 
-    const primaryModel = Deno.env.get("INCEPTIONLABS_MODEL") || "mercury-2";
-    const fallbackRaw = Deno.env.get("INCEPTIONLABS_MODEL_FALLBACKS") || "";
+    const resolvedApiKey = provider === "openai"
+      ? Deno.env.get("OPENAI_API_KEY")
+      : Deno.env.get("INCEPTIONLABS_API_KEY");
+    if (!resolvedApiKey) {
+      throw new Error(provider === "openai" ? "OPENAI_API_KEY is not configured" : "INCEPTIONLABS_API_KEY is not configured");
+    }
+
+    const primaryModel = String(
+      llmModel ||
+      (provider === "openai"
+        ? Deno.env.get("OPENAI_TEXT_MODEL") || Deno.env.get("OPENAI_MODEL") || "gpt-5.2-chat-latest"
+        : Deno.env.get("INCEPTIONLABS_MODEL") || "mercury-2")
+    ).trim();
+    const fallbackRaw = provider === "openai"
+      ? Deno.env.get("OPENAI_MODEL_FALLBACKS") || ""
+      : Deno.env.get("INCEPTIONLABS_MODEL_FALLBACKS") || "";
     const modelCandidates = Array.from(
       new Set([primaryModel, ...fallbackRaw.split(",").map((item) => item.trim()).filter(Boolean)])
     );
@@ -192,8 +267,9 @@ Keep the language concise and professional. Use standard veterinary abbreviation
       const extractionSystemPrompt = DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT;
       const extractionUserPrompt = buildGeneralConsultExtractionUserPrompt(String(transcript || ""));
 
-      const groundedExtraction = await callInceptionWithFallbacks(
-        INCEPTIONLABS_API_KEY,
+      const groundedExtraction = await callModelWithFallbacks(
+        provider,
+        resolvedApiKey,
         modelCandidates,
         extractionSystemPrompt,
         extractionUserPrompt,
@@ -208,11 +284,13 @@ Keep the language concise and professional. Use standard veterinary abbreviation
       }
 
       const filteredPayload = filterGroundedGeneralConsultPayload(parsedPayload, String(transcript || ""));
-      const content = renderGeneralConsultFromGroundedPayload(filteredPayload);
+      const content = sanitizePlainClinicalText(
+        renderGeneralConsultFromGroundedPayload(filteredPayload),
+      );
 
       return new Response(JSON.stringify({
         content,
-        provider: "inceptionlabs",
+        provider,
         model: groundedExtraction.modelUsed,
         grounded: true,
         promptCandidate: GENERAL_CONSULT_PROMPT_WINNER,
@@ -225,8 +303,9 @@ Keep the language concise and professional. Use standard veterinary abbreviation
     const peContext = peData ? `\n\nPhysical Examination Data:\n${JSON.stringify(peData, null, 2)}` : "";
     const userPrompt = `Generate clinical notes from the following consultation transcript:${peContext}\n\nTranscript:\n${transcript}`;
 
-    const generated = await callInceptionWithFallbacks(
-      INCEPTIONLABS_API_KEY,
+    const generated = await callModelWithFallbacks(
+      provider,
+      resolvedApiKey,
       modelCandidates,
       systemPrompt,
       userPrompt,
@@ -234,8 +313,8 @@ Keep the language concise and professional. Use standard veterinary abbreviation
     );
 
     return new Response(JSON.stringify({
-      content: generated.content,
-      provider: "inceptionlabs",
+      content: sanitizePlainClinicalText(generated.content),
+      provider,
       model: generated.modelUsed,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

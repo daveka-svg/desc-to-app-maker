@@ -4,8 +4,11 @@ import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useTranscription } from '@/hooks/useTranscription';
 import { supabase } from '@/integrations/supabase/client';
 import { SYSTEM_PROMPT, TEMPLATES, compilePEReport, TASK_EXTRACTION_PROMPT, CLIENT_INSTRUCTIONS_PROMPT } from '@/lib/prompts';
-import { extractLlmText } from '@/lib/llm';
+import { extractLlmText, sanitizePlainClinicalText } from '@/lib/llm';
 import { getTemplatePrompt } from '@/lib/templatePrompts';
+import { getAiGenerationConfig } from '@/lib/appSettings';
+import { buildTaskExtractionInput } from '@/lib/clinicContext';
+import { normalizeExtractedTasks } from '@/lib/taskExtraction';
 
 interface PipelineStep {
   label: string;
@@ -54,6 +57,7 @@ export function useEncounterPipeline() {
     setSteps(initialSteps);
 
     const transcript = useSessionStore.getState().transcript;
+    const aiConfig = getAiGenerationConfig();
     if (!transcript.trim()) {
       store.setEncounterStatus('idle');
       return;
@@ -78,12 +82,14 @@ export function useEncounterPipeline() {
           templatePrompt: fullPrompt,
           requestType: 'notes',
           templateName: store.selectedTemplate,
+          llmProvider: aiConfig.provider,
+          llmModel: aiConfig.model,
         },
       });
 
       if (response.error) throw new Error(response.error.message);
 
-      const notesContent = await extractLlmText(response.data);
+      const notesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
 
       store.setNotes(notesContent);
       updateStep(1, 'done');
@@ -99,8 +105,14 @@ export function useEncounterPipeline() {
       if (notes.trim()) {
         const taskResponse = await supabase.functions.invoke('generate-notes', {
           body: {
-            transcript: `${TASK_EXTRACTION_PROMPT}\n\nClinical Notes:\n${notes}`,
-            templatePrompt: 'You are a veterinary task extraction specialist. Extract tasks and return ONLY valid JSON.',
+            transcript: `${TASK_EXTRACTION_PROMPT}\n\n${buildTaskExtractionInput({
+              notes,
+              transcript,
+              clinicKnowledgeBase: store.clinicKnowledgeBase,
+            })}`,
+            templatePrompt: 'You are a veterinary task extraction specialist. Extract tasks and return ONLY valid JSON with evidence quotes for every task.',
+            llmProvider: aiConfig.provider,
+            llmModel: aiConfig.model,
           },
         });
 
@@ -110,20 +122,10 @@ export function useEncounterPipeline() {
         if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
 
         const parsed = JSON.parse(cleanJson);
-        const tasks: any[] = [];
-        for (const [category, items] of Object.entries(parsed)) {
-          if (Array.isArray(items)) {
-            for (const item of items) {
-              tasks.push({
-                id: crypto.randomUUID(),
-                text: (item as any).text || String(item),
-                category: category as any,
-                assignee: (item as any).assignee || 'Vet',
-                done: false,
-              });
-            }
-          }
-        }
+        const tasks = normalizeExtractedTasks(
+          parsed,
+          `${transcript.trim()}\n\n${notes.trim()}`.trim(),
+        );
         store.setTasks(tasks);
       }
       updateStep(2, 'done');
@@ -141,6 +143,8 @@ export function useEncounterPipeline() {
           body: {
             transcript: `${CLIENT_INSTRUCTIONS_PROMPT}\n\nClinical Notes:\n${notes}\n\nTranscript:\n${transcript}`,
             templatePrompt: 'You are a veterinary client communication specialist for Every Tail Vets (London, UK). Write in warm, reassuring UK English.',
+            llmProvider: aiConfig.provider,
+            llmModel: aiConfig.model,
           },
         });
 

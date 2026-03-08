@@ -2,9 +2,10 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SYSTEM_PROMPT, TEMPLATES, compilePEReport } from '@/lib/prompts';
 import { useSessionStore } from '@/stores/useSessionStore';
-import { extractLlmText } from '@/lib/llm';
+import { extractLlmText, sanitizePlainClinicalText } from '@/lib/llm';
 import { getTemplatePrompt } from '@/lib/templatePrompts';
 import { buildNotesGenerationInput } from '@/lib/clinicContext';
+import { getAiGenerationConfig } from '@/lib/appSettings';
 
 export function useNoteGeneration() {
   const transcript = useSessionStore((s) => s.transcript);
@@ -35,6 +36,7 @@ export function useNoteGeneration() {
       const peReport = includeClinicalContext ? compilePEReport(peData) : '';
       const vetNotesForGeneration = includeClinicalContext ? vetNotes : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
+      const aiConfig = getAiGenerationConfig();
       const payloadTranscript = buildNotesGenerationInput({
         transcript,
         peReport,
@@ -49,12 +51,14 @@ export function useNoteGeneration() {
           templatePrompt: fullPrompt,
           requestType: 'notes',
           templateName: templateToUse,
+          llmProvider: aiConfig.provider,
+          llmModel: aiConfig.model,
         },
       });
 
       if (response.error) throw new Error(response.error.message);
 
-      const notesContent = await extractLlmText(response.data);
+      const notesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
       setNotes(notesContent);
       if (peEnabled && peReport.trim()) {
         setPEAppliedSnapshot(peReport);

@@ -114,19 +114,25 @@ Section 2: Team Handover (Vet/Nurse)
 [next review date / triggers for earlier review]`,
 };
 
-export const TASK_EXTRACTION_PROMPT = `Given the following veterinary clinical notes, extract all action items. For each item, assign it to: "Vet" (clinical decisions, prescriptions, procedures), "Nurse" (sample collection, monitoring, fluid administration), or "Admin" (estimates, insurance, scheduling).
+export const TASK_EXTRACTION_PROMPT = `Given the consultation transcript and generated notes, extract only explicit action items that were directly requested, assigned, scheduled, or agreed. For each item, assign it to: "Vet" (clinical decisions, prescriptions, procedures), "Nurse" (sample collection, monitoring, fluid administration), or "Admin" (estimates, insurance, scheduling).
 
 Write each task as a short, plain instruction (ideally under 12 words).
 Add an optional "deadline" only if the source explicitly includes a due date/time. Otherwise use null.
+Every task must include a short direct evidence quote copied from the source text.
 
 Return as JSON:
 {
-  "prescriptions": [{"text": "...", "assignee": "Vet|Nurse", "deadline": "ISO-8601 or null"}],
-  "diagnostics": [{"text": "...", "assignee": "Vet|Nurse", "deadline": "ISO-8601 or null"}],
-  "followup": [{"text": "...", "assignee": "Vet", "deadline": "ISO-8601 or null"}],
-  "admin": [{"text": "...", "assignee": "Admin", "deadline": "ISO-8601 or null"}]
+  "prescriptions": [{"text": "...", "assignee": "Vet|Nurse", "deadline": "ISO-8601 or null", "evidence": "..."}],
+  "diagnostics": [{"text": "...", "assignee": "Vet|Nurse", "deadline": "ISO-8601 or null", "evidence": "..."}],
+  "followup": [{"text": "...", "assignee": "Vet|Nurse|Admin", "deadline": "ISO-8601 or null", "evidence": "..."}],
+  "admin": [{"text": "...", "assignee": "Admin", "deadline": "ISO-8601 or null", "evidence": "..."}]
 }
-Only include items explicitly mentioned. Do not invent items. Return ONLY valid JSON, no markdown fences.`;
+Rules:
+- Only include items explicitly mentioned in the transcript or notes.
+- Do not convert general advice into a task unless someone was clearly asked to do it.
+- Do not invent reminders, monitoring steps, or follow-up tasks.
+- If no task exists for a category, return [].
+- Return ONLY valid JSON, no markdown fences.`;
 
 export const CLIENT_INSTRUCTIONS_PROMPT = `Generate client discharge instructions for this veterinary consultation. Write in warm, reassuring, plain English suitable for pet owners. Use the following sections:
 - Things to do: Clear care instructions for at home

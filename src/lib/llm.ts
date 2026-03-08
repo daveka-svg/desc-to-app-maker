@@ -39,3 +39,14 @@ export async function extractLlmText(raw: unknown): Promise<string> {
 
   return text.trim();
 }
+
+export function sanitizePlainClinicalText(value: string): string {
+  return value
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/^\s*#{1,6}\s+/gm, '')
+    .replace(/\*\*/g, '')
+    .replace(/__/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .trim();
+}

@@ -4,6 +4,7 @@ import { ASK_ETV_SYSTEM, compilePEReport } from '@/lib/prompts';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { extractLlmText } from '@/lib/llm';
 import { buildChatInput } from '@/lib/clinicContext';
+import { getAiGenerationConfig } from '@/lib/appSettings';
 
 export function useAskETV() {
   const transcript = useSessionStore((s) => s.transcript);
@@ -36,11 +37,14 @@ export function useAskETV() {
         clinicKnowledgeBase,
         userRequest: userText,
       });
+      const aiConfig = getAiGenerationConfig();
 
       const { data, error } = await supabase.functions.invoke('generate-notes', {
         body: {
           transcript: composedContext,
           templatePrompt: ASK_ETV_SYSTEM,
+          llmProvider: aiConfig.provider,
+          llmModel: aiConfig.model,
         },
       });
 

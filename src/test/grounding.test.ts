@@ -10,12 +10,12 @@ import {
 const FIXTURE_TRANSCRIPT = readFileSync(
   resolve(process.cwd(), 'src/test/fixtures/mock-consultation/dog-diarrhoea-20min-transcript.txt'),
   'utf8',
-).trim();
+).replace(/\r\n/g, '\n').trim();
 
 const FIXTURE_EXPECTED_GENERAL_CONSULT = readFileSync(
   resolve(process.cwd(), 'src/test/fixtures/mock-consultation/expected-general-consult.txt'),
   'utf8',
-).trim();
+).replace(/\r\n/g, '\n').trim();
 
 describe('general consult grounding', () => {
   it('drops non-grounded assessment and plan statements', () => {
