@@ -18,6 +18,8 @@ const assigneeColors: Record<string, string> = {
 
 export default function TasksSidebar({ onClose }: { onClose: () => void }) {
   const tasks = useSessionStore((s) => s.tasks);
+  const taskExtractionStatus = useSessionStore((s) => s.taskExtractionStatus);
+  const taskExtractionMessage = useSessionStore((s) => s.taskExtractionMessage);
   const toggleTask = useSessionStore((s) => s.toggleTask);
   const addTask = useSessionStore((s) => s.addTask);
   const { extractTasks, isExtractingTasks } = useTaskExtraction();
@@ -49,8 +51,22 @@ export default function TasksSidebar({ onClose }: { onClose: () => void }) {
       <div className="flex-1 overflow-y-auto px-3.5 py-3">
         {tasks.length === 0 && !isExtractingTasks ? (
           <div className="text-center py-8 text-xs text-text-muted">
-            <p className="mb-3">No tasks yet.</p>
-            <p>Generate notes first, then tasks will be auto-extracted.</p>
+            {taskExtractionStatus === 'empty' ? (
+              <>
+                <p className="mb-3">No tasks found.</p>
+                <p>The transcript did not contain explicit assigned or scheduled tasks.</p>
+              </>
+            ) : taskExtractionStatus === 'error' ? (
+              <>
+                <p className="mb-3 text-error">Task extraction failed.</p>
+                <p>{taskExtractionMessage || 'Please regenerate and try again.'}</p>
+              </>
+            ) : (
+              <>
+                <p className="mb-3">No tasks yet.</p>
+                <p>Generate notes first, then tasks will be auto-extracted.</p>
+              </>
+            )}
           </div>
         ) : isExtractingTasks ? (
           <div className="flex items-center justify-center gap-2 py-8 text-xs text-forest font-semibold">

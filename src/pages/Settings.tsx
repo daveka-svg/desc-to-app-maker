@@ -331,14 +331,8 @@ export default function Settings() {
             >
               <pre className="settings-codeblock">{`${taskExtractionPrompt.trim() || '(empty prompt)'}
 
-Clinic personalization context:
-<clinic profile + knowledge base, clipped>
-
 Consultation transcript:
-<transcript, clipped>
-
-Clinical Notes:
-<generated notes, clipped>`}</pre>
+<transcript only, clipped>`}</pre>
             </Field>
           </Section>
 

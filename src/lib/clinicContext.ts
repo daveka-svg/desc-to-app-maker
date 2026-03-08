@@ -79,25 +79,14 @@ export const buildNotesGenerationInput = ({
 };
 
 interface TaskInputParams {
-  notes: string;
-  transcript?: string;
-  clinicKnowledgeBase?: string;
+  transcript: string;
 }
 
 export const buildTaskExtractionInput = ({
-  notes,
-  transcript = '',
-  clinicKnowledgeBase = '',
+  transcript,
 }: TaskInputParams): string => {
-  const clinicChunk = clipForModel(buildClinicProfileContext(clinicKnowledgeBase), 14000);
-  const notesChunk = clipForModel(notes, 28000);
-  const transcriptChunk = clipForModel(transcript, 32000);
-
-  const parts: string[] = [];
-  if (clinicChunk) parts.push(`Clinic personalization context:\n${clinicChunk}`);
-  if (transcriptChunk) parts.push(`Consultation transcript:\n${transcriptChunk}`);
-  if (notesChunk) parts.push(`Clinical notes:\n${notesChunk}`);
-  return parts.join('\n\n');
+  const transcriptChunk = clipForModel(transcript, 42000);
+  return transcriptChunk ? `Consultation transcript:\n${transcriptChunk}` : '';
 };
 
 interface ClientInstructionsInputParams {

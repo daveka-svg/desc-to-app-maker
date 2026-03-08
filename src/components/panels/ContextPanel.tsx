@@ -223,6 +223,7 @@ export default function ContextPanel() {
     setNotes('');
     setVetNotes('');
     setTasks([]);
+    useSessionStore.getState().setTaskExtractionState('idle');
     setEncounterStatus('reviewing');
     setActiveTab('transcript');
     toast({

@@ -18,11 +18,13 @@ export default function NotesPanel() {
   const setTasksNeedReview = useSessionStore((s) => s.setTasksNeedReview);
   const deleteAllTasks = useSessionStore((s) => s.deleteAllTasks);
   const tasksNeedReview = useSessionStore((s) => s.tasksNeedReview);
+  const taskExtractionStatus = useSessionStore((s) => s.taskExtractionStatus);
+  const taskExtractionMessage = useSessionStore((s) => s.taskExtractionMessage);
   const saveCurrentSession = useSessionStore((s) => s.saveCurrentSession);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
   const { generateNote, isGeneratingNotes } = useNoteGeneration();
-  const { extractTasks } = useTaskExtraction();
+  const { extractTasks, isExtractingTasks } = useTaskExtraction();
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isSwitchRegenerating, setIsSwitchRegenerating] = useState(false);
@@ -323,8 +325,24 @@ export default function NotesPanel() {
               Review tasks and save checked ones to publish them in the Tasks tab.
             </div>
           )}
-          {tasks.length === 0 ? (
-            <div className="text-xs text-text-muted">Tasks will appear here after note generation.</div>
+          {isExtractingTasks ? (
+            <div className="text-xs text-text-muted">Extracting tasks from transcript...</div>
+          ) : tasks.length === 0 ? (
+            <div
+              className={`text-xs ${
+                taskExtractionStatus === 'error'
+                  ? 'text-error'
+                  : taskExtractionStatus === 'empty'
+                    ? 'text-text-secondary'
+                    : 'text-text-muted'
+              }`}
+            >
+              {taskExtractionStatus === 'error'
+                ? (taskExtractionMessage || 'Task extraction failed.')
+                : taskExtractionStatus === 'empty'
+                  ? 'No tasks found in the transcript.'
+                  : 'Tasks will appear here after note generation.'}
+            </div>
           ) : (
             <div className="space-y-2">
               {tasks.map((task) => (

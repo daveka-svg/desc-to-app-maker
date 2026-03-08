@@ -8,28 +8,27 @@ import { getTaskExtractionPrompt } from '@/lib/promptSettings';
 import { getAiGenerationConfig } from '@/lib/appSettings';
 
 export function useTaskExtraction() {
-  const notes = useSessionStore((s) => s.notes);
   const transcript = useSessionStore((s) => s.transcript);
-  const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
   const setTasks = useSessionStore((s) => s.setTasks);
   const setTasksNeedReview = useSessionStore((s) => s.setTasksNeedReview);
   const isExtractingTasks = useSessionStore((s) => s.isExtractingTasks);
   const setIsExtractingTasks = useSessionStore((s) => s.setIsExtractingTasks);
+  const setTaskExtractionState = useSessionStore((s) => s.setTaskExtractionState);
 
   const extractTasks = useCallback(async () => {
-    if (!notes.trim()) throw new Error('No notes to extract tasks from');
+    if (!transcript.trim()) throw new Error('No transcript available for task extraction');
 
     setIsExtractingTasks(true);
+    setTasks([]);
+    setTasksNeedReview(false);
+    setTaskExtractionState('extracting');
     try {
       const taskExtractionPrompt = getTaskExtractionPrompt();
       const aiConfig = getAiGenerationConfig();
-      const taskSource = `${transcript.trim()}\n\n${notes.trim()}`.trim();
       const { data, error } = await supabase.functions.invoke('generate-notes', {
         body: {
           transcript: `${taskExtractionPrompt}\n\n${buildTaskExtractionInput({
-            notes,
             transcript,
-            clinicKnowledgeBase,
           })}`,
           templatePrompt: 'You are a veterinary task extraction assistant. Return only valid JSON with evidence quotes for every task.',
           llmProvider: aiConfig.provider,
@@ -44,17 +43,25 @@ export function useTaskExtraction() {
       }
 
       const parsed = JSON.parse(jsonStr);
-      const tasks: Task[] = normalizeExtractedTasks(parsed, taskSource);
+      const tasks: Task[] = normalizeExtractedTasks(parsed, transcript);
 
       setTasks(tasks);
       setTasksNeedReview(tasks.length > 0);
+      setTaskExtractionState(
+        tasks.length > 0 ? 'success' : 'empty',
+        tasks.length > 0 ? `${tasks.length} task${tasks.length === 1 ? '' : 's'} found.` : 'No tasks found in the transcript.',
+      );
     } catch (err) {
       console.error('Task extraction error:', err);
+      const message = err instanceof Error ? err.message : 'Task extraction failed';
+      setTasks([]);
+      setTasksNeedReview(false);
+      setTaskExtractionState('error', message);
       throw err;
     } finally {
       setIsExtractingTasks(false);
     }
-  }, [notes, transcript, clinicKnowledgeBase, setTasks, setTasksNeedReview, setIsExtractingTasks]);
+  }, [transcript, setTasks, setTasksNeedReview, setIsExtractingTasks, setTaskExtractionState]);
 
   return { extractTasks, isExtractingTasks };
 }

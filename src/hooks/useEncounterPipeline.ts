@@ -106,9 +106,7 @@ export function useEncounterPipeline() {
         const taskResponse = await supabase.functions.invoke('generate-notes', {
           body: {
             transcript: `${TASK_EXTRACTION_PROMPT}\n\n${buildTaskExtractionInput({
-              notes,
               transcript,
-              clinicKnowledgeBase: store.clinicKnowledgeBase,
             })}`,
             templatePrompt: 'You are a veterinary task extraction specialist. Extract tasks and return ONLY valid JSON with evidence quotes for every task.',
             llmProvider: aiConfig.provider,
@@ -122,10 +120,7 @@ export function useEncounterPipeline() {
         if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
 
         const parsed = JSON.parse(cleanJson);
-        const tasks = normalizeExtractedTasks(
-          parsed,
-          `${transcript.trim()}\n\n${notes.trim()}`.trim(),
-        );
+        const tasks = normalizeExtractedTasks(parsed, transcript);
         store.setTasks(tasks);
       }
       updateStep(2, 'done');

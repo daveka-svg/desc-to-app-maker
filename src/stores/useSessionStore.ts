@@ -7,6 +7,7 @@ export type TabId = 'context' | 'transcript' | 'notes' | 'tasks' | 'chat';
 export type EncounterStatus = 'idle' | 'recording' | 'processing' | 'reviewing';
 export type TranscriptionConnectionState = 'connected' | 'reconnecting' | 'disconnected';
 export type ProcessingStepStatus = 'pending' | 'active' | 'done' | 'error';
+export type TaskExtractionStatus = 'idle' | 'extracting' | 'success' | 'empty' | 'error';
 export type ProcessingStepId =
   | 'stopping-recording'
   | 'finalizing-live-transcript'
@@ -155,6 +156,9 @@ interface SessionStore {
   addTask: (task: Omit<Task, 'id'>) => void;
   isExtractingTasks: boolean;
   setIsExtractingTasks: (v: boolean) => void;
+  taskExtractionStatus: TaskExtractionStatus;
+  taskExtractionMessage: string | null;
+  setTaskExtractionState: (status: TaskExtractionStatus, message?: string | null) => void;
 
   // Client Instructions
   clientInstructions: ClientInstructions | null;
@@ -454,6 +458,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   })),
   isExtractingTasks: false,
   setIsExtractingTasks: (v) => set({ isExtractingTasks: v }),
+  taskExtractionStatus: 'idle',
+  taskExtractionMessage: null,
+  setTaskExtractionState: (status, message = null) => set({
+    taskExtractionStatus: status,
+    taskExtractionMessage: message,
+  }),
 
   // Client Instructions
   clientInstructions: null,
@@ -570,6 +580,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       peIncludeInNotes: true,
       tasks: [],
       tasksNeedReview: false,
+      taskExtractionStatus: 'idle',
+      taskExtractionMessage: null,
       clientInstructions: null,
       chatMessages: [],
       activeTab: 'context',
@@ -684,6 +696,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       peEnabled: session.peEnabled,
       tasks: session.tasks,
       tasksNeedReview: false,
+      taskExtractionStatus: 'idle',
+      taskExtractionMessage: null,
       clientInstructions: session.clientInstructions,
       chatMessages: [],
       activeTab: 'notes',

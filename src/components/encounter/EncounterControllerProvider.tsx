@@ -110,6 +110,7 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
         store.clearPEAppliedSnapshot();
         store.setNotes('');
         store.setTasks([]);
+        store.setTaskExtractionState('idle');
         store.setClientInstructions(null);
       }
 

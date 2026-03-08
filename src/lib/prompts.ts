@@ -114,7 +114,7 @@ Section 2: Team Handover (Vet/Nurse)
 [next review date / triggers for earlier review]`,
 };
 
-export const TASK_EXTRACTION_PROMPT = `Given the consultation transcript and generated notes, extract only explicit action items that were directly requested, assigned, scheduled, or agreed. For each item, assign it to: "Vet" (clinical decisions, prescriptions, procedures), "Nurse" (sample collection, monitoring, fluid administration), or "Admin" (estimates, insurance, scheduling).
+export const TASK_EXTRACTION_PROMPT = `Given the consultation transcript, extract only explicit action items that were directly requested, assigned, scheduled, or agreed. For each item, assign it to: "Vet" (clinical decisions, prescriptions, procedures), "Nurse" (sample collection, monitoring, fluid administration), or "Admin" (estimates, insurance, scheduling).
 
 Write each task as a short, plain instruction (ideally under 12 words).
 Add an optional "deadline" only if the source explicitly includes a due date/time. Otherwise use null.
@@ -128,7 +128,7 @@ Return as JSON:
   "admin": [{"text": "...", "assignee": "Admin", "deadline": "ISO-8601 or null", "evidence": "..."}]
 }
 Rules:
-- Only include items explicitly mentioned in the transcript or notes.
+- Only include items explicitly mentioned in the transcript.
 - Do not convert general advice into a task unless someone was clearly asked to do it.
 - Do not invent reminders, monitoring steps, or follow-up tasks.
 - If no task exists for a category, return [].
