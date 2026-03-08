@@ -4,6 +4,11 @@ import {
   parseGeneralConsultGroundingPayload,
   renderGeneralConsultFromGroundedPayload,
 } from "./grounding.ts";
+import {
+  buildGeneralConsultExtractionUserPrompt,
+  DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+  GENERAL_CONSULT_PROMPT_WINNER,
+} from "./general-consult.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -184,29 +189,8 @@ Keep the language concise and professional. Use standard veterinary abbreviation
     const resolvedMaxTokens = Number.isFinite(maxOutputTokens) ? maxOutputTokens : 2000;
 
     if (requestType === "notes" && String(templateName || "").trim() === "General Consult") {
-      const extractionSystemPrompt = `You are a strict veterinary evidence extractor.
-Output ONLY JSON with this schema:
-{
-  "complexity": "routine" | "complex",
-  "sections": {
-    "TREATMENT": [{"text":"...", "evidence":"..."}],
-    "OBJECTIVE": [{"text":"...", "evidence":"..."}],
-    "ASSESSMENT": [{"text":"...", "evidence":"..."}],
-    "PLAN": [{"text":"...", "evidence":"..."}],
-    "COMMUNICATION": [{"text":"...", "evidence":"..."}]
-  }
-}
-
-Rules:
-- "evidence" must be a direct short quote copied from source text.
-- Use only explicit source content; do not infer or invent.
-- Keep text concise and clinically relevant to this consult only.
-- Omit empty sections by returning [].
-- Max items: TREATMENT/OBJECTIVE/COMMUNICATION up to 4 each; ASSESSMENT/PLAN up to 3 each.`;
-
-      const extractionUserPrompt = `Extract grounded consultation facts from this source:
-
-${transcript}`;
+      const extractionSystemPrompt = DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT;
+      const extractionUserPrompt = buildGeneralConsultExtractionUserPrompt(String(transcript || ""));
 
       const groundedExtraction = await callInceptionWithFallbacks(
         INCEPTIONLABS_API_KEY,
@@ -231,6 +215,7 @@ ${transcript}`;
         provider: "inceptionlabs",
         model: groundedExtraction.modelUsed,
         grounded: true,
+        promptCandidate: GENERAL_CONSULT_PROMPT_WINNER,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

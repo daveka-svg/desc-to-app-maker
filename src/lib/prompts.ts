@@ -5,24 +5,22 @@ export const SYSTEM_PROMPT = `You are a veterinary clinical scribe. Use ONLY the
 export const TEMPLATES: Record<string, string> = {
   'General Consult': `(Use concise UK veterinary documentation style with common abbreviations where relevant (eg BAR, QAR, NAD, CRT<2, RR, HR, MM, WNL). Use these exact ALL-CAPS headings in this order and render only headings that have explicit source evidence:
 
-TREATMENT:
+SUBJECTIVE:
 OBJECTIVE:
 ASSESSMENT:
 PLAN:
-COMMUNICATION:
 
 Formatting constraints:
-- Routine consult target: 150-220 words.
+- Routine consult target: 120-220 words.
 - Extend to 300-400 words only for clearly complicated consults.
-- TREATMENT, OBJECTIVE, COMMUNICATION: short bullet points only.
-- ASSESSMENT and PLAN: concise paragraph style (max 2 sentences each).
+- Telegraphic paragraph fragments only, no bullets, no markdown emphasis.
+- Remove repeated recap statements, greetings, jokes, and irrelevant side history.
 
 Section scope:
-- TREATMENT: relevant history, current meds/dose/admin challenges, current concerns.
+- SUBJECTIVE: owner-reported history, timeline, home meds/dose/admin challenges, current concerns, relevant exposure/dietary indiscretion discussed today.
 - OBJECTIVE: explicit vitals and objective exam findings.
 - ASSESSMENT: only clinician-stated assessment from source.
-- PLAN: only explicitly discussed treatment/follow-up plan.
-- COMMUNICATION: only owner communication and agreed next steps.
+- PLAN: only explicitly discussed treatment, red flags, follow-up, owner communication, and admin actions.
 
 Strict rules:
 - Use only transcript/context/PE/vet-notes content.

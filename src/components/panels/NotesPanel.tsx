@@ -264,6 +264,7 @@ export default function NotesPanel() {
                         'PE',
                         'PLAN',
                         'ASSESSMENT',
+                        'SUBJECTIVE',
                         'TREATMENT',
                         'OBJECTIVE',
                         'COMMUNICATION',
