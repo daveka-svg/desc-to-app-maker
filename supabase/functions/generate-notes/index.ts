@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
   filterGroundedGeneralConsultPayload,
+  mergeGeneralConsultGroundingPayloads,
   parseGeneralConsultGroundingPayload,
   renderGeneralConsultFromGroundedPayload,
 } from "./grounding.ts";
@@ -9,6 +10,17 @@ import {
   DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
   GENERAL_CONSULT_PROMPT_WINNER,
 } from "./general-consult.ts";
+import {
+  buildChunkedNoteSources,
+  buildChunkReductionSystemPrompt,
+  buildChunkReductionUserPrompt,
+  buildFinalChunkMergeSystemPrompt,
+  buildFinalChunkMergeUserPrompt,
+  buildNoteSource,
+  buildStaticNoteContext,
+  parseNoteSource,
+  shouldChunkNoteTranscript,
+} from "./long-notes.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -218,6 +230,164 @@ const callModelWithFallbacks = async (
   return { content, modelUsed };
 };
 
+const buildClinicalNotesUserPrompt = (
+  sourceText: string,
+  peData: unknown,
+): string => {
+  const peContext = peData
+    ? `\n\nPhysical Examination Data:\n${JSON.stringify(peData, null, 2)}`
+    : "";
+  return `Generate clinical notes from the following consultation source:${peContext}\n\nSource:\n${sourceText}`;
+};
+
+const buildModelSummary = (modelsUsed: string[]): string => {
+  const uniqueModels = Array.from(new Set(modelsUsed.filter(Boolean)));
+  if (uniqueModels.length === 0) return "";
+  if (uniqueModels.length === 1) return uniqueModels[0];
+  return uniqueModels.join(", ");
+};
+
+const generateGeneralConsultNote = async (
+  sourceText: string,
+  provider: LlmProvider,
+  apiKey: string,
+  modelCandidates: string[],
+  maxOutputTokens: number,
+) => {
+  const parsedSource = parseNoteSource(sourceText);
+  const fullSource = buildNoteSource(parsedSource) || String(sourceText || "").trim();
+  const noteChunks = shouldChunkNoteTranscript(parsedSource.consultationTranscript)
+    ? buildChunkedNoteSources(fullSource)
+    : [parsedSource];
+
+  const payloads = [];
+  const modelsUsed: string[] = [];
+
+  for (const chunk of noteChunks) {
+    const chunkSource = buildNoteSource(chunk) || chunk.consultationTranscript.trim();
+    const groundedExtraction = await callModelWithFallbacks(
+      provider,
+      apiKey,
+      modelCandidates,
+      DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+      buildGeneralConsultExtractionUserPrompt(chunkSource),
+      Math.max(maxOutputTokens, 2600),
+    );
+
+    const parsedPayload = parseGeneralConsultGroundingPayload(
+      stripCodeFences(groundedExtraction.content),
+    );
+    if (!parsedPayload) {
+      throw new Error("Could not parse grounded extraction payload");
+    }
+
+    payloads.push(parsedPayload);
+    modelsUsed.push(groundedExtraction.modelUsed);
+  }
+
+  const mergedPayload = mergeGeneralConsultGroundingPayloads(payloads);
+  const filteredPayload = filterGroundedGeneralConsultPayload(mergedPayload, fullSource);
+
+  return {
+    content: sanitizePlainClinicalText(
+      renderGeneralConsultFromGroundedPayload(filteredPayload),
+    ),
+    model: buildModelSummary(modelsUsed),
+    chunked: noteChunks.length > 1,
+    chunkCount: noteChunks.length,
+  };
+};
+
+const generateStandardNote = async (
+  sourceText: string,
+  peData: unknown,
+  provider: LlmProvider,
+  apiKey: string,
+  modelCandidates: string[],
+  systemPrompt: string,
+  maxOutputTokens: number,
+) => {
+  const generated = await callModelWithFallbacks(
+    provider,
+    apiKey,
+    modelCandidates,
+    systemPrompt,
+    buildClinicalNotesUserPrompt(sourceText, peData),
+    maxOutputTokens,
+  );
+
+  return {
+    content: sanitizePlainClinicalText(generated.content),
+    model: generated.modelUsed,
+    chunked: false,
+    chunkCount: 1,
+  };
+};
+
+const generateChunkedStandardNote = async (
+  sourceText: string,
+  provider: LlmProvider,
+  apiKey: string,
+  modelCandidates: string[],
+  systemPrompt: string,
+  maxOutputTokens: number,
+) => {
+  const parsedSource = parseNoteSource(sourceText);
+  const noteChunks = buildChunkedNoteSources(sourceText);
+  if (noteChunks.length <= 1) {
+    return null;
+  }
+
+  const staticContext = buildStaticNoteContext(parsedSource);
+  const partialNotes: string[] = [];
+  const modelsUsed: string[] = [];
+
+  for (let index = 0; index < noteChunks.length; index += 1) {
+    const chunkSource = buildNoteSource(noteChunks[index]) || noteChunks[index].consultationTranscript.trim();
+    const partial = await callModelWithFallbacks(
+      provider,
+      apiKey,
+      modelCandidates,
+      buildChunkReductionSystemPrompt(systemPrompt),
+      buildChunkReductionUserPrompt(chunkSource, index, noteChunks.length),
+      maxOutputTokens,
+    );
+
+    const partialNote = sanitizePlainClinicalText(partial.content);
+    if (partialNote) {
+      partialNotes.push(partialNote);
+    }
+    modelsUsed.push(partial.modelUsed);
+  }
+
+  if (partialNotes.length === 0) {
+    return {
+      content: "",
+      model: buildModelSummary(modelsUsed),
+      chunked: true,
+      chunkCount: noteChunks.length,
+    };
+  }
+
+  const merged = await callModelWithFallbacks(
+    provider,
+    apiKey,
+    modelCandidates,
+    buildFinalChunkMergeSystemPrompt(systemPrompt),
+    buildFinalChunkMergeUserPrompt(staticContext, partialNotes),
+    maxOutputTokens,
+  );
+
+  modelsUsed.push(merged.modelUsed);
+
+  return {
+    content: sanitizePlainClinicalText(merged.content),
+    model: buildModelSummary(modelsUsed),
+    chunked: true,
+    chunkCount: noteChunks.length,
+  };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -264,35 +434,21 @@ Keep the language concise and professional. Use standard veterinary abbreviation
     const resolvedMaxTokens = Number.isFinite(maxOutputTokens) ? maxOutputTokens : 2000;
 
     if (requestType === "notes" && String(templateName || "").trim() === "General Consult") {
-      const extractionSystemPrompt = DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT;
-      const extractionUserPrompt = buildGeneralConsultExtractionUserPrompt(String(transcript || ""));
-
-      const groundedExtraction = await callModelWithFallbacks(
+      const generated = await generateGeneralConsultNote(
+        String(transcript || ""),
         provider,
         resolvedApiKey,
         modelCandidates,
-        extractionSystemPrompt,
-        extractionUserPrompt,
-        Math.max(resolvedMaxTokens, 2600),
-      );
-
-      const parsedPayload = parseGeneralConsultGroundingPayload(
-        stripCodeFences(groundedExtraction.content),
-      );
-      if (!parsedPayload) {
-        throw new Error("Could not parse grounded extraction payload");
-      }
-
-      const filteredPayload = filterGroundedGeneralConsultPayload(parsedPayload, String(transcript || ""));
-      const content = sanitizePlainClinicalText(
-        renderGeneralConsultFromGroundedPayload(filteredPayload),
+        resolvedMaxTokens,
       );
 
       return new Response(JSON.stringify({
-        content,
+        content: generated.content,
         provider,
-        model: groundedExtraction.modelUsed,
+        model: generated.model,
         grounded: true,
+        chunked: generated.chunked,
+        chunkCount: generated.chunkCount,
         promptCandidate: GENERAL_CONSULT_PROMPT_WINNER,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -300,22 +456,40 @@ Keep the language concise and professional. Use standard veterinary abbreviation
     }
 
     const systemPrompt = templatePrompt || defaultSystemPrompt;
-    const peContext = peData ? `\n\nPhysical Examination Data:\n${JSON.stringify(peData, null, 2)}` : "";
-    const userPrompt = `Generate clinical notes from the following consultation transcript:${peContext}\n\nTranscript:\n${transcript}`;
-
-    const generated = await callModelWithFallbacks(
-      provider,
-      resolvedApiKey,
-      modelCandidates,
-      systemPrompt,
-      userPrompt,
-      resolvedMaxTokens,
-    );
+    const parsedSource = parseNoteSource(String(transcript || ""));
+    const generated = shouldChunkNoteTranscript(parsedSource.consultationTranscript)
+      ? await generateChunkedStandardNote(
+        String(transcript || ""),
+        provider,
+        resolvedApiKey,
+        modelCandidates,
+        systemPrompt,
+        resolvedMaxTokens,
+      ) || await generateStandardNote(
+        String(transcript || ""),
+        peData,
+        provider,
+        resolvedApiKey,
+        modelCandidates,
+        systemPrompt,
+        resolvedMaxTokens,
+      )
+      : await generateStandardNote(
+        String(transcript || ""),
+        peData,
+        provider,
+        resolvedApiKey,
+        modelCandidates,
+        systemPrompt,
+        resolvedMaxTokens,
+      );
 
     return new Response(JSON.stringify({
-      content: sanitizePlainClinicalText(generated.content),
+      content: generated.content,
       provider,
-      model: generated.modelUsed,
+      model: generated.model,
+      chunked: generated.chunked,
+      chunkCount: generated.chunkCount,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

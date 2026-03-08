@@ -165,6 +165,25 @@ export const filterGroundedGeneralConsultPayload = (
   return next;
 };
 
+export const mergeGeneralConsultGroundingPayloads = (
+  payloads: GeneralConsultGroundingPayload[],
+): GeneralConsultGroundingPayload => {
+  const merged: GeneralConsultGroundingPayload = {
+    complexity: payloads.some((payload) => payload.complexity === "complex")
+      ? "complex"
+      : "routine",
+    sections: emptySections(),
+  };
+
+  for (const payload of payloads) {
+    for (const section of SECTION_ORDER) {
+      merged.sections[section].push(...payload.sections[section]);
+    }
+  }
+
+  return merged;
+};
+
 const sectionHasContent = (items: GroundingItem[]): boolean => items.length > 0;
 
 const trimToWordBudget = (text: string, maxWords: number): string => {
