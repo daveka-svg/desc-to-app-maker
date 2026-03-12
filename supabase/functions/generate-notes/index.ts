@@ -6,8 +6,10 @@ import {
   renderGeneralConsultFromGroundedPayload,
 } from "./grounding.ts";
 import {
+  buildGeneralConsultCompletenessUserPrompt,
   buildGeneralConsultVerificationUserPrompt,
   buildGeneralConsultExtractionUserPrompt,
+  GENERAL_CONSULT_COMPLETENESS_PROMPT,
   DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
   GENERAL_CONSULT_VERIFICATION_PROMPT,
   GENERAL_CONSULT_PROMPT_WINNER,
@@ -315,7 +317,41 @@ const generateGeneralConsultNote = async (
     console.error("General consult verifier failed, falling back to extracted payload:", error);
   }
 
-  const filteredPayload = filterGroundedGeneralConsultPayload(verifiedPayload, fullSource);
+  let filteredPayload = filterGroundedGeneralConsultPayload(verifiedPayload, fullSource);
+
+  try {
+    const completeness = await callModelWithFallbacks(
+      provider,
+      apiKey,
+      modelCandidates,
+      GENERAL_CONSULT_COMPLETENESS_PROMPT,
+      buildGeneralConsultCompletenessUserPrompt(
+        fullSource,
+        JSON.stringify(filteredPayload),
+      ),
+      Math.min(Math.max(maxOutputTokens, 1400), 2200),
+    );
+
+    const parsedCompletenessPayload = parseGeneralConsultGroundingPayload(
+      stripCodeFences(completeness.content),
+    );
+    if (parsedCompletenessPayload) {
+      const filteredCompletenessPayload = filterGroundedGeneralConsultPayload(
+        parsedCompletenessPayload,
+        fullSource,
+      );
+      filteredPayload = filterGroundedGeneralConsultPayload(
+        mergeGeneralConsultGroundingPayloads([
+          filteredPayload,
+          filteredCompletenessPayload,
+        ]),
+        fullSource,
+      );
+      modelsUsed.push(completeness.modelUsed);
+    }
+  } catch (error) {
+    console.error("General consult completeness pass failed, keeping verified payload:", error);
+  }
 
   return {
     content: sanitizePlainClinicalText(

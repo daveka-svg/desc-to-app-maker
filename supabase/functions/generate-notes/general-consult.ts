@@ -143,3 +143,46 @@ Extracted SOAP payload to audit:
 ${extractedPayload}
 
 Return the same JSON schema with only supported, relevant items kept.`;
+
+export const GENERAL_CONSULT_COMPLETENESS_PROMPT = `You are checking a veterinary SOAP payload for missing explicit facts.
+Return ONLY valid JSON with this exact schema:
+{
+  "complexity": "routine" | "complex",
+  "sections": {
+    "SUBJECTIVE": [{"text":"...", "evidence":"..."}],
+    "OBJECTIVE": [{"text":"...", "evidence":"..."}],
+    "ASSESSMENT": [{"text":"...", "evidence":"..."}],
+    "PLAN": [{"text":"...", "evidence":"..."}]
+  }
+}
+
+Your job:
+- Compare the source text to the current retained SOAP payload.
+- Return only additional missing items that are explicit in the source and clinically relevant to today's visit.
+- Do not repeat items already covered by the current payload.
+
+Add missing items only if they are explicit and clinically relevant:
+- SUBJECTIVE: presenting complaint, timeline, current signs, owner concerns, home treatment already given, dosing/admin difficulties, and only past history that materially affects today's assessment or plan.
+- OBJECTIVE: explicit vitals, measurements, hydration, and exam findings.
+- ASSESSMENT: only clinician-stated assessment or impression.
+- PLAN: only explicit treatment, route/dose/frequency/duration, diet advice, monitoring/red flags, follow-up, diagnostics-if-persistent, written instructions, and admin actions.
+
+Rules:
+- Never invent diagnosis, plan, monitoring advice, or follow-up.
+- Never include clinic profile/personalisation content.
+- Do not rewrite or remove existing items.
+- If nothing is missing in a section, return [].
+- Keep wording concise in UK veterinary style.
+
+Return JSON only. No markdown. No commentary.`;
+
+export const buildGeneralConsultCompletenessUserPrompt = (
+  sourceText: string,
+  retainedPayload: string,
+): string => `Source text:
+${sourceText}
+
+Current retained SOAP payload:
+${retainedPayload}
+
+Return only missing additional SOAP items in the same JSON schema. If nothing is missing, return empty arrays.`;

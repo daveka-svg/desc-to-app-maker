@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   filterGroundedGeneralConsultPayload,
+  mergeGeneralConsultGroundingPayloads,
   parseGeneralConsultGroundingPayload,
   renderGeneralConsultFromGroundedPayload,
 } from '../../supabase/functions/generate-notes/grounding';
@@ -228,6 +229,58 @@ describe('general consult grounding', () => {
     const rendered = renderGeneralConsultFromGroundedPayload(filtered);
     expect(rendered.match(/15:30/g)).toHaveLength(1);
     expect(rendered.indexOf('SUBJECTIVE:')).toBeLessThan(rendered.indexOf('PLAN:'));
+  });
+
+  it('can merge missing explicit items back after an incomplete first pass', () => {
+    const source = `
+      Consultation transcript:
+      Owner: Vomiting since yesterday and quieter today.
+      Vet: Impression is mild gastritis.
+      Vet: Plan bland diet for 3 days and monitor for further vomiting.
+    `;
+
+    const firstPass = parseGeneralConsultGroundingPayload(JSON.stringify({
+      complexity: 'routine',
+      sections: {
+        SUBJECTIVE: [
+          {
+            text: 'Vomiting since yesterday, quieter today',
+            evidence: 'Vomiting since yesterday and quieter today',
+          },
+        ],
+        OBJECTIVE: [],
+        ASSESSMENT: [
+          {
+            text: 'Mild gastritis',
+            evidence: 'Impression is mild gastritis',
+          },
+        ],
+        PLAN: [],
+      },
+    }));
+
+    const completenessPass = parseGeneralConsultGroundingPayload(JSON.stringify({
+      complexity: 'routine',
+      sections: {
+        SUBJECTIVE: [],
+        OBJECTIVE: [],
+        ASSESSMENT: [],
+        PLAN: [
+          {
+            text: 'Bland diet x3 days; monitor for further vomiting',
+            evidence: 'Plan bland diet for 3 days and monitor for further vomiting',
+          },
+        ],
+      },
+    }));
+
+    const merged = filterGroundedGeneralConsultPayload(
+      mergeGeneralConsultGroundingPayloads([firstPass!, completenessPass!]),
+      source,
+    );
+
+    expect(merged.sections.PLAN).toHaveLength(1);
+    expect(merged.sections.PLAN[0].text).toContain('Bland diet');
   });
 
   it('matches the Milo SOAP fixture and keeps only explicit plan items', () => {
