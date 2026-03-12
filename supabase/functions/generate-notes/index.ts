@@ -6,13 +6,9 @@ import {
   renderGeneralConsultFromGroundedPayload,
 } from "./grounding.ts";
 import {
-  buildGeneralConsultCompletenessUserPrompt,
-  buildGeneralConsultVerificationUserPrompt,
   buildGeneralConsultExtractionUserPrompt,
-  GENERAL_CONSULT_COMPLETENESS_PROMPT,
   DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
-  GENERAL_CONSULT_VERIFICATION_PROMPT,
-  GENERAL_CONSULT_PROMPT_WINNER,
+  GENERAL_CONSULT_PROMPT_VERSION,
 } from "./general-consult.ts";
 import {
   buildChunkedNoteSources,
@@ -360,67 +356,7 @@ const generateGeneralConsultNote = async (
   }
 
   const mergedPayload = mergeGeneralConsultGroundingPayloads(payloads);
-  let verifiedPayload = mergedPayload;
-
-  try {
-    const verified = await callModelWithFallbacks(
-      provider,
-      apiKey,
-      modelCandidates,
-      GENERAL_CONSULT_VERIFICATION_PROMPT,
-      buildGeneralConsultVerificationUserPrompt(
-        fullSource,
-        JSON.stringify(mergedPayload),
-      ),
-      Math.min(Math.max(maxOutputTokens, 1800), 2600),
-    );
-
-    const parsedVerifiedPayload = parseGeneralConsultGroundingPayload(
-      stripCodeFences(verified.content),
-    );
-    if (parsedVerifiedPayload) {
-      verifiedPayload = parsedVerifiedPayload;
-      modelsUsed.push(verified.modelUsed);
-    }
-  } catch (error) {
-    console.error("General consult verifier failed, falling back to extracted payload:", error);
-  }
-
-  let filteredPayload = filterGroundedGeneralConsultPayload(verifiedPayload, fullSource);
-
-  try {
-    const completeness = await callModelWithFallbacks(
-      provider,
-      apiKey,
-      modelCandidates,
-      GENERAL_CONSULT_COMPLETENESS_PROMPT,
-      buildGeneralConsultCompletenessUserPrompt(
-        fullSource,
-        JSON.stringify(filteredPayload),
-      ),
-      Math.min(Math.max(maxOutputTokens, 1400), 2200),
-    );
-
-    const parsedCompletenessPayload = parseGeneralConsultGroundingPayload(
-      stripCodeFences(completeness.content),
-    );
-    if (parsedCompletenessPayload) {
-      const filteredCompletenessPayload = filterGroundedGeneralConsultPayload(
-        parsedCompletenessPayload,
-        fullSource,
-      );
-      filteredPayload = filterGroundedGeneralConsultPayload(
-        mergeGeneralConsultGroundingPayloads([
-          filteredPayload,
-          filteredCompletenessPayload,
-        ]),
-        fullSource,
-      );
-      modelsUsed.push(completeness.modelUsed);
-    }
-  } catch (error) {
-    console.error("General consult completeness pass failed, keeping verified payload:", error);
-  }
+  const filteredPayload = filterGroundedGeneralConsultPayload(mergedPayload, fullSource);
 
   return {
     content: sanitizePlainClinicalText(
@@ -592,7 +528,7 @@ Keep the language concise and professional. Use standard veterinary abbreviation
         grounded: true,
         chunked: generated.chunked,
         chunkCount: generated.chunkCount,
-        promptCandidate: GENERAL_CONSULT_PROMPT_WINNER,
+        promptCandidate: GENERAL_CONSULT_PROMPT_VERSION,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
