@@ -165,6 +165,9 @@ const normalizeEvidence = (value: string): string => {
 
 const compact = (value: string): string => value.replace(/\s+/g, " ").trim();
 
+const capitaliseSentence = (value: string): string =>
+  value.replace(/^[a-z]/, (match) => match.toUpperCase());
+
 const escapeRegex = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -479,7 +482,16 @@ const renderSectionBody = (items: GroundingItem[]): string => {
     .map((item) => compact(item.text).replace(/\s*[.;]+\s*$/g, "").trim())
     .filter(Boolean);
   if (fragments.length === 0) return "";
-  const rendered = fragments.join("; ").trim();
+  const rendered = fragments
+    .flatMap((fragment) =>
+      fragment
+        .split(/\s*;\s*|\s+[-–—]\s+/)
+        .map((part) => compact(part).replace(/\s*[.;]+\s*$/g, "").trim())
+        .filter(Boolean)
+        .map(capitaliseSentence),
+    )
+    .join(". ")
+    .trim();
   if (!rendered) return "";
   return /[.!?]$/.test(rendered) ? rendered : `${rendered}.`;
 };
