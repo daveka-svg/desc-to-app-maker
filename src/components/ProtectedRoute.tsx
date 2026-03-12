@@ -23,8 +23,13 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       setAuthState('allowed');
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      checkAccess(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Ignore transient events that occur during token refresh
+      if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        checkAccess(session);
+      } else if (event === 'SIGNED_OUT') {
+        setAuthState('no-session');
+      }
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
       checkAccess(session);
