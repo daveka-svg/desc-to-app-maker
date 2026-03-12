@@ -40,8 +40,22 @@ export async function extractLlmText(raw: unknown): Promise<string> {
   return text.trim();
 }
 
+const stripPlaceholderSections = (value: string): string =>
+  value
+    .replace(
+      /(?:^|\n\n)[A-Z][A-Z /()&-]*:?\s+(?:(?:No|None|Not)\b[^\n]*(?:documented|recorded|provided|discussed|mentioned|available|noted)\.?|No explicit assessment documented\.?)(?=\n\n|$)/g,
+      '',
+    )
+    .replace(
+      /(?:^|\n\n)[A-Z][A-Z /()&-]*:?\n(?:(?:No|None|Not)\b[^\n]*(?:documented|recorded|provided|discussed|mentioned|available|noted)\.?|No explicit assessment documented\.?)(?=\n\n|$)/g,
+      '',
+    )
+    .replace(/(?:^|\n\n)[A-Z][A-Z /()&-]*:[ \t]*(?=\n\n|$)/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
 export function sanitizePlainClinicalText(value: string): string {
-  return value
+  const cleaned = value
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/__([^_]+)__/g, '$1')
     .replace(/^\s*#{1,6}\s+/gm, '')
@@ -49,4 +63,6 @@ export function sanitizePlainClinicalText(value: string): string {
     .replace(/__/g, '')
     .replace(/[ \t]+\n/g, '\n')
     .trim();
+
+  return stripPlaceholderSections(cleaned);
 }
