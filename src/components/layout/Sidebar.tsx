@@ -458,17 +458,20 @@ export default function Sidebar() {
       clearPEAppliedSnapshot();
     }
 
-    const { data: noteData } = await supabase
+    const { data: noteRows } = await supabase
       .from('notes')
-      .select('content, transcript, supplemental_context, vet_notes')
+      .select('content, transcript, supplemental_context, vet_notes, updated_at, created_at')
       .eq('session_id', session.id)
-      .single();
+      .order('updated_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const noteData = noteRows?.[0] as any;
     if (noteData) {
-      const nd = noteData as any;
-      setNotes(nd.content || '');
-      setTranscript(nd.transcript || '');
-      setSupplementalContext(nd.supplemental_context || '');
-      setVetNotes(nd.vet_notes || '');
+      setNotes(noteData.content || '');
+      setTranscript(noteData.transcript || '');
+      setSupplementalContext(noteData.supplemental_context || '');
+      setVetNotes(noteData.vet_notes || '');
     } else {
       setNotes('');
       setTranscript('');
