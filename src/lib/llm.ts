@@ -43,11 +43,11 @@ export async function extractLlmText(raw: unknown): Promise<string> {
 const stripPlaceholderSections = (value: string): string =>
   value
     .replace(
-      /(?:^|\n\n)[A-Z][A-Z /()&-]*:?\s+(?:(?:No|None|Not)\b[^\n]*(?:documented|recorded|provided|discussed|mentioned|available|noted)\.?|No explicit assessment documented\.?)(?=\n\n|$)/g,
+      /(?:^|\n\n)[A-Z][A-Z /()&-]*:?\s+(?:(?:No|None|Not)\b[^\n]*(?:documented|recorded|provided|discussed|mentioned|available|noted|stated)\.?|No explicit assessment documented\.?)(?=\n\n|$)/g,
       '',
     )
     .replace(
-      /(?:^|\n\n)[A-Z][A-Z /()&-]*:?\n(?:(?:No|None|Not)\b[^\n]*(?:documented|recorded|provided|discussed|mentioned|available|noted)\.?|No explicit assessment documented\.?)(?=\n\n|$)/g,
+      /(?:^|\n\n)[A-Z][A-Z /()&-]*:?\n(?:(?:No|None|Not)\b[^\n]*(?:documented|recorded|provided|discussed|mentioned|available|noted|stated)\.?|No explicit assessment documented\.?)(?=\n\n|$)/g,
       '',
     )
     .replace(/(?:^|\n\n)[A-Z][A-Z /()&-]*:[ \t]*(?=\n\n|$)/g, '')

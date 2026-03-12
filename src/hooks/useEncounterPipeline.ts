@@ -7,8 +7,9 @@ import { SYSTEM_PROMPT, TEMPLATES, compilePEReport, TASK_EXTRACTION_PROMPT, CLIE
 import { extractLlmText, sanitizePlainClinicalText } from '@/lib/llm';
 import { getTemplatePrompt } from '@/lib/templatePrompts';
 import { getAiGenerationConfig } from '@/lib/appSettings';
-import { buildTaskExtractionInput } from '@/lib/clinicContext';
+import { buildNotesGenerationInput, buildTaskExtractionInput } from '@/lib/clinicContext';
 import { normalizeExtractedTasks } from '@/lib/taskExtraction';
+import { inferTemplateKind } from '@/lib/templateKind';
 
 interface PipelineStep {
   label: string;
@@ -66,22 +67,32 @@ export function useEncounterPipeline() {
     // Generate notes via edge function
     try {
       const peData = store.peEnabled ? store.peData : null;
-      const fallbackTemplate = TEMPLATES[store.selectedTemplate] || TEMPLATES['General Consult'];
-      const templatePrompt = await getTemplatePrompt(store.selectedTemplate, fallbackTemplate);
-      const peReport = peData ? compilePEReport(peData) : '';
+      const templateToUse = store.selectedTemplate;
+      const fallbackTemplate = TEMPLATES[templateToUse] || TEMPLATES['General Consult'];
+      const templatePrompt = await getTemplatePrompt(templateToUse, fallbackTemplate);
+      const templateKind = inferTemplateKind(templateToUse, templatePrompt);
+      const includeClinicalContext = store.peEnabled && store.peIncludeInNotes;
+      const includeClinicContext = templateKind !== 'general_consult';
+      const peReport = includeClinicalContext && peData ? compilePEReport(peData) : '';
+      const vetNotesForGeneration = includeClinicalContext ? store.vetNotes : '';
       
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
-      const userContent = peReport
-        ? `${transcript}\n\nPhysical Examination:\n${peReport}`
-        : transcript;
+      const userContent = buildNotesGenerationInput({
+        transcript,
+        peReport,
+        vetNotes: vetNotesForGeneration,
+        clinicKnowledgeBase: store.clinicKnowledgeBase,
+        includeClinicContext,
+      });
 
       const response = await supabase.functions.invoke('generate-notes', {
         body: {
           transcript: userContent,
-          peData,
+          peData: includeClinicalContext ? peData : null,
           templatePrompt: fullPrompt,
           requestType: 'notes',
-          templateName: store.selectedTemplate,
+          templateName: templateToUse,
+          templateKind,
           llmProvider: aiConfig.provider,
           llmModel: aiConfig.model,
         },

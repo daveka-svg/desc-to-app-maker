@@ -6,6 +6,7 @@ import { extractLlmText, sanitizePlainClinicalText } from '@/lib/llm';
 import { getTemplatePrompt } from '@/lib/templatePrompts';
 import { buildNotesGenerationInput } from '@/lib/clinicContext';
 import { getAiGenerationConfig } from '@/lib/appSettings';
+import { inferTemplateKind } from '@/lib/templateKind';
 
 export function useNoteGeneration() {
   const transcript = useSessionStore((s) => s.transcript);
@@ -32,8 +33,9 @@ export function useNoteGeneration() {
       const templateToUse = templateOverride || selectedTemplate;
       const fallbackTemplate = TEMPLATES[templateToUse] || TEMPLATES['General Consult'];
       const templatePrompt = await getTemplatePrompt(templateToUse, fallbackTemplate);
+      const templateKind = inferTemplateKind(templateToUse, templatePrompt);
       const includeClinicalContext = peEnabled && peIncludeInNotes;
-      const includeClinicContext = templateToUse !== 'General Consult';
+      const includeClinicContext = templateKind !== 'general_consult';
       const peReport = includeClinicalContext ? compilePEReport(peData) : '';
       const vetNotesForGeneration = includeClinicalContext ? vetNotes : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
@@ -53,6 +55,7 @@ export function useNoteGeneration() {
           templatePrompt: fullPrompt,
           requestType: 'notes',
           templateName: templateToUse,
+          templateKind,
           llmProvider: aiConfig.provider,
           llmModel: aiConfig.model,
         },

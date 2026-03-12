@@ -77,6 +77,7 @@ const extractProviderContent = (payload: Record<string, unknown>): string => {
 };
 
 type LlmProvider = "inception" | "openai";
+type TemplateKind = "general_consult" | "standard";
 
 const callInception = async (
   apiKey: string,
@@ -196,11 +197,11 @@ const stripCodeFences = (value: string): string => {
 const stripPlaceholderSections = (value: string): string =>
   value
     .replace(
-      /(?:^|\n\n)[A-Z][A-Z /()&-]*:?\s+(?:(?:No|None|Not)\b[^\n]*(?:documented|recorded|provided|discussed|mentioned|available|noted)\.?|No explicit assessment documented\.?)(?=\n\n|$)/g,
+      /(?:^|\n\n)[A-Z][A-Z /()&-]*:?\s+(?:(?:No|None|Not)\b[^\n]*(?:documented|recorded|provided|discussed|mentioned|available|noted|stated)\.?|No explicit assessment documented\.?)(?=\n\n|$)/g,
       "",
     )
     .replace(
-      /(?:^|\n\n)[A-Z][A-Z /()&-]*:?\n(?:(?:No|None|Not)\b[^\n]*(?:documented|recorded|provided|discussed|mentioned|available|noted)\.?|No explicit assessment documented\.?)(?=\n\n|$)/g,
+      /(?:^|\n\n)[A-Z][A-Z /()&-]*:?\n(?:(?:No|None|Not)\b[^\n]*(?:documented|recorded|provided|discussed|mentioned|available|noted|stated)\.?|No explicit assessment documented\.?)(?=\n\n|$)/g,
       "",
     )
     .replace(/(?:^|\n\n)[A-Z][A-Z /()&-]*:[ \t]*(?=\n\n|$)/g, "")
@@ -224,6 +225,47 @@ const normalizeTemplateName = (value: unknown): string =>
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+
+const normalizePrompt = (value: unknown): string =>
+  String(value ?? "")
+    .replace(/\r\n/g, "\n")
+    .toUpperCase();
+
+const hasSoapHeadings = (value: unknown): boolean =>
+  ["SUBJECTIVE:", "OBJECTIVE:", "ASSESSMENT:", "PLAN:"].every((heading) =>
+    normalizePrompt(value).includes(heading)
+  );
+
+const hasLegacyGeneralConsultHeadings = (value: unknown): boolean =>
+  ["TREATMENT:", "OBJECTIVE:", "ASSESSMENT:", "PLAN:"].every((heading) =>
+    normalizePrompt(value).includes(heading)
+  ) && /COMMUNICATIONS?:/i.test(String(value ?? ""));
+
+const inferTemplateKind = (templateName: unknown, templatePrompt: unknown): TemplateKind => {
+  const normalizedName = normalizeTemplateName(templateName);
+  const prompt = String(templatePrompt ?? "");
+
+  if (
+    normalizedName === "general consult" ||
+    normalizedName === "general consultation" ||
+    (normalizedName.includes("general") && normalizedName.includes("consult"))
+  ) {
+    return "general_consult";
+  }
+
+  if (hasSoapHeadings(prompt)) {
+    return "general_consult";
+  }
+
+  if (
+    hasLegacyGeneralConsultHeadings(prompt) &&
+    /uk veterinary documentation style|only include if explicitly mentioned|do not make things up/i.test(prompt)
+  ) {
+    return "general_consult";
+  }
+
+  return "standard";
+};
 
 const isGeneralConsultTemplate = (value: unknown): boolean => {
   const normalized = normalizeTemplateName(value);
@@ -490,6 +532,7 @@ serve(async (req) => {
       templatePrompt,
       requestType,
       templateName,
+      templateKind,
       llmProvider,
       llmModel,
     } = await req.json();
@@ -525,7 +568,15 @@ Keep the language concise and professional. Use standard veterinary abbreviation
     const maxOutputTokens = Number(Deno.env.get("INCEPTIONLABS_MAX_OUTPUT_TOKENS") || "2000");
     const resolvedMaxTokens = Number.isFinite(maxOutputTokens) ? maxOutputTokens : 2000;
 
-    if (requestType === "notes" && isGeneralConsultTemplate(templateName)) {
+    const resolvedTemplateKind =
+      templateKind === "general_consult" || templateKind === "standard"
+        ? templateKind as TemplateKind
+        : inferTemplateKind(templateName, templatePrompt);
+
+    if (
+      requestType === "notes" &&
+      (resolvedTemplateKind === "general_consult" || isGeneralConsultTemplate(templateName))
+    ) {
       const generated = await generateGeneralConsultNote(
         String(transcript || ""),
         provider,
