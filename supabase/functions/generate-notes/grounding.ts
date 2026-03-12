@@ -21,12 +21,133 @@ const SECTION_ORDER: GeneralSection[] = [
   "PLAN",
 ];
 
-const MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
+const DEFAULT_MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
   SUBJECTIVE: 6,
   OBJECTIVE: 5,
   ASSESSMENT: 2,
   PLAN: 6,
 };
+
+const LONG_SOURCE_MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
+  SUBJECTIVE: 6,
+  OBJECTIVE: 5,
+  ASSESSMENT: 2,
+  PLAN: 6,
+};
+
+const LONG_SOURCE_WORD_THRESHOLD = 1600;
+const SHORT_CONSULT_WORD_THRESHOLD = 180;
+const MIN_TEXT_EVIDENCE_OVERLAP = 0.2;
+
+const PLAN_MARKERS = [
+  "plan",
+  "recommend",
+  "recommended",
+  "monitor",
+  "diet",
+  "follow up",
+  "follow-up",
+  "recheck",
+  "return",
+  "call",
+  "book",
+  "booked",
+  "schedule",
+  "scheduled",
+  "arrange",
+  "arranged",
+  "dispense",
+  "dispensed",
+  "give",
+  "given",
+  "administer",
+  "administered",
+  "start",
+  "continue",
+  "avoid",
+  "email",
+  "provide",
+  "provided",
+  "dose",
+  "q8h",
+  "po",
+  "sc",
+  "im",
+  "iv",
+];
+
+const ASSESSMENT_MARKERS = [
+  "assessment",
+  "impression",
+  "diagnosis",
+  "diagnosed",
+  "consistent with",
+  "likely",
+  "suspect",
+  "suspected",
+  "stable for",
+  "outpatient",
+  "no evidence",
+  "most consistent",
+];
+
+const MEDICATION_MARKERS = [
+  "mg",
+  "ml",
+  "tablet",
+  "capsule",
+  "dose",
+  "dosing",
+  "medication",
+  "medicine",
+  "po",
+  "sc",
+  "im",
+  "iv",
+];
+
+const IGNORED_TOKENS = new Set([
+  "about",
+  "after",
+  "also",
+  "been",
+  "before",
+  "from",
+  "has",
+  "have",
+  "having",
+  "hers",
+  "him",
+  "his",
+  "into",
+  "its",
+  "just",
+  "made",
+  "more",
+  "none",
+  "only",
+  "over",
+  "owner",
+  "reports",
+  "since",
+  "than",
+  "that",
+  "then",
+  "they",
+  "this",
+  "those",
+  "their",
+  "there",
+  "these",
+  "today",
+  "very",
+  "wanting",
+  "well",
+  "were",
+  "with",
+  "would",
+  "yesterday",
+]);
 
 const normalize = (value: string): string =>
   value
@@ -43,6 +164,17 @@ const normalizeEvidence = (value: string): string => {
 };
 
 const compact = (value: string): string => value.replace(/\s+/g, " ").trim();
+
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const meaningfulTokens = (value: string): string[] =>
+  normalize(value)
+    .split(" ")
+    .filter((token) => token.length >= 3 && !IGNORED_TOKENS.has(token));
+
+const sourceWordCount = (value: string): number =>
+  normalize(value).split(" ").filter(Boolean).length;
 
 const toArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 
@@ -105,6 +237,119 @@ const overlapScore = (left: string, right: string): number => {
   return overlap / Math.min(leftTokens.size, rightTokens.size);
 };
 
+const hasMarker = (value: string, markers: string[]): boolean => {
+  const normalized = normalize(value);
+  return markers.some((marker) => {
+    const normalizedMarker = normalize(marker);
+    if (!normalizedMarker) return false;
+    return new RegExp(`\\b${escapeRegex(normalizedMarker)}\\b`, "u").test(normalized);
+  });
+};
+
+const hasHistoricalTiming = (value: string): boolean =>
+  /\b(?:\d+\s+)?(?:year|years|month|months|week|weeks)\s+ago\b|\blast year\b|\bpreviously\b|\bhistory of\b|\bprior\b|\bresolved\b|\bused to\b/u.test(
+    normalize(value),
+  );
+
+const hasCurrentVisitTiming = (value: string): boolean =>
+  /\btoday\b|\byesterday\b|\bthis morning\b|\bovernight\b|\bcurrent\b|\bcurrently\b|\bnow\b|\bthis week\b/u.test(
+    normalize(value),
+  );
+
+const sharesMeaningfulToken = (left: string, right: string): boolean => {
+  const leftTokens = new Set(meaningfulTokens(left));
+  if (leftTokens.size === 0) return false;
+  return meaningfulTokens(right).some((token) => leftTokens.has(token));
+};
+
+const meaningfulOverlapScore = (left: string, right: string): number => {
+  const leftTokens = new Set(meaningfulTokens(left));
+  const rightTokens = new Set(meaningfulTokens(right));
+  if (leftTokens.size === 0 || rightTokens.size === 0) return 0;
+  let overlap = 0;
+  for (const token of leftTokens) {
+    if (rightTokens.has(token)) overlap += 1;
+  }
+  return overlap / Math.min(leftTokens.size, rightTokens.size);
+};
+
+const buildFocusTerms = (payload: GeneralConsultGroundingPayload): Set<string> => {
+  const focus = new Set<string>();
+  const addTokens = (value: string) => {
+    for (const token of meaningfulTokens(value)) {
+      if (token.length >= 4) focus.add(token);
+    }
+  };
+
+  for (const item of payload.sections.SUBJECTIVE) {
+    if (!hasHistoricalTiming(item.text) || hasCurrentVisitTiming(item.text)) {
+      addTokens(item.text);
+      addTokens(item.evidence);
+    }
+  }
+
+  for (const item of payload.sections.ASSESSMENT) {
+    addTokens(item.text);
+    addTokens(item.evidence);
+  }
+
+  for (const item of payload.sections.PLAN) {
+    if (hasMarker(item.evidence, PLAN_MARKERS) || hasMarker(item.text, PLAN_MARKERS)) {
+      addTokens(item.text);
+      addTokens(item.evidence);
+    }
+  }
+
+  return focus;
+};
+
+const overlapsFocusTerms = (value: string, focusTerms: Set<string>): boolean => {
+  if (focusTerms.size === 0) return true;
+  return meaningfulTokens(value).some((token) => focusTerms.has(token));
+};
+
+const itemTextSupportedByEvidence = (item: GroundingItem): boolean => {
+  const overlap = meaningfulOverlapScore(item.text, item.evidence);
+  if (overlap >= MIN_TEXT_EVIDENCE_OVERLAP) return true;
+  if (sharesMeaningfulToken(item.text, item.evidence)) return true;
+  return false;
+};
+
+const isRelevantSubjectiveItem = (
+  item: GroundingItem,
+  focusTerms: Set<string>,
+): boolean => {
+  const combined = `${item.text} ${item.evidence}`;
+  const historicalOnly = hasHistoricalTiming(combined) && !hasCurrentVisitTiming(combined);
+  if (!historicalOnly) return true;
+  if (hasMarker(combined, MEDICATION_MARKERS)) return true;
+  return overlapsFocusTerms(combined, focusTerms);
+};
+
+const isSupportedAssessmentItem = (item: GroundingItem): boolean =>
+  hasMarker(item.evidence, ASSESSMENT_MARKERS) ||
+  itemTextSupportedByEvidence(item);
+
+const isSupportedPlanItem = (
+  item: GroundingItem,
+  isShortConsult: boolean,
+): boolean => {
+  const strongEvidenceAlignment = meaningfulOverlapScore(item.text, item.evidence) >= 0.34;
+  const hasExplicitPlanSignal =
+    hasMarker(item.evidence, PLAN_MARKERS) ||
+    strongEvidenceAlignment;
+
+  if (!hasExplicitPlanSignal) return false;
+  if (!isShortConsult) return true;
+
+  return hasMarker(item.evidence, PLAN_MARKERS) || strongEvidenceAlignment;
+};
+
+const resolveMaxItemsBySection = (sourceText: string): Record<GeneralSection, number> =>
+  sourceWordCount(sourceText) >= LONG_SOURCE_WORD_THRESHOLD
+    ? LONG_SOURCE_MAX_ITEMS_BY_SECTION
+    : DEFAULT_MAX_ITEMS_BY_SECTION;
+
 const areNearDuplicates = (left: GroundingItem, right: GroundingItem): boolean => {
   const leftText = normalize(left.text);
   const rightText = normalize(right.text);
@@ -154,12 +399,28 @@ export const filterGroundedGeneralConsultPayload = (
     complexity: payload.complexity,
     sections: emptySections(),
   };
+  const maxItemsBySection = resolveMaxItemsBySection(sourceText);
+  const isShortConsult = sourceWordCount(sourceText) <= SHORT_CONSULT_WORD_THRESHOLD;
 
   for (const section of SECTION_ORDER) {
     const grounded = payload.sections[section].filter((item) =>
       isItemGrounded(item, sourceText)
     );
-    next.sections[section] = dedupeAndLimit(grounded, MAX_ITEMS_BY_SECTION[section]);
+    next.sections[section] = dedupeAndLimit(grounded, maxItemsBySection[section]);
+  }
+
+  const focusTerms = buildFocusTerms(next);
+
+  next.sections.SUBJECTIVE = next.sections.SUBJECTIVE.filter((item) =>
+    isRelevantSubjectiveItem(item, focusTerms)
+  );
+  next.sections.ASSESSMENT = next.sections.ASSESSMENT.filter(isSupportedAssessmentItem);
+  next.sections.PLAN = next.sections.PLAN.filter((item) =>
+    isSupportedPlanItem(item, isShortConsult)
+  );
+
+  for (const section of SECTION_ORDER) {
+    next.sections[section] = dedupeAndLimit(next.sections[section], maxItemsBySection[section]);
   }
 
   return next;
@@ -194,7 +455,16 @@ const trimToWordBudget = (text: string, maxWords: number): string => {
   for (const token of tokens) {
     if (/\S/.test(token)) {
       if (wordCount >= maxWords) {
-        return `${output.trim()}...`;
+        const trimmed = output.trim();
+        const lastBoundary = Math.max(
+          trimmed.lastIndexOf(";"),
+          trimmed.lastIndexOf("."),
+          trimmed.lastIndexOf("\n"),
+        );
+        if (lastBoundary >= 0 && lastBoundary >= trimmed.length - 120) {
+          return trimmed.slice(0, lastBoundary + 1).trim();
+        }
+        return `${trimmed}...`;
       }
       wordCount += 1;
     }
@@ -216,6 +486,7 @@ const renderSectionBody = (items: GroundingItem[]): string => {
 
 export const renderGeneralConsultFromGroundedPayload = (
   payload: GeneralConsultGroundingPayload,
+  sourceText = "",
 ): string => {
   const blocks: string[] = [];
 
@@ -232,6 +503,9 @@ export const renderGeneralConsultFromGroundedPayload = (
   }
 
   const joined = blocks.join("\n\n").trim();
-  const maxWords = payload.complexity === "complex" ? 400 : 260;
+  const isLongSource = sourceText ? sourceWordCount(sourceText) >= LONG_SOURCE_WORD_THRESHOLD : false;
+  const maxWords = payload.complexity === "complex"
+    ? (isLongSource ? 320 : 360)
+    : (isLongSource ? 250 : 240);
   return trimToWordBudget(joined, maxWords);
 };

@@ -33,6 +33,7 @@ export function useNoteGeneration() {
       const fallbackTemplate = TEMPLATES[templateToUse] || TEMPLATES['General Consult'];
       const templatePrompt = await getTemplatePrompt(templateToUse, fallbackTemplate);
       const includeClinicalContext = peEnabled && peIncludeInNotes;
+      const includeClinicContext = templateToUse !== 'General Consult';
       const peReport = includeClinicalContext ? compilePEReport(peData) : '';
       const vetNotesForGeneration = includeClinicalContext ? vetNotes : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
@@ -42,6 +43,7 @@ export function useNoteGeneration() {
         peReport,
         vetNotes: vetNotesForGeneration,
         clinicKnowledgeBase,
+        includeClinicContext,
       });
 
       const response = await supabase.functions.invoke('generate-notes', {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildNotesGenerationInput } from '@/lib/clinicContext';
 import {
   buildChunkedNoteSources,
+  buildGeneralConsultSource,
   buildNoteSource,
   LONG_NOTE_CHUNK_CHARS,
   LONG_NOTE_TRIGGER_CHARS,
@@ -31,6 +32,21 @@ describe('long note handling', () => {
     expect(payload).toContain('Vet notes:\nOwner worried about appetite.');
   });
 
+  it('can omit clinic context for General Consult while keeping PE and vet notes', () => {
+    const payload = buildNotesGenerationInput({
+      transcript: 'Owner reports vomiting since yesterday.',
+      peReport: 'BAR, T 38.4C',
+      vetNotes: 'Relevant note about appetite.',
+      clinicKnowledgeBase: 'Clinic voice and discharge preferences.',
+      includeClinicContext: false,
+    });
+
+    expect(payload).toContain('Consultation transcript:\nOwner reports vomiting since yesterday.');
+    expect(payload).toContain('Physical examination:\nBAR, T 38.4C');
+    expect(payload).toContain('Vet notes:\nRelevant note about appetite.');
+    expect(payload).not.toContain('Clinic personalization context:');
+  });
+
   it('parses structured note source and rebuilds chunked sources with static context preserved', () => {
     const transcript = Array.from(
       { length: 260 },
@@ -52,6 +68,22 @@ describe('long note handling', () => {
     expect(chunkedSources.every((chunk) => chunk.clinicPersonalizationContext === 'Clinic phone: 01234 567890')).toBe(true);
     expect(chunkedSources.every((chunk) => chunk.physicalExamination === 'BAR, T 38.7C')).toBe(true);
     expect(chunkedSources.every((chunk) => chunk.vetNotes === 'Recheck if not improving.')).toBe(true);
+  });
+
+  it('builds General Consult source without clinic personalization context', () => {
+    const parsed = parseNoteSource([
+      'Consultation transcript:\nOwner reports diarrhoea today.',
+      'Clinic personalization context:\nClinic phone: 01234 567890',
+      'Physical examination:\nBAR, hydrated',
+      'Vet notes:\nOwner worried about recurrence.',
+    ].join('\n\n'));
+
+    const source = buildGeneralConsultSource(parsed);
+
+    expect(source).toContain('Consultation transcript:\nOwner reports diarrhoea today.');
+    expect(source).toContain('Physical examination:\nBAR, hydrated');
+    expect(source).toContain('Vet notes:\nOwner worried about recurrence.');
+    expect(source).not.toContain('Clinic personalization context:');
   });
 
   it('splits long transcripts by line and preserves all content across chunks', () => {

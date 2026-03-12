@@ -56,6 +56,7 @@ interface NoteInputParams {
   peReport?: string;
   vetNotes?: string;
   clinicKnowledgeBase?: string;
+  includeClinicContext?: boolean;
 }
 
 export const buildNotesGenerationInput = ({
@@ -63,10 +64,13 @@ export const buildNotesGenerationInput = ({
   peReport = '',
   vetNotes = '',
   clinicKnowledgeBase = '',
+  includeClinicContext = true,
 }: NoteInputParams): string => {
   const parts: string[] = [];
   const transcriptChunk = transcript.trim();
-  const clinicChunk = clipForModel(buildClinicProfileContext(clinicKnowledgeBase), 20000);
+  const clinicChunk = includeClinicContext
+    ? clipForModel(buildClinicProfileContext(clinicKnowledgeBase), 20000)
+    : '';
   const peChunk = clipForModel(peReport, 6000);
   const vetNotesChunk = clipForModel(vetNotes, 8000);
 

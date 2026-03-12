@@ -197,6 +197,14 @@ export const buildStaticNoteContext = (parsed: ParsedNoteSource): string =>
     vetNotes: parsed.vetNotes,
   });
 
+export const buildGeneralConsultSource = (parsed: ParsedNoteSource): string =>
+  buildNoteSource({
+    consultationTranscript: parsed.consultationTranscript,
+    clinicPersonalizationContext: "",
+    physicalExamination: parsed.physicalExamination,
+    vetNotes: parsed.vetNotes,
+  });
+
 export const buildChunkReductionSystemPrompt = (systemPrompt: string): string => `${systemPrompt}
 
 You are processing one chunk from a longer veterinary consultation.

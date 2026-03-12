@@ -6,8 +6,10 @@ import {
   renderGeneralConsultFromGroundedPayload,
 } from "./grounding.ts";
 import {
+  buildGeneralConsultVerificationUserPrompt,
   buildGeneralConsultExtractionUserPrompt,
   DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+  GENERAL_CONSULT_VERIFICATION_PROMPT,
   GENERAL_CONSULT_PROMPT_WINNER,
 } from "./general-consult.ts";
 import {
@@ -16,6 +18,7 @@ import {
   buildChunkReductionUserPrompt,
   buildFinalChunkMergeSystemPrompt,
   buildFinalChunkMergeUserPrompt,
+  buildGeneralConsultSource,
   buildNoteSource,
   buildStaticNoteContext,
   parseNoteSource,
@@ -255,10 +258,10 @@ const generateGeneralConsultNote = async (
   maxOutputTokens: number,
 ) => {
   const parsedSource = parseNoteSource(sourceText);
-  const fullSource = buildNoteSource(parsedSource) || String(sourceText || "").trim();
+  const fullSource = buildGeneralConsultSource(parsedSource) || parsedSource.consultationTranscript.trim();
   const noteChunks = shouldChunkNoteTranscript(parsedSource.consultationTranscript)
     ? buildChunkedNoteSources(fullSource)
-    : [parsedSource];
+    : [parseNoteSource(fullSource)];
 
   const payloads = [];
   const modelsUsed: string[] = [];
@@ -286,11 +289,37 @@ const generateGeneralConsultNote = async (
   }
 
   const mergedPayload = mergeGeneralConsultGroundingPayloads(payloads);
-  const filteredPayload = filterGroundedGeneralConsultPayload(mergedPayload, fullSource);
+  let verifiedPayload = mergedPayload;
+
+  try {
+    const verified = await callModelWithFallbacks(
+      provider,
+      apiKey,
+      modelCandidates,
+      GENERAL_CONSULT_VERIFICATION_PROMPT,
+      buildGeneralConsultVerificationUserPrompt(
+        fullSource,
+        JSON.stringify(mergedPayload),
+      ),
+      Math.min(Math.max(maxOutputTokens, 1800), 2600),
+    );
+
+    const parsedVerifiedPayload = parseGeneralConsultGroundingPayload(
+      stripCodeFences(verified.content),
+    );
+    if (parsedVerifiedPayload) {
+      verifiedPayload = parsedVerifiedPayload;
+      modelsUsed.push(verified.modelUsed);
+    }
+  } catch (error) {
+    console.error("General consult verifier failed, falling back to extracted payload:", error);
+  }
+
+  const filteredPayload = filterGroundedGeneralConsultPayload(verifiedPayload, fullSource);
 
   return {
     content: sanitizePlainClinicalText(
-      renderGeneralConsultFromGroundedPayload(filteredPayload),
+      renderGeneralConsultFromGroundedPayload(filteredPayload, fullSource),
     ),
     model: buildModelSummary(modelsUsed),
     chunked: noteChunks.length > 1,

@@ -62,6 +62,92 @@ describe('general consult grounding', () => {
     expect(filtered.sections.PLAN[0].text).toContain('Maropitant');
   });
 
+  it('drops invented assessment and plan items when evidence is not actually assessment or plan', () => {
+    const source = `
+      Consultation transcript:
+      Owner: He vomited twice yesterday and is quieter today.
+      Vet: His abdomen feels soft and non-painful.
+      Owner: Thank you.
+    `;
+
+    const payload = parseGeneralConsultGroundingPayload(JSON.stringify({
+      complexity: 'routine',
+      sections: {
+        SUBJECTIVE: [
+          {
+            text: 'Vomited twice yesterday, quieter today',
+            evidence: 'He vomited twice yesterday and is quieter today',
+          },
+        ],
+        OBJECTIVE: [
+          {
+            text: 'Abdomen soft, non-painful',
+            evidence: 'His abdomen feels soft and non-painful',
+          },
+        ],
+        ASSESSMENT: [
+          {
+            text: 'Acute gastroenteritis likely',
+            evidence: 'He vomited twice yesterday and is quieter today',
+          },
+        ],
+        PLAN: [
+          {
+            text: 'Bland diet and monitor at home',
+            evidence: 'He vomited twice yesterday and is quieter today',
+          },
+        ],
+      },
+    }));
+
+    const filtered = filterGroundedGeneralConsultPayload(payload!, source);
+
+    expect(filtered.sections.SUBJECTIVE).toHaveLength(1);
+    expect(filtered.sections.OBJECTIVE).toHaveLength(1);
+    expect(filtered.sections.ASSESSMENT).toHaveLength(0);
+    expect(filtered.sections.PLAN).toHaveLength(0);
+  });
+
+  it('drops unrelated historical subjective items that do not affect today visit', () => {
+    const source = `
+      Consultation transcript:
+      Owner: He has been vomiting since yesterday and off food today.
+      Owner: He broke his leg five years ago but has been fine since.
+      Vet: Impression is acute gastritis.
+    `;
+
+    const payload = parseGeneralConsultGroundingPayload(JSON.stringify({
+      complexity: 'routine',
+      sections: {
+        SUBJECTIVE: [
+          {
+            text: 'Vomiting since yesterday, off food today',
+            evidence: 'He has been vomiting since yesterday and off food today',
+          },
+          {
+            text: 'Broken leg 5 years ago, resolved',
+            evidence: 'He broke his leg five years ago but has been fine since',
+          },
+        ],
+        OBJECTIVE: [],
+        ASSESSMENT: [
+          {
+            text: 'Acute gastritis',
+            evidence: 'Impression is acute gastritis',
+          },
+        ],
+        PLAN: [],
+      },
+    }));
+
+    const filtered = filterGroundedGeneralConsultPayload(payload!, source);
+    const rendered = renderGeneralConsultFromGroundedPayload(filtered, source);
+
+    expect(filtered.sections.SUBJECTIVE).toHaveLength(1);
+    expect(rendered).toContain('Vomiting since yesterday');
+    expect(rendered).not.toContain('Broken leg');
+  });
+
   it('renders headings in SOAP order and omits empty sections', () => {
     const rendered = renderGeneralConsultFromGroundedPayload({
       complexity: 'routine',
@@ -254,5 +340,60 @@ describe('general consult grounding', () => {
     expect(rendered).toContain('Nurse progress call tomorrow at 15:30');
     expect(rendered).toContain('Stool pot and emailed care plan on checkout');
     expect(rendered).not.toContain('metronidazole');
+  });
+
+  it('keeps long-consult output concise', () => {
+    const payload = parseGeneralConsultGroundingPayload(JSON.stringify({
+      complexity: 'routine',
+      sections: {
+        SUBJECTIVE: [
+          { text: 'Vomiting since yesterday', evidence: 'Vomiting since yesterday' },
+          { text: 'Loose stool since yesterday', evidence: 'Loose stool since yesterday' },
+          { text: 'Appetite reduced, still drinking', evidence: 'Appetite reduced, still drinking' },
+          { text: 'One previous grape incident last year, resolved', evidence: 'One previous grape incident last year, resolved' },
+          { text: 'Urgency overnight', evidence: 'Urgency overnight' },
+          { text: 'Owner worried about dehydration', evidence: 'Owner worried about dehydration' },
+        ],
+        OBJECTIVE: [
+          { text: 'BAR, wt 28.4 kg', evidence: 'BAR, wt 28.4 kg' },
+          { text: 'T 38.7C HR 108 RR 28', evidence: 'T 38.7C HR 108 RR 28' },
+        ],
+        ASSESSMENT: [
+          { text: 'Acute gastroenteritis', evidence: 'Acute gastroenteritis' },
+        ],
+        PLAN: [
+          { text: 'Maropitant 1 mg/kg SC', evidence: 'Plan maropitant 1 mg/kg SC' },
+          { text: 'Pro-Kolin 5 ml PO q8h x3 days', evidence: 'Pro-Kolin 5 ml PO q8h x3 days' },
+          { text: 'Bland diet', evidence: 'Bland diet' },
+          { text: 'Monitor for worsening vomiting or lethargy', evidence: 'Monitor for worsening vomiting or lethargy' },
+          { text: 'Nurse call tomorrow', evidence: 'Nurse call tomorrow' },
+          { text: 'Email care plan', evidence: 'Email care plan' },
+        ],
+      },
+    }));
+
+    const longSource = `Consultation transcript:
+Vomiting since yesterday.
+Loose stool since yesterday.
+Appetite reduced, still drinking.
+Urgency overnight.
+Owner worried about dehydration.
+BAR, wt 28.4 kg.
+T 38.7C HR 108 RR 28.
+Acute gastroenteritis.
+Plan maropitant 1 mg/kg SC.
+Pro-Kolin 5 ml PO q8h x3 days.
+Bland diet.
+Monitor for worsening vomiting or lethargy.
+Nurse call tomorrow.
+Email care plan.
+${'Detailed discussion about vomiting and diarrhoea. '.repeat(1700)}`;
+    const filtered = filterGroundedGeneralConsultPayload(payload!, longSource);
+    const rendered = renderGeneralConsultFromGroundedPayload(filtered, longSource);
+    const renderedWordCount = rendered.split(/\s+/).filter(Boolean).length;
+
+    expect(filtered.sections.SUBJECTIVE.length).toBeLessThanOrEqual(5);
+    expect(filtered.sections.PLAN.length).toBeLessThanOrEqual(6);
+    expect(renderedWordCount).toBeLessThanOrEqual(250);
   });
 });

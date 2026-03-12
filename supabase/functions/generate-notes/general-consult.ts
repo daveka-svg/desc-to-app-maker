@@ -67,6 +67,7 @@ Hard rules:
 - Every retained fact must be explicitly supported by the source text.
 - "evidence" must be a short direct quote copied from source text.
 - Never infer diagnosis, ddx, medication, dose, red flag, monitoring advice, or follow-up if not stated.
+- Focus on today's presenting complaint/reason for visit first.
 - Remove repeated recap statements, pleasantries, jokes, breed banter, and unrelated historical chatter.
 - Merge repeated facts into one concise item instead of duplicating them.
 - Prefer telegraphic UK veterinary shorthand and paragraph-fragment wording, not bullet prose.
@@ -74,15 +75,16 @@ Hard rules:
 - Omit empty sections by returning [].
 
 Section rules:
-- SUBJECTIVE: owner-reported history, timeline, stool/vomit/appetite/energy changes, home meds already given, owner concerns, dosing/admin difficulties, relevant exposure or dietary indiscretion discussed today.
+- SUBJECTIVE: owner-reported history, timeline, current signs, home treatment already given, current owner concerns, dosing/admin difficulties, PE/vet-note facts relevant to today's visit, and only past history that materially affects today's assessment or plan.
 - OBJECTIVE: explicit weight, vitals, hydration, examination findings, and other objective observations only.
 - ASSESSMENT: only clinician-stated impression/assessment from source text. No invented ddx.
-- PLAN: only explicit treatment, route/dose/frequency/duration, diet advice, monitoring/red flags, follow-up timing, diagnostics-if-persistent, written instructions, and admin handover actions discussed in source.
+- PLAN: only explicit treatment, route/dose/frequency/duration, diet advice, monitoring/red flags, follow-up timing, diagnostics-if-persistent, written instructions, and admin handover actions discussed in source. If no explicit plan is discussed, return [].
 
 Length and limits:
 - Use "routine" unless the consult is clearly complex and needs extra detail.
-- Routine note target: enough content for about 120-220 rendered words.
-- Max items: SUBJECTIVE 6, OBJECTIVE 5, ASSESSMENT 2, PLAN 6.
+- Routine note target: enough content for about 110-200 rendered words.
+- Long consults should still stay concise by prioritising the current visit over unrelated background.
+- Max items: SUBJECTIVE 5, OBJECTIVE 5, ASSESSMENT 2, PLAN 5.
 
 Return JSON only. No markdown. No commentary.`,
 } as const;
@@ -94,7 +96,50 @@ export const DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT =
 
 export const buildGeneralConsultExtractionUserPrompt = (sourceText: string): string => `Extract grounded SOAP note facts from this source.
 
-Keep only explicit evidence-backed facts needed for a concise general consult note. Remove repeated recap lines, greetings, jokes, and unrelated side-history.
+Keep only explicit evidence-backed facts needed for a concise general consult note. Prioritise today's reason for visit, remove repeated recap lines, greetings, jokes, and unrelated side-history, and keep the note short even when the source is long.
 
 Source text:
 ${sourceText}`;
+
+export const GENERAL_CONSULT_VERIFICATION_PROMPT = `You are auditing extracted SOAP facts for a veterinary general consultation.
+Return ONLY valid JSON with the same schema you were given:
+{
+  "complexity": "routine" | "complex",
+  "sections": {
+    "SUBJECTIVE": [{"text":"...", "evidence":"..."}],
+    "OBJECTIVE": [{"text":"...", "evidence":"..."}],
+    "ASSESSMENT": [{"text":"...", "evidence":"..."}],
+    "PLAN": [{"text":"...", "evidence":"..."}]
+  }
+}
+
+Keep an item only if all of the following are true:
+- it is explicitly supported by the source text
+- it is relevant to today's visit/reason for presentation
+- it does not add facts beyond what the evidence supports
+- it is not a duplicate or recap of another retained item
+
+Drop any item that:
+- turns symptoms/history into an unstated diagnosis or plan
+- adds generic safety advice, monitoring, or follow-up not explicitly discussed
+- reflects old unrelated history that does not change today's assessment or plan
+- uses clinic profile/personalisation context instead of clinical source content
+
+Rules:
+- Do not add new items.
+- You may shorten text slightly for concision, but do not add new facts.
+- It is acceptable for ASSESSMENT or PLAN to be [] when the source does not explicitly support them.
+- Keep concise UK veterinary wording.
+
+Return JSON only. No markdown. No commentary.`;
+
+export const buildGeneralConsultVerificationUserPrompt = (
+  sourceText: string,
+  extractedPayload: string,
+): string => `Source text:
+${sourceText}
+
+Extracted SOAP payload to audit:
+${extractedPayload}
+
+Return the same JSON schema with only supported, relevant items kept.`;

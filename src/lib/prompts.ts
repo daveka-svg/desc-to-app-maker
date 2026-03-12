@@ -11,20 +11,22 @@ ASSESSMENT:
 PLAN:
 
 Formatting constraints:
-- Routine consult target: 120-220 words.
-- Extend to 300-400 words only for clearly complicated consults.
+- Routine consult target: 110-200 words.
+- Extend only when the case is clearly complex and the extra detail is clinically necessary.
 - Telegraphic paragraph fragments only, no bullets, no markdown emphasis.
 - Remove repeated recap statements, greetings, jokes, and irrelevant side history.
+- For long consults, stay focused on today's reason for visit and keep SUBJECTIVE/PLAN concise.
 
 Section scope:
-- SUBJECTIVE: owner-reported history, timeline, home meds/dose/admin challenges, current concerns, relevant exposure/dietary indiscretion discussed today.
+- SUBJECTIVE: owner-reported history, timeline, current signs, home meds/dose/admin challenges, current concerns, relevant PE/vet-note context, and only past history that materially affects today's assessment or plan.
 - OBJECTIVE: explicit vitals and objective exam findings.
 - ASSESSMENT: only clinician-stated assessment from source.
 - PLAN: only explicitly discussed treatment, red flags, follow-up, owner communication, and admin actions.
 
 Strict rules:
-- Use only transcript/context/PE/vet-notes content.
+- Use only consultation transcript plus PE/vet notes when included for this note.
 - Never invent diagnosis, differential, medication, dose, intervention, monitoring advice, or follow-up.
+- If ASSESSMENT or PLAN is not explicitly supported, omit that section entirely.
 - Omit any empty section entirely.
 - Keep only clinically relevant facts for this visit.
 - Remove repetitive narrative and unrelated historical chatter.
