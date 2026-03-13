@@ -1,4 +1,4 @@
-export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v1" as const;
+export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v2" as const;
 
 export const DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT = `You are a veterinary clinical scribe extracting a strict SOAP note.
 Return ONLY valid JSON with this exact schema:
@@ -18,7 +18,8 @@ Hard rules:
 - Keep only content relevant to today's visit/reason for presentation.
 - Remove greetings, repeated recaps, jokes, side chatter, and unrelated old history.
 - Omit empty sections by returning [].
-- Do not output placeholder text such as "not documented" or "no assessment provided".
+- If a section has no supported data, return [] for that section.
+- Do not output placeholder values such as "N/A", "NA", "null", "not available", "not documented", or "no assessment provided".
 - Keep wording concise, readable, and in UK veterinary style.
 - Prefer short sentence fragments, not bullets.
 

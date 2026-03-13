@@ -165,6 +165,27 @@ const normalizeEvidence = (value: string): string => {
 
 const compact = (value: string): string => value.replace(/\s+/g, " ").trim();
 
+const isPlaceholderValue = (value: string): boolean => {
+  const normalized = compact(value).toLowerCase().replace(/[.\s]+/g, " ").trim();
+  if (!normalized) return true;
+  return [
+    "n a",
+    "na",
+    "n/a",
+    "null",
+    "none",
+    "not available",
+    "not documented",
+    "not recorded",
+    "not mentioned",
+    "not provided",
+    "not stated",
+    "no data",
+    "no details",
+    "unknown",
+  ].includes(normalized);
+};
+
 const capitaliseSentence = (value: string): string =>
   value.replace(/^[a-z]/, (match) => match.toUpperCase());
 
@@ -194,6 +215,7 @@ const parseItem = (candidate: unknown): GroundingItem | null => {
   const text = compact(String(row.text ?? ""));
   const evidence = compact(String(row.evidence ?? ""));
   if (!text || !evidence) return null;
+  if (isPlaceholderValue(text) || isPlaceholderValue(evidence)) return null;
   return { text, evidence };
 };
 

@@ -182,6 +182,34 @@ describe('general consult grounding', () => {
     expect(rendered).toBe('');
   });
 
+  it('drops placeholder JSON items such as N/A and null', () => {
+    const payload = parseGeneralConsultGroundingPayload(JSON.stringify({
+      complexity: 'routine',
+      sections: {
+        SUBJECTIVE: [
+          { text: 'N/A', evidence: 'N/A' },
+          { text: 'Vomiting since yesterday', evidence: 'Vomiting since yesterday' },
+        ],
+        OBJECTIVE: [
+          { text: 'null', evidence: 'null' },
+        ],
+        ASSESSMENT: [
+          { text: 'Not available', evidence: 'Not available' },
+        ],
+        PLAN: [
+          { text: 'No data', evidence: 'No data' },
+        ],
+      },
+    }));
+
+    expect(payload).not.toBeNull();
+    expect(payload!.sections.SUBJECTIVE).toHaveLength(1);
+    expect(payload!.sections.SUBJECTIVE[0].text).toBe('Vomiting since yesterday');
+    expect(payload!.sections.OBJECTIVE).toHaveLength(0);
+    expect(payload!.sections.ASSESSMENT).toHaveLength(0);
+    expect(payload!.sections.PLAN).toHaveLength(0);
+  });
+
   it('dedupes repeated recap content while keeping one plan item', () => {
     const source = `
       Vet: Acute diarrhoea since yesterday morning.
