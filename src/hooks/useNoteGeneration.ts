@@ -17,7 +17,6 @@ export function useNoteGeneration() {
   const vetNotes = useSessionStore((s) => s.vetNotes);
   const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
   const setPEAppliedSnapshot = useSessionStore((s) => s.setPEAppliedSnapshot);
-  const clearPEAppliedSnapshot = useSessionStore((s) => s.clearPEAppliedSnapshot);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
   const isGeneratingNotes = useSessionStore((s) => s.isGeneratingNotes);
@@ -65,10 +64,8 @@ export function useNoteGeneration() {
 
       const notesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
       setNotes(notesContent);
-      if (peEnabled && peReport.trim()) {
+      if (includeClinicalContext && peReport.trim()) {
         setPEAppliedSnapshot(peReport);
-      } else {
-        clearPEAppliedSnapshot();
       }
     } catch (err) {
       console.error('Note generation error:', err);
@@ -87,7 +84,6 @@ export function useNoteGeneration() {
     setIsGeneratingNotes,
     clinicKnowledgeBase,
     setPEAppliedSnapshot,
-    clearPEAppliedSnapshot,
   ]);
 
   return { notes, isGeneratingNotes, generateNote, setNotes };

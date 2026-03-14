@@ -40,6 +40,22 @@ export async function extractLlmText(raw: unknown): Promise<string> {
   return text.trim();
 }
 
+const PLACEHOLDER_SENTENCE_RE =
+  /^(?:No|None|Not)\b.*\b(?:documented|recorded|provided|discussed|mentioned|available|noted|stated)\b.*$|^No explicit assessment.*$/i;
+
+const stripPlaceholderSentences = (body: string): string => {
+  const normalizedBody = body.replace(/\s+/g, ' ').trim();
+  if (!normalizedBody) return '';
+
+  const sentences = normalizedBody.match(/[^.!?]+[.!?]?/g) || [];
+  const kept = sentences
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .filter((sentence) => !PLACEHOLDER_SENTENCE_RE.test(sentence));
+
+  return kept.join(' ').replace(/\s+/g, ' ').trim();
+};
+
 const stripPlaceholderSections = (value: string): string =>
   value
     .replace(
@@ -50,6 +66,20 @@ const stripPlaceholderSections = (value: string): string =>
       /(?:^|\n\n)[A-Z][A-Z /()&-]*:?\n(?:(?:No|None|Not)\b[^\n]*(?:documented|recorded|provided|discussed|mentioned|available|noted|stated)\.?|No explicit assessment documented\.?)(?=\n\n|$)/g,
       '',
     )
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => {
+      const headingMatch = block.match(/^([A-Z][A-Z /()&-]*:)\s*([\s\S]*)$/);
+      if (!headingMatch) return block;
+
+      const [, heading, rawBody] = headingMatch;
+      const cleanedBody = stripPlaceholderSentences(rawBody);
+      if (!cleanedBody) return '';
+      return `${heading}\n${cleanedBody}`;
+    })
+    .filter(Boolean)
+    .join('\n\n')
     .replace(/(?:^|\n\n)[A-Z][A-Z /()&-]*:[ \t]*(?=\n\n|$)/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();

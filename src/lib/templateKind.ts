@@ -35,10 +35,7 @@ export const inferTemplateKind = (
     return 'general_consult';
   }
 
-  if (
-    hasLegacyGeneralConsultHeadings(prompt) &&
-    /uk veterinary documentation style|only include if explicitly mentioned|do not make things up/i.test(prompt)
-  ) {
+  if (hasLegacyGeneralConsultHeadings(prompt)) {
     return 'general_consult';
   }
 

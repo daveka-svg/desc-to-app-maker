@@ -32,6 +32,16 @@ COMMUNICATIONS:`),
     ).toBe('general_consult');
   });
 
+  it('treats bare legacy TREATMENT/COMMUNICATIONS prompts as general_consult', () => {
+    expect(
+      inferTemplateKind('My note', `TREATMENT:
+OBJECTIVE:
+ASSESSMENT:
+PLAN:
+COMMUNICATIONS:`),
+    ).toBe('general_consult');
+  });
+
   it('keeps unrelated templates on standard path', () => {
     expect(
       inferTemplateKind('Referral Letter', 'Formal referral letter tone in UK English.'),

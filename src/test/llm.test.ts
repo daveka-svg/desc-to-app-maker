@@ -22,7 +22,15 @@ describe('sanitizePlainClinicalText', () => {
     const input = `TREATMENT: Owner requested weight measurement and vaccination for Ben.\n\nOBJECTIVE: No vitals or physical examination data recorded.\n\nASSESSMENT: No explicit assessment or diagnosis stated.\n\nPLAN: Request for vaccination placed.`;
 
     expect(sanitizePlainClinicalText(input)).toBe(
-      `TREATMENT: Owner requested weight measurement and vaccination for Ben.\n\nPLAN: Request for vaccination placed.`,
+      `TREATMENT:\nOwner requested weight measurement and vaccination for Ben.\n\nPLAN:\nRequest for vaccination placed.`,
+    );
+  });
+
+  it('removes placeholder sentences inside a mixed-content section', () => {
+    const input = `TREATMENT: Owner requested weight and vaccination for Ben. No current medications or health issues were mentioned. Owner concerns: need for weight measurement and up-to-date vaccines.\n\nPLAN: Veterinarian will request weight and vaccination; will send a text when ready. No further instructions provided.`;
+
+    expect(sanitizePlainClinicalText(input)).toBe(
+      `TREATMENT:\nOwner requested weight and vaccination for Ben. Owner concerns: need for weight measurement and up-to-date vaccines.\n\nPLAN:\nVeterinarian will request weight and vaccination; will send a text when ready.`,
     );
   });
 });

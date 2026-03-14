@@ -20,6 +20,7 @@ export function useEncounterPipeline() {
   const [steps, setSteps] = useState<PipelineStep[]>([]);
   const { startRecording, stopRecording } = useAudioRecorder();
   const { startTranscription, stopTranscription } = useTranscription();
+  const setPEAppliedSnapshot = useSessionStore((s) => s.setPEAppliedSnapshot);
 
   const updateStep = (index: number, status: PipelineStep['status']) => {
     setSteps(prev => prev.map((s, i) => i === index ? { ...s, status } : s));
@@ -103,6 +104,9 @@ export function useEncounterPipeline() {
       const notesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
 
       store.setNotes(notesContent);
+      if (includeClinicalContext && peReport.trim()) {
+        setPEAppliedSnapshot(peReport);
+      }
       updateStep(1, 'done');
     } catch (err) {
       console.error('Note generation error:', err);
@@ -230,7 +234,7 @@ export function useEncounterPipeline() {
       store.setEncounterStatus('reviewing');
       store.setActiveTab('notes');
     }, 1000);
-  }, [stopRecording, stopTranscription]);
+  }, [stopRecording, stopTranscription, setPEAppliedSnapshot]);
 
   return { steps, startEncounter, endEncounter };
 }
