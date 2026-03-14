@@ -171,4 +171,64 @@ describe('useNoteGeneration', () => {
     expect(state.peData.abdoPalpDetail).toBe('mild cranial discomfort');
     expect(state.vetNotes).toBe('Owner declined bloods today.');
   });
+
+  it('appends PE and vet notes sections when model output omits them', async () => {
+    useSessionStore.setState({
+      peData: {
+        vitals: { temp: '38.5', hr: '110', rr: '', weight: '' },
+        mentation: 'BAR',
+        demeanour: '',
+        bcs: 5,
+        eyes: 'NAD', eyesDetail: '',
+        ears: '', earsDetail: '',
+        nose: '', noseDetail: '',
+        oral: '', oralDetail: '',
+        plns: '', plnsDetail: '',
+        mmColor: '', mmMoisture: '', crt: '',
+        heart: '', heartDetail: '',
+        lungs: '', lungsDetail: '',
+        pulses: '',
+        hydration: '', hydrationDetail: '',
+        abdoPalp: '', abdoPalpDetail: '',
+        skinCoat: '', skinCoatDetail: '',
+      },
+      vetNotes: 'Owner declined bloods today.',
+    });
+
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { content: 'SUBJECTIVE:\nVomiting for 2 days.' },
+      error: null,
+    } as never);
+
+    const { result } = renderHook(() => useNoteGeneration());
+
+    await act(async () => {
+      await result.current.generateNote();
+    });
+
+    const state = useSessionStore.getState();
+    expect(state.notes).toContain('PHYSICAL EXAMINATION:');
+    expect(state.notes).toContain('PE: Temp 38.5 C, HR 110 bpm, BCS 5/9, BAR, Eyes NAD.');
+    expect(state.notes).toContain('VET NOTES:\nOwner declined bloods today.');
+  });
+
+  it('does not duplicate PE section when already present', async () => {
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: {
+        content:
+          'SUBJECTIVE:\nVomiting.\n\nPHYSICAL EXAMINATION:\nPE: Temp 38.5 C, HR 110 bpm.\n\nVET NOTES:\nOwner declined bloods today.',
+      },
+      error: null,
+    } as never);
+
+    const { result } = renderHook(() => useNoteGeneration());
+
+    await act(async () => {
+      await result.current.generateNote();
+    });
+
+    const state = useSessionStore.getState();
+    expect((state.notes.match(/PHYSICAL EXAMINATION:/g) || []).length).toBe(1);
+    expect((state.notes.match(/VET NOTES:/g) || []).length).toBe(1);
+  });
 });
