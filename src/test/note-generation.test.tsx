@@ -89,6 +89,11 @@ describe('useNoteGeneration', () => {
   });
 
   it('uses the saved PE snapshot when raw PE data is missing', async () => {
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { content: 'SUBJECTIVE:\nOwner reports diarrhoea for 3 days.\n\nOBJECTIVE:\nQuiet but responsive.' },
+      error: null,
+    } as never);
+
     useSessionStore.setState({
       peData: {
         vitals: { temp: '', hr: '', rr: '', weight: '' },
@@ -123,7 +128,7 @@ describe('useNoteGeneration', () => {
       'generate-notes',
       expect.objectContaining({
         body: expect.objectContaining({
-          transcript: expect.stringContaining('Physical examination:\nPE: Temp 38.5 C, HR 110 bpm.'),
+          transcript: expect.not.stringContaining('Physical examination:'),
         }),
       })
     );
@@ -135,6 +140,9 @@ describe('useNoteGeneration', () => {
         }),
       })
     );
+
+    expect(useSessionStore.getState().notes).toContain('OBJECTIVE:\nQuiet but responsive.');
+    expect(useSessionStore.getState().notes).toContain('PE:\nTemp 38.5 C, HR 110 bpm.');
   });
 
   it('does not clear raw PE data or vet notes during regenerate', async () => {
@@ -172,7 +180,7 @@ describe('useNoteGeneration', () => {
     expect(state.vetNotes).toBe('Owner declined bloods today.');
   });
 
-  it('appends PE and vet notes sections when model output omits them', async () => {
+  it('appends a separate PE section when general consult output omits it', async () => {
     useSessionStore.setState({
       peData: {
         vitals: { temp: '38.5', hr: '110', rr: '', weight: '' },
@@ -207,16 +215,15 @@ describe('useNoteGeneration', () => {
     });
 
     const state = useSessionStore.getState();
-    expect(state.notes).toContain('PHYSICAL EXAMINATION:');
-    expect(state.notes).toContain('PE: Temp 38.5 C, HR 110 bpm, BCS 5/9, BAR');
-    expect(state.notes).toContain('VET NOTES:\nOwner declined bloods today.');
+    expect(state.notes).toContain('PE:\nTemp 38.5 C, HR 110 bpm, BCS 5/9, BAR.');
+    expect(state.notes).not.toContain('VET NOTES:');
   });
 
   it('does not duplicate PE section when already present', async () => {
     vi.mocked(supabase.functions.invoke).mockResolvedValue({
       data: {
         content:
-          'SUBJECTIVE:\nVomiting.\n\nPHYSICAL EXAMINATION:\nPE: Temp 38.5 C, HR 110 bpm.\n\nVET NOTES:\nOwner declined bloods today.',
+          'SUBJECTIVE:\nVomiting.\n\nPE:\nTemp 38.5 C, HR 110 bpm.',
       },
       error: null,
     } as never);
@@ -228,7 +235,7 @@ describe('useNoteGeneration', () => {
     });
 
     const state = useSessionStore.getState();
-    expect((state.notes.match(/PHYSICAL EXAMINATION:/g) || []).length).toBe(1);
-    expect((state.notes.match(/VET NOTES:/g) || []).length).toBe(1);
+    expect((state.notes.match(/\n\nPE:\n/g) || []).length).toBeLessThanOrEqual(1);
+    expect(state.notes).not.toContain('VET NOTES:');
   });
 });

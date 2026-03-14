@@ -17,7 +17,8 @@ Hard rules:
 - "evidence" must be a short direct quote copied from source text.
 - Keep only content relevant to today's visit/reason for presentation.
 - Remove greetings, repeated recaps, jokes, side chatter, and unrelated old history.
-- If Physical examination or Vet notes are present, keep the relevant explicit findings concise in OBJECTIVE instead of dropping them.
+- OBJECTIVE must contain only observations explicitly stated by the vet in the consultation source.
+- Do not rewrite or restate structured PE form findings inside OBJECTIVE. Those are rendered separately by the app.
 - If a section has no supported data, set that section to null.
 - If one candidate item would be null or empty, omit that item from the array instead of outputting a placeholder.
 - Do not output placeholder values such as "N/A", "NA", the string "null", "not available", "not documented", or "no assessment provided".
@@ -27,7 +28,7 @@ Hard rules:
 
 Section rules:
 - SUBJECTIVE: presenting complaint, timeline, current signs, owner concerns, relevant home treatment already given, dosing/admin difficulties, and only past history that clearly affects today's visit.
-- OBJECTIVE: explicit measured findings and objective examination findings only.
+- OBJECTIVE: explicit vet-stated measured findings and objective observations from the consultation source only.
 - ASSESSMENT: only clinician-stated assessment or impression from the source.
 - PLAN: only explicitly discussed treatment, dose/frequency/duration, monitoring, red flags, follow-up, diagnostics, and admin actions.
 
@@ -42,7 +43,7 @@ Return JSON only. No markdown. No commentary.`;
 export const buildGeneralConsultExtractionUserPrompt = (sourceText: string): string => `Extract a strict SOAP JSON note from this source.
 
 Keep only explicit clinically relevant facts for today's visit. If something was not said, leave it out.
-If the source includes Physical examination or Vet notes, extract the explicit clinically relevant findings into OBJECTIVE.
+Keep OBJECTIVE limited to what the vet explicitly stated in the consultation source.
 Do not make SUBJECTIVE or PLAN long.
 
 Source text:

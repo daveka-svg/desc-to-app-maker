@@ -96,3 +96,50 @@ export function sanitizePlainClinicalText(value: string): string {
 
   return stripPlaceholderSections(cleaned);
 }
+
+const buildPESection = (peReport: string): string => {
+  const body = peReport.replace(/^PE:\s*/i, '').trim();
+  return body ? `PE:\n${body}` : '';
+};
+
+export function upsertSeparatePESection(note: string, peReport: string): string {
+  const peSection = buildPESection(peReport);
+  const cleanedNote = sanitizePlainClinicalText(note);
+  if (!peSection) return cleanedNote;
+
+  const withoutExistingPE = cleanedNote
+    .replace(
+      /(?:^|\n\n)(?:PE|P\/E|PHYSICAL EXAMINATION):\n[\s\S]*?(?=\n\n[A-Z][A-Z /()&-]*:|\s*$)/gi,
+      '',
+    )
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  if (!withoutExistingPE) return peSection;
+
+  const blocks = withoutExistingPE
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  const objectiveIndex = blocks.findIndex((block) => /^OBJECTIVE:/i.test(block));
+  if (objectiveIndex >= 0) {
+    blocks.splice(objectiveIndex + 1, 0, peSection);
+    return blocks.join('\n\n').trim();
+  }
+
+  const subjectiveIndex = blocks.findIndex((block) => /^SUBJECTIVE:/i.test(block));
+  if (subjectiveIndex >= 0) {
+    blocks.splice(subjectiveIndex + 1, 0, peSection);
+    return blocks.join('\n\n').trim();
+  }
+
+  const firstClinicalSectionIndex = blocks.findIndex((block) => /^(ASSESSMENT|PLAN):/i.test(block));
+  if (firstClinicalSectionIndex >= 0) {
+    blocks.splice(firstClinicalSectionIndex, 0, peSection);
+    return blocks.join('\n\n').trim();
+  }
+
+  blocks.push(peSection);
+  return blocks.join('\n\n').trim();
+}

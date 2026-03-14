@@ -2,35 +2,11 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SYSTEM_PROMPT, TEMPLATES, compilePEReport } from '@/lib/prompts';
 import { useSessionStore } from '@/stores/useSessionStore';
-import { extractLlmText, sanitizePlainClinicalText } from '@/lib/llm';
+import { extractLlmText, sanitizePlainClinicalText, upsertSeparatePESection } from '@/lib/llm';
 import { getTemplatePrompt } from '@/lib/templatePrompts';
 import { buildNotesGenerationInput } from '@/lib/clinicContext';
 import { getAiGenerationConfig } from '@/lib/appSettings';
 import { inferTemplateKind } from '@/lib/templateKind';
-
-const hasSection = (value: string, heading: string): boolean =>
-  new RegExp(`(^|\\n\\n)${heading}:`, 'i').test(value);
-
-const ensureClinicalContextSections = (
-  noteText: string,
-  peReport: string,
-  vetNotes: string
-): string => {
-  const cleaned = noteText.trim();
-  const blocks: string[] = cleaned ? [cleaned] : [];
-  const peText = peReport.trim();
-  const vetNotesText = vetNotes.trim();
-
-  if (peText && !hasSection(cleaned, 'PHYSICAL EXAMINATION') && !hasSection(cleaned, 'PE')) {
-    blocks.push(`PHYSICAL EXAMINATION:\n${peText}`);
-  }
-
-  if (vetNotesText && !hasSection(cleaned, 'VET NOTES')) {
-    blocks.push(`VET NOTES:\n${vetNotesText}`);
-  }
-
-  return blocks.join('\n\n').trim();
-};
 
 export function useNoteGeneration() {
   const transcript = useSessionStore((s) => s.transcript);
@@ -64,12 +40,13 @@ export function useNoteGeneration() {
       const peReport = includeClinicalContext
         ? (compiledPEReport.trim() || peAppliedSummary.trim())
         : '';
+      const peReportForPrompt = templateKind === 'general_consult' ? '' : peReport;
       const vetNotesForGeneration = includeClinicalContext ? vetNotes : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
       const aiConfig = getAiGenerationConfig();
       const payloadTranscript = buildNotesGenerationInput({
         transcript,
-        peReport,
+        peReport: peReportForPrompt,
         vetNotes: vetNotesForGeneration,
         clinicKnowledgeBase,
         includeClinicContext,
@@ -90,11 +67,21 @@ export function useNoteGeneration() {
 
       if (response.error) throw new Error(response.error.message);
 
-      const notesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
-      const finalNotes = includeClinicalContext
-        ? ensureClinicalContextSections(notesContent, peReport, vetNotesForGeneration)
-        : notesContent;
-      setNotes(finalNotes);
+<<<<<<< HEAD
+      const rawNotesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
+      const notesContent =
+        templateKind === 'general_consult'
+          ? upsertSeparatePESection(rawNotesContent, peReport)
+          : rawNotesContent;
+      setNotes(notesContent);
+=======
+      const rawNotesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
+      const notesContent =
+        templateKind === 'general_consult'
+          ? upsertSeparatePESection(rawNotesContent, peReport)
+          : rawNotesContent;
+      setNotes(notesContent);
+>>>>>>> bf590cb (Separate PE from general consult notes)
       if (includeClinicalContext && compiledPEReport.trim()) {
         setPEAppliedSnapshot(compiledPEReport);
       }

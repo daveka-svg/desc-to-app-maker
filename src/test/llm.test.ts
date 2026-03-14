@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizePlainClinicalText } from '@/lib/llm';
+import { sanitizePlainClinicalText, upsertSeparatePESection } from '@/lib/llm';
 
 describe('sanitizePlainClinicalText', () => {
   it('removes markdown emphasis markers from note text', () => {
@@ -31,6 +31,22 @@ describe('sanitizePlainClinicalText', () => {
 
     expect(sanitizePlainClinicalText(input)).toBe(
       `TREATMENT:\nOwner requested weight and vaccination for Ben. Owner concerns: need for weight measurement and up-to-date vaccines.\n\nPLAN:\nVeterinarian will request weight and vaccination; will send a text when ready.`,
+    );
+  });
+
+  it('inserts a separate PE section below OBJECTIVE', () => {
+    const input = `SUBJECTIVE:\nVomiting since yesterday.\n\nOBJECTIVE:\nQuiet, hydrated.\n\nPLAN:\nMonitor at home.`;
+
+    expect(upsertSeparatePESection(input, 'PE: Temp 38.5 C, HR 110 bpm.')).toBe(
+      `SUBJECTIVE:\nVomiting since yesterday.\n\nOBJECTIVE:\nQuiet, hydrated.\n\nPE:\nTemp 38.5 C, HR 110 bpm.\n\nPLAN:\nMonitor at home.`,
+    );
+  });
+
+  it('replaces any existing PE section instead of duplicating it', () => {
+    const input = `SUBJECTIVE:\nVomiting since yesterday.\n\nOBJECTIVE:\nQuiet, hydrated.\n\nPE:\nOld PE text.\n\nPLAN:\nMonitor at home.`;
+
+    expect(upsertSeparatePESection(input, 'PE: Temp 38.5 C, HR 110 bpm.')).toBe(
+      `SUBJECTIVE:\nVomiting since yesterday.\n\nOBJECTIVE:\nQuiet, hydrated.\n\nPE:\nTemp 38.5 C, HR 110 bpm.\n\nPLAN:\nMonitor at home.`,
     );
   });
 });

@@ -4,7 +4,7 @@ import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useTranscription } from '@/hooks/useTranscription';
 import { supabase } from '@/integrations/supabase/client';
 import { SYSTEM_PROMPT, TEMPLATES, compilePEReport, TASK_EXTRACTION_PROMPT, CLIENT_INSTRUCTIONS_PROMPT } from '@/lib/prompts';
-import { extractLlmText, sanitizePlainClinicalText } from '@/lib/llm';
+import { extractLlmText, sanitizePlainClinicalText, upsertSeparatePESection } from '@/lib/llm';
 import { getTemplatePrompt } from '@/lib/templatePrompts';
 import { getAiGenerationConfig } from '@/lib/appSettings';
 import { buildNotesGenerationInput, buildTaskExtractionInput } from '@/lib/clinicContext';
@@ -78,12 +78,13 @@ export function useEncounterPipeline() {
       const peReport = includeClinicalContext
         ? (compiledPEReport.trim() || store.peAppliedSummary.trim())
         : '';
+      const peReportForPrompt = templateKind === 'general_consult' ? '' : peReport;
       const vetNotesForGeneration = includeClinicalContext ? store.vetNotes : '';
       
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
       const userContent = buildNotesGenerationInput({
         transcript,
-        peReport,
+        peReport: peReportForPrompt,
         vetNotes: vetNotesForGeneration,
         clinicKnowledgeBase: store.clinicKnowledgeBase,
         includeClinicContext,
@@ -104,7 +105,11 @@ export function useEncounterPipeline() {
 
       if (response.error) throw new Error(response.error.message);
 
-      const notesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
+      const rawNotesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
+      const notesContent =
+        templateKind === 'general_consult'
+          ? upsertSeparatePESection(rawNotesContent, peReport)
+          : rawNotesContent;
 
       store.setNotes(notesContent);
       if (includeClinicalContext && compiledPEReport.trim()) {

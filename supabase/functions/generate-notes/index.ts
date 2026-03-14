@@ -385,26 +385,10 @@ const generateGeneralConsultNote = async (
   const mergedPayload = mergeGeneralConsultGroundingPayloads(payloads);
   const filteredPayload = filterGroundedGeneralConsultPayload(mergedPayload, fullSource);
 
-  let renderedNote = sanitizePlainClinicalText(
-    renderGeneralConsultFromGroundedPayload(filteredPayload, fullSource),
-  );
-
-  // Append PE and vet notes directly since they come from structured form data
-  // and should not go through the evidence-grounding filter (short values like
-  // "BAR", "NAD", "BCS 5/9" fail the minimum evidence length check).
-  const appendParts: string[] = [];
-  if (parsedSource.physicalExamination.trim()) {
-    appendParts.push(`PHYSICAL EXAMINATION:\n${parsedSource.physicalExamination.trim()}`);
-  }
-  if (parsedSource.vetNotes.trim()) {
-    appendParts.push(`VET NOTES:\n${parsedSource.vetNotes.trim()}`);
-  }
-  if (appendParts.length > 0 && renderedNote) {
-    renderedNote = `${renderedNote}\n\n${appendParts.join("\n\n")}`;
-  }
-
   return {
-    content: renderedNote,
+    content: sanitizePlainClinicalText(
+      renderGeneralConsultFromGroundedPayload(filteredPayload, fullSource),
+    ),
     model: buildModelSummary(modelsUsed),
     chunked: noteChunks.length > 1,
     chunkCount: noteChunks.length,
