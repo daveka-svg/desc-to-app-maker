@@ -91,7 +91,10 @@ export function useNoteGeneration() {
       if (response.error) throw new Error(response.error.message);
 
       const notesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
-      setNotes(notesContent);
+      const finalNotes = includeClinicalContext
+        ? ensureClinicalContextSections(notesContent, peReport, vetNotesForGeneration)
+        : notesContent;
+      setNotes(finalNotes);
       if (includeClinicalContext && compiledPEReport.trim()) {
         setPEAppliedSnapshot(compiledPEReport);
       }
