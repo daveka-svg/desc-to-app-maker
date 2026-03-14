@@ -197,5 +197,8 @@ export function compilePEReport(peData: any): string {
     else if (val) findings.push(`${label} ${val}`);
   }
 
+  if (parts.length === 0 && findings.length === 0) return '';
+  if (parts.length === 0) return `PE: ${findings.join(', ')}.`;
+  if (findings.length === 0) return `PE: ${parts.join(', ')}.`;
   return `PE: ${parts.join(', ')}. ${findings.join(', ')}.`;
 }

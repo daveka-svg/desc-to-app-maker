@@ -74,7 +74,10 @@ export function useEncounterPipeline() {
       const templateKind = inferTemplateKind(templateToUse, templatePrompt);
       const includeClinicalContext = store.peEnabled && store.peIncludeInNotes;
       const includeClinicContext = templateKind !== 'general_consult';
-      const peReport = includeClinicalContext && peData ? compilePEReport(peData) : '';
+      const compiledPEReport = includeClinicalContext && peData ? compilePEReport(peData) : '';
+      const peReport = includeClinicalContext
+        ? (compiledPEReport.trim() || store.peAppliedSummary.trim())
+        : '';
       const vetNotesForGeneration = includeClinicalContext ? store.vetNotes : '';
       
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
@@ -104,8 +107,8 @@ export function useEncounterPipeline() {
       const notesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
 
       store.setNotes(notesContent);
-      if (includeClinicalContext && peReport.trim()) {
-        setPEAppliedSnapshot(peReport);
+      if (includeClinicalContext && compiledPEReport.trim()) {
+        setPEAppliedSnapshot(compiledPEReport);
       }
       updateStep(1, 'done');
     } catch (err) {

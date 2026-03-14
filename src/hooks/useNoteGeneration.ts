@@ -16,6 +16,7 @@ export function useNoteGeneration() {
   const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
   const vetNotes = useSessionStore((s) => s.vetNotes);
   const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
+  const peAppliedSummary = useSessionStore((s) => s.peAppliedSummary);
   const setPEAppliedSnapshot = useSessionStore((s) => s.setPEAppliedSnapshot);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
@@ -35,7 +36,10 @@ export function useNoteGeneration() {
       const templateKind = inferTemplateKind(templateToUse, templatePrompt);
       const includeClinicalContext = peEnabled && peIncludeInNotes;
       const includeClinicContext = templateKind !== 'general_consult';
-      const peReport = includeClinicalContext ? compilePEReport(peData) : '';
+      const compiledPEReport = includeClinicalContext ? compilePEReport(peData) : '';
+      const peReport = includeClinicalContext
+        ? (compiledPEReport.trim() || peAppliedSummary.trim())
+        : '';
       const vetNotesForGeneration = includeClinicalContext ? vetNotes : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
       const aiConfig = getAiGenerationConfig();
@@ -64,8 +68,8 @@ export function useNoteGeneration() {
 
       const notesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
       setNotes(notesContent);
-      if (includeClinicalContext && peReport.trim()) {
-        setPEAppliedSnapshot(peReport);
+      if (includeClinicalContext && compiledPEReport.trim()) {
+        setPEAppliedSnapshot(compiledPEReport);
       }
     } catch (err) {
       console.error('Note generation error:', err);
@@ -83,6 +87,7 @@ export function useNoteGeneration() {
     setNotes,
     setIsGeneratingNotes,
     clinicKnowledgeBase,
+    peAppliedSummary,
     setPEAppliedSnapshot,
   ]);
 

@@ -87,4 +87,53 @@ describe('useNoteGeneration', () => {
     expect(state.peAppliedSummary).toContain('Temp 38.5 C');
     expect(state.peAppliedAt).not.toBeNull();
   });
+
+  it('uses the saved PE snapshot when raw PE data is missing', async () => {
+    useSessionStore.setState({
+      peData: {
+        vitals: { temp: '', hr: '', rr: '', weight: '' },
+        mentation: '',
+        demeanour: '',
+        bcs: 0,
+        eyes: '', eyesDetail: '',
+        ears: '', earsDetail: '',
+        nose: '', noseDetail: '',
+        oral: '', oralDetail: '',
+        plns: '', plnsDetail: '',
+        mmColor: '', mmMoisture: '', crt: '',
+        heart: '', heartDetail: '',
+        lungs: '', lungsDetail: '',
+        pulses: '',
+        hydration: '', hydrationDetail: '',
+        abdoPalp: '', abdoPalpDetail: '',
+        skinCoat: '', skinCoatDetail: '',
+      },
+      peAppliedSummary: 'PE: Temp 38.5 C, HR 110 bpm.',
+      peAppliedAt: 123456789,
+      vetNotes: 'Abdomen soft.',
+    });
+
+    const { result } = renderHook(() => useNoteGeneration());
+
+    await act(async () => {
+      await result.current.generateNote();
+    });
+
+    expect(vi.mocked(supabase.functions.invoke)).toHaveBeenCalledWith(
+      'generate-notes',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          transcript: expect.stringContaining('Physical examination:\nPE: Temp 38.5 C, HR 110 bpm.'),
+        }),
+      })
+    );
+    expect(vi.mocked(supabase.functions.invoke)).toHaveBeenCalledWith(
+      'generate-notes',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          transcript: expect.stringContaining('Vet notes:\nAbdomen soft.'),
+        }),
+      })
+    );
+  });
 });

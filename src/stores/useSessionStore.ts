@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
-import { TEMPLATES } from '@/lib/prompts';
+import { TEMPLATES, compilePEReport } from '@/lib/prompts';
 import { DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE } from '@/lib/defaultClinicKnowledgeBase';
 
 export type TabId = 'context' | 'transcript' | 'notes' | 'tasks' | 'chat';
@@ -221,6 +221,58 @@ const defaultPE: PEData = {
   skinCoat: '', skinCoatDetail: '',
 };
 
+export const createDefaultPEData = (): PEData => ({
+  vitals: { ...defaultPE.vitals },
+  mentation: defaultPE.mentation,
+  demeanour: defaultPE.demeanour,
+  bcs: defaultPE.bcs,
+  eyes: defaultPE.eyes,
+  eyesDetail: defaultPE.eyesDetail,
+  ears: defaultPE.ears,
+  earsDetail: defaultPE.earsDetail,
+  nose: defaultPE.nose,
+  noseDetail: defaultPE.noseDetail,
+  oral: defaultPE.oral,
+  oralDetail: defaultPE.oralDetail,
+  plns: defaultPE.plns,
+  plnsDetail: defaultPE.plnsDetail,
+  mmColor: defaultPE.mmColor,
+  mmMoisture: defaultPE.mmMoisture,
+  crt: defaultPE.crt,
+  heart: defaultPE.heart,
+  heartDetail: defaultPE.heartDetail,
+  lungs: defaultPE.lungs,
+  lungsDetail: defaultPE.lungsDetail,
+  pulses: defaultPE.pulses,
+  hydration: defaultPE.hydration,
+  hydrationDetail: defaultPE.hydrationDetail,
+  abdoPalp: defaultPE.abdoPalp,
+  abdoPalpDetail: defaultPE.abdoPalpDetail,
+  skinCoat: defaultPE.skinCoat,
+  skinCoatDetail: defaultPE.skinCoatDetail,
+});
+
+export const normalizePEData = (value: unknown): PEData => {
+  const base = createDefaultPEData();
+  if (!value || typeof value !== 'object') return base;
+
+  const source = value as Record<string, any>;
+  const sourceVitals =
+    source.vitals && typeof source.vitals === 'object'
+      ? (source.vitals as Record<string, any>)
+      : {};
+
+  return {
+    ...base,
+    ...source,
+    vitals: {
+      ...base.vitals,
+      ...sourceVitals,
+    },
+    bcs: typeof source.bcs === 'number' ? source.bcs : Number(source.bcs) || 0,
+  };
+};
+
 const normalPE: Partial<PEData> = {
   mentation: 'BAR', demeanour: 'calm', bcs: 5,
   eyes: 'NAD', ears: 'NAD', nose: 'NAD', oral: 'NAD', plns: 'WNL',
@@ -309,7 +361,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   toggleTasks: () => set((s) => ({ tasksOpen: !s.tasksOpen })),
 
   // PE data
-  peData: { ...defaultPE },
+  peData: createDefaultPEData(),
   setPEField: (field, value) => set((s) => ({
     peData: { ...s.peData, [field]: value },
   })),
@@ -575,6 +627,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       transcriptMergeWarning: null,
       peAppliedAt: null,
       peAppliedSummary: '',
+      peData: createDefaultPEData(),
       notes: '',
       peEnabled: true,
       peIncludeInNotes: true,
@@ -681,6 +734,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   loadSession: (id) => {
     const session = get().sessions.find((s) => s.id === id);
     if (!session) return;
+    const normalizedPEData = normalizePEData(session.peData);
+    const peSummary = session.peEnabled ? compilePEReport(normalizedPEData).trim() : '';
     set({
       encounterStatus: 'reviewing',
       activeSessionId: session.id,
@@ -693,7 +748,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       supplementalContext: '',
       vetNotes: session.vetNotes || '',
       notes: session.notes,
+      peData: normalizedPEData,
       peEnabled: session.peEnabled,
+      peIncludeInNotes: session.peEnabled,
+      peAppliedSummary: peSummary,
+      peAppliedAt: peSummary ? session.createdAt : null,
       tasks: session.tasks,
       tasksNeedReview: false,
       taskExtractionStatus: 'idle',

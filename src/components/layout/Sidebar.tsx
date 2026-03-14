@@ -14,7 +14,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react';
-import { useSessionStore } from '@/stores/useSessionStore';
+import { normalizePEData, useSessionStore } from '@/stores/useSessionStore';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -443,9 +443,16 @@ export default function Sidebar() {
     setPatientName(session.patient_name || '');
     setSelectedTemplate(session.session_type || 'General Consult');
     setSessionDurationSeconds(session.duration_seconds || 0);
+    const normalizedPEData = session.pe_enabled ? normalizePEData(session.pe_data) : normalizePEData(null);
+    useSessionStore.setState({
+      peEnabled: Boolean(session.pe_enabled),
+      peIncludeInNotes: Boolean(session.pe_enabled),
+      peData: normalizedPEData,
+    });
+
     if (session.pe_enabled && session.pe_data) {
       try {
-        const summary = compilePEReport(session.pe_data);
+        const summary = compilePEReport(normalizedPEData);
         if (summary.trim()) {
           setPEAppliedSnapshot(summary, new Date(session.created_at).getTime());
         } else {
