@@ -8,6 +8,30 @@ import { buildNotesGenerationInput } from '@/lib/clinicContext';
 import { getAiGenerationConfig } from '@/lib/appSettings';
 import { inferTemplateKind } from '@/lib/templateKind';
 
+const hasSection = (value: string, heading: string): boolean =>
+  new RegExp(`(^|\\n\\n)${heading}:`, 'i').test(value);
+
+const ensureClinicalContextSections = (
+  noteText: string,
+  peReport: string,
+  vetNotes: string
+): string => {
+  const cleaned = noteText.trim();
+  const blocks: string[] = cleaned ? [cleaned] : [];
+  const peText = peReport.trim();
+  const vetNotesText = vetNotes.trim();
+
+  if (peText && !hasSection(cleaned, 'PHYSICAL EXAMINATION') && !hasSection(cleaned, 'PE')) {
+    blocks.push(`PHYSICAL EXAMINATION:\n${peText}`);
+  }
+
+  if (vetNotesText && !hasSection(cleaned, 'VET NOTES')) {
+    blocks.push(`VET NOTES:\n${vetNotesText}`);
+  }
+
+  return blocks.join('\n\n').trim();
+};
+
 export function useNoteGeneration() {
   const transcript = useSessionStore((s) => s.transcript);
   const peData = useSessionStore((s) => s.peData);
