@@ -22,17 +22,17 @@ const SECTION_ORDER: GeneralSection[] = [
 ];
 
 const DEFAULT_MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
-  SUBJECTIVE: 6,
-  OBJECTIVE: 5,
-  ASSESSMENT: 2,
-  PLAN: 6,
+  SUBJECTIVE: 4,
+  OBJECTIVE: 4,
+  ASSESSMENT: 1,
+  PLAN: 4,
 };
 
 const LONG_SOURCE_MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
-  SUBJECTIVE: 6,
-  OBJECTIVE: 5,
-  ASSESSMENT: 2,
-  PLAN: 6,
+  SUBJECTIVE: 5,
+  OBJECTIVE: 4,
+  ASSESSMENT: 1,
+  PLAN: 5,
 };
 
 const LONG_SOURCE_WORD_THRESHOLD = 1600;
@@ -499,6 +499,42 @@ const trimToWordBudget = (text: string, maxWords: number): string => {
   return output.trim();
 };
 
+const getSectionWordBudget = (
+  section: GeneralSection,
+  complexity: "routine" | "complex",
+  isLongSource: boolean,
+): number => {
+  const routineBudgets: Record<GeneralSection, number> = isLongSource
+    ? {
+        SUBJECTIVE: 48,
+        OBJECTIVE: 34,
+        ASSESSMENT: 18,
+        PLAN: 52,
+      }
+    : {
+        SUBJECTIVE: 48,
+        OBJECTIVE: 38,
+        ASSESSMENT: 20,
+        PLAN: 48,
+      };
+
+  const complexBudgets: Record<GeneralSection, number> = isLongSource
+    ? {
+        SUBJECTIVE: 55,
+        OBJECTIVE: 42,
+        ASSESSMENT: 24,
+        PLAN: 55,
+      }
+    : {
+        SUBJECTIVE: 62,
+        OBJECTIVE: 46,
+        ASSESSMENT: 26,
+        PLAN: 62,
+      };
+
+  return (complexity === "complex" ? complexBudgets : routineBudgets)[section];
+};
+
 const renderSectionBody = (items: GroundingItem[]): string => {
   const fragments = items
     .map((item) => compact(item.text).replace(/\s*[.;]+\s*$/g, "").trim())
@@ -523,11 +559,16 @@ export const renderGeneralConsultFromGroundedPayload = (
   sourceText = "",
 ): string => {
   const blocks: string[] = [];
+  const isLongSource = sourceText ? sourceWordCount(sourceText) >= LONG_SOURCE_WORD_THRESHOLD : false;
 
   for (const section of SECTION_ORDER) {
     const items = payload.sections[section];
     if (!sectionHasContent(items)) continue;
-    const body = renderSectionBody(items);
+    const renderedBody = renderSectionBody(items);
+    const body = trimToWordBudget(
+      renderedBody,
+      getSectionWordBudget(section, payload.complexity, isLongSource),
+    );
     if (!body) continue;
     blocks.push(`${section}:\n${body}`);
   }
@@ -537,9 +578,8 @@ export const renderGeneralConsultFromGroundedPayload = (
   }
 
   const joined = blocks.join("\n\n").trim();
-  const isLongSource = sourceText ? sourceWordCount(sourceText) >= LONG_SOURCE_WORD_THRESHOLD : false;
   const maxWords = payload.complexity === "complex"
-    ? (isLongSource ? 320 : 360)
-    : (isLongSource ? 250 : 240);
+    ? (isLongSource ? 210 : 240)
+    : (isLongSource ? 170 : 180);
   return trimToWordBudget(joined, maxWords);
 };

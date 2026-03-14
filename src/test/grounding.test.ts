@@ -437,13 +437,12 @@ describe('general consult grounding', () => {
     const filtered = filterGroundedGeneralConsultPayload(payload!, FIXTURE_TRANSCRIPT);
     const rendered = renderGeneralConsultFromGroundedPayload(filtered);
 
-    expect(filtered.sections.ASSESSMENT).toHaveLength(2);
-    expect(filtered.sections.PLAN).toHaveLength(6);
+    expect(filtered.sections.ASSESSMENT).toHaveLength(1);
+    expect(filtered.sections.PLAN).toHaveLength(5);
     expect(rendered).toBe(FIXTURE_EXPECTED_GENERAL_CONSULT);
     expect(rendered).toContain('Maropitant 1 mg/kg SC in clinic');
     expect(rendered).toContain('Pro-Kolin 5 ml PO q8h x3 days');
-    expect(rendered).toContain('Nurse progress call tomorrow at 15:30');
-    expect(rendered).toContain('Stool pot and emailed care plan on checkout');
+    expect(rendered).toContain('Avoid high-fat treats and no new foods this week');
     expect(rendered).not.toContain('metronidazole');
   });
 
@@ -498,7 +497,8 @@ ${'Detailed discussion about vomiting and diarrhoea. '.repeat(1700)}`;
     const renderedWordCount = rendered.split(/\s+/).filter(Boolean).length;
 
     expect(filtered.sections.SUBJECTIVE.length).toBeLessThanOrEqual(5);
-    expect(filtered.sections.PLAN.length).toBeLessThanOrEqual(6);
-    expect(renderedWordCount).toBeLessThanOrEqual(250);
+    expect(filtered.sections.PLAN.length).toBeLessThanOrEqual(5);
+    expect(rendered).toContain('T 38.7C');
+    expect(renderedWordCount).toBeLessThanOrEqual(170);
   });
 });

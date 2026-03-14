@@ -136,4 +136,39 @@ describe('useNoteGeneration', () => {
       })
     );
   });
+
+  it('does not clear raw PE data or vet notes during regenerate', async () => {
+    useSessionStore.setState({
+      peData: {
+        vitals: { temp: '38.9', hr: '120', rr: '28', weight: '12.4' },
+        mentation: 'BAR',
+        demeanour: 'calm',
+        bcs: 5,
+        eyes: 'NAD', eyesDetail: '',
+        ears: '', earsDetail: '',
+        nose: '', noseDetail: '',
+        oral: '', oralDetail: '',
+        plns: '', plnsDetail: '',
+        mmColor: 'pink', mmMoisture: 'moist', crt: '<2',
+        heart: '', heartDetail: '',
+        lungs: '', lungsDetail: '',
+        pulses: 'strong',
+        hydration: '', hydrationDetail: '',
+        abdoPalp: 'abn', abdoPalpDetail: 'mild cranial discomfort',
+        skinCoat: '', skinCoatDetail: '',
+      },
+      vetNotes: 'Owner declined bloods today.',
+    });
+
+    const { result } = renderHook(() => useNoteGeneration());
+
+    await act(async () => {
+      await result.current.generateNote();
+    });
+
+    const state = useSessionStore.getState();
+    expect(state.peData.vitals.temp).toBe('38.9');
+    expect(state.peData.abdoPalpDetail).toBe('mild cranial discomfort');
+    expect(state.vetNotes).toBe('Owner declined bloods today.');
+  });
 });

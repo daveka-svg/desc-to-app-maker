@@ -1,4 +1,4 @@
-export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v3" as const;
+export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v4" as const;
 
 export const DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT = `You are a veterinary clinical scribe extracting a strict SOAP note.
 Return ONLY valid JSON with this exact schema:
@@ -17,11 +17,13 @@ Hard rules:
 - "evidence" must be a short direct quote copied from source text.
 - Keep only content relevant to today's visit/reason for presentation.
 - Remove greetings, repeated recaps, jokes, side chatter, and unrelated old history.
+- If Physical examination or Vet notes are present, keep the relevant explicit findings concise in OBJECTIVE instead of dropping them.
 - If a section has no supported data, set that section to null.
 - If one candidate item would be null or empty, omit that item from the array instead of outputting a placeholder.
 - Do not output placeholder values such as "N/A", "NA", the string "null", "not available", "not documented", or "no assessment provided".
 - Keep wording concise, readable, and in UK veterinary style.
 - Prefer short sentence fragments, not bullets.
+- Keep SUBJECTIVE and PLAN brief. Focus on today's reason for visit. Do not repeat the same fact across sections.
 
 Section rules:
 - SUBJECTIVE: presenting complaint, timeline, current signs, owner concerns, relevant home treatment already given, dosing/admin difficulties, and only past history that clearly affects today's visit.
@@ -31,14 +33,17 @@ Section rules:
 
 Length and limits:
 - Use "routine" unless the visit is clearly complex.
-- Routine target: enough content for roughly a 110-220 word rendered note.
-- Max items: SUBJECTIVE 5, OBJECTIVE 5, ASSESSMENT 2, PLAN 5.
+- Routine target: enough content for roughly a 90-170 word rendered note.
+- Long consults must stay concise and should usually remain under 170 rendered words unless clearly complex.
+- Max items: SUBJECTIVE 4, OBJECTIVE 4, ASSESSMENT 1, PLAN 4.
 
 Return JSON only. No markdown. No commentary.`;
 
 export const buildGeneralConsultExtractionUserPrompt = (sourceText: string): string => `Extract a strict SOAP JSON note from this source.
 
 Keep only explicit clinically relevant facts for today's visit. If something was not said, leave it out.
+If the source includes Physical examination or Vet notes, extract the explicit clinically relevant findings into OBJECTIVE.
+Do not make SUBJECTIVE or PLAN long.
 
 Source text:
 ${sourceText}`;

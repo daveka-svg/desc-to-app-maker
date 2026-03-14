@@ -11,11 +11,12 @@ ASSESSMENT:
 PLAN:
 
 Formatting constraints:
-- Routine consult target: 110-200 words.
+- Routine consult target: 90-170 words.
 - Extend only when the case is clearly complex and the extra detail is clinically necessary.
 - Telegraphic paragraph fragments only, no bullets, no markdown emphasis.
 - Remove repeated recap statements, greetings, jokes, and irrelevant side history.
 - For long consults, stay focused on today's reason for visit and keep SUBJECTIVE/PLAN concise.
+- If PE or vet notes are included, keep the relevant explicit findings concise in OBJECTIVE.
 
 Section scope:
 - SUBJECTIVE: owner-reported history, timeline, current signs, home meds/dose/admin challenges, current concerns, relevant PE/vet-note context, and only past history that materially affects today's assessment or plan.
