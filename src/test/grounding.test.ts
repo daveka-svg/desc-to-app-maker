@@ -210,6 +210,30 @@ describe('general consult grounding', () => {
     expect(payload!.sections.PLAN).toHaveLength(0);
   });
 
+  it('treats null sections and null items as empty', () => {
+    const payload = parseGeneralConsultGroundingPayload(JSON.stringify({
+      complexity: 'routine',
+      sections: {
+        SUBJECTIVE: null,
+        OBJECTIVE: [
+          null,
+          { text: 'Patient appears thin', evidence: 'he is a little thin to me' },
+        ],
+        ASSESSMENT: null,
+        PLAN: [
+          { text: null, evidence: null },
+        ],
+      },
+    }));
+
+    expect(payload).not.toBeNull();
+    expect(payload!.sections.SUBJECTIVE).toHaveLength(0);
+    expect(payload!.sections.OBJECTIVE).toHaveLength(1);
+    expect(payload!.sections.OBJECTIVE[0].text).toBe('Patient appears thin');
+    expect(payload!.sections.ASSESSMENT).toHaveLength(0);
+    expect(payload!.sections.PLAN).toHaveLength(0);
+  });
+
   it('dedupes repeated recap content while keeping one plan item', () => {
     const source = `
       Vet: Acute diarrhoea since yesterday morning.
