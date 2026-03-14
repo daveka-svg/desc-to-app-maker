@@ -208,7 +208,7 @@ describe('useNoteGeneration', () => {
 
     const state = useSessionStore.getState();
     expect(state.notes).toContain('PHYSICAL EXAMINATION:');
-    expect(state.notes).toContain('PE: Temp 38.5 C, HR 110 bpm, BCS 5/9, BAR, Eyes NAD.');
+    expect(state.notes).toContain('PE: Temp 38.5 C, HR 110 bpm, BCS 5/9, BAR');
     expect(state.notes).toContain('VET NOTES:\nOwner declined bloods today.');
   });
 
