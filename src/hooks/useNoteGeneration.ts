@@ -67,21 +67,12 @@ export function useNoteGeneration() {
 
       if (response.error) throw new Error(response.error.message);
 
-<<<<<<< HEAD
       const rawNotesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
       const notesContent =
         templateKind === 'general_consult'
           ? upsertSeparatePESection(rawNotesContent, peReport)
           : rawNotesContent;
       setNotes(notesContent);
-=======
-      const rawNotesContent = sanitizePlainClinicalText(await extractLlmText(response.data));
-      const notesContent =
-        templateKind === 'general_consult'
-          ? upsertSeparatePESection(rawNotesContent, peReport)
-          : rawNotesContent;
-      setNotes(notesContent);
->>>>>>> bf590cb (Separate PE from general consult notes)
       if (includeClinicalContext && compiledPEReport.trim()) {
         setPEAppliedSnapshot(compiledPEReport);
       }
