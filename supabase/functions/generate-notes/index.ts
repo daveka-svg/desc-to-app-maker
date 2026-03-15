@@ -143,9 +143,6 @@ const callOpenAI = async (
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    reasoning: {
-      effort: "minimal",
-    },
     text: {
       verbosity: "low",
     },
