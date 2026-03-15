@@ -15,7 +15,7 @@ PLAN:
 Core rules:
 - Use only information grounded in the source. If something was not said, leave it out.
 - Do not invent diagnoses, treatments, doses, timelines, monitoring, follow-up, owner advice, or recommendations.
-- You may combine and lightly synthesise multiple explicit source facts into one concise clinically useful sentence fragment when the meaning stays the same.
+- You may combine and lightly synthesise multiple explicit source facts into concise clinically useful sentence fragments when the meaning stays the same.
 - Keep only information relevant to today's visit. Relevant prior history, owner-reported context, medicine names, discussed options, and final decisions must be included if they relate to today's problem or plan.
 - If a topic is discussed at length and clearly shapes today's assessment or plan, keep it even if it is background rather than a single acute symptom. Examples: current diet, feeding difficulties, previous similar episodes, and home care already tried.
 - Remove greetings, repeated recap statements, jokes, side chatter, and unrelated very old history. History that affects treatment and diagnosis must be included.
@@ -25,6 +25,8 @@ Core rules:
 - Short obvious abbreviations are allowed where clear (eg O, d).
 - Use digits instead of number words for counts, doses, durations, frequencies, ratios, and timing.
 - Preserve exact dates, weekdays, times, percentages, ratios, medication names, doses, routes, frequencies, durations, and ratios when stated (eg next Monday, 15:30, 48h, 50%).
+- If the owner raises a concern and the vet explores it in detail, keep that detail in the note.
+- If treatment options, medicine names, diet changes, follow-up timing, monitoring advice, or final decisions were discussed, keep them specifically rather than collapsing them to a generic summary.
 
 Section scope:
 - SUBJECTIVE: presenting complaint, timeline, current signs, current situation, owner concerns, relevant home treatment already given, issues, and relevant history that affects today's case or helps explain today's problem and any other concern highlighted by the owner and elaborated by the vet.
@@ -36,12 +38,13 @@ Priority rules:
 - Preserve the explicit answer to: what, when, how long, how much, and when to recheck/follow up.
 - If the consultation spent meaningful time on a clinically relevant topic, do not collapse it to a vague one-line summary.
 - If shortening is necessary, keep clinically useful detail over conversational detail, but do not drop medicine names, explicit options discussed, or final decisions.
+- Do not compress the note so aggressively that owner concerns, prior similar episodes, current diet/food details, home treatments already tried, or explicit recommendations disappear.
 - Prioritise items that include exact dose, route, frequency, duration, timing, recheck details, medicine names, or explicit decisions over generic narrative.
 
 Length:
-- Routine target: not more than 100 words each section.
+- Routine target: usually 80-150 words for SUBJECTIVE and PLAN, and shorter for OBJECTIVE and ASSESSMENT.
 - For sparse notes with only 1-2 supported sections, allow more detail inside the supported sections instead of over-compressing.
-- Long consults may extend to 300+ words if clinically needed to preserve important detail.
+- Long consults may extend to 350+ words if clinically needed to preserve important detail.
 - Telegraphic paragraph fragments only, no bullets, no markdown emphasis.
 - Stay concise unless the case is clearly complex.`,
 

@@ -22,17 +22,17 @@ const SECTION_ORDER: GeneralSection[] = [
 ];
 
 const DEFAULT_MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
-  SUBJECTIVE: 6,
+  SUBJECTIVE: 8,
   OBJECTIVE: 4,
   ASSESSMENT: 1,
-  PLAN: 6,
+  PLAN: 8,
 };
 
 const LONG_SOURCE_MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
-  SUBJECTIVE: 7,
+  SUBJECTIVE: 10,
   OBJECTIVE: 4,
   ASSESSMENT: 1,
-  PLAN: 7,
+  PLAN: 9,
 };
 
 const LONG_SOURCE_WORD_THRESHOLD = 1600;
@@ -545,6 +545,9 @@ const scoreSubjectiveItem = (item: GroundingItem): number => {
   if (hasPriorEpisodeSignal(combined)) score += 2;
   if (hasTimingOrQuantity(combined)) score += 3;
   if (hasMarker(combined, MEDICATION_MARKERS)) score += 1;
+  if (/\b(?:no vomiting|no diarrhoea|still drinking|still eating|fussy|struggling to eat|home treatment|probiotic|pro-kolin|buscopan|applaws|royal canin|purina|cat food|dog food|dried fish|treats?)\b/iu.test(combined)) {
+    score += 3;
+  }
   if (/\b(?:owner|client).{0,24}(?:concern|worried|concerned|reports|reported|states|stated|noticed|noted|asked|mentions|mentioned)|\b(?:concern|worried|concerned|difficulty|struggling|fussy|admin|home treatment|at home|previous episode|same thing before)\b/iu.test(combined)) {
     score += 2;
   }
@@ -559,6 +562,9 @@ const scorePlanItem = (item: GroundingItem): number => {
   if (hasTimingOrQuantity(combined)) score += 4;
   if (hasMarker(combined, DIRECT_TREATMENT_MARKERS)) score += 3;
   if (/\b(?:recheck|follow ?up|call|book|schedule|review|return|48\s*h|24\s*h|15:30|tomorrow|today)\b/iu.test(combined)) {
+    score += 4;
+  }
+  if (/\b(?:royal canin|purina|buscopan|pro-kolin|maropitant|omeprazole|paste|tablet|food|diet|transition|mix|50%|gastrointestinal|gi)\b/iu.test(combined)) {
     score += 4;
   }
   if (/\b(?:monitor|red flags?|worsen|if no improvement|if still)\b/iu.test(combined)) {
@@ -675,35 +681,35 @@ const getSectionWordBudget = (
 ): number => {
   const routineBudgets: Record<GeneralSection, number> = isLongSource
       ? {
-        SUBJECTIVE: 76,
+        SUBJECTIVE: 110,
         OBJECTIVE: 36,
         ASSESSMENT: 18,
-        PLAN: 84,
+        PLAN: 120,
       }
     : {
-        SUBJECTIVE: 74,
+        SUBJECTIVE: 96,
         OBJECTIVE: 40,
         ASSESSMENT: 20,
-        PLAN: 78,
+        PLAN: 104,
       };
 
   const complexBudgets: Record<GeneralSection, number> = isLongSource
     ? {
-        SUBJECTIVE: 74,
+        SUBJECTIVE: 118,
         OBJECTIVE: 42,
         ASSESSMENT: 24,
-        PLAN: 92,
+        PLAN: 132,
       }
     : {
-        SUBJECTIVE: 78,
+        SUBJECTIVE: 104,
         OBJECTIVE: 46,
         ASSESSMENT: 26,
-        PLAN: 96,
+        PLAN: 120,
       };
 
   const base = (complexity === "complex" ? complexBudgets : routineBudgets)[section];
   if (sectionCount <= 2 && (section === "SUBJECTIVE" || section === "PLAN")) {
-    return base + (section === "SUBJECTIVE" ? 22 : 16);
+    return base + (section === "SUBJECTIVE" ? 34 : 28);
   }
   return base;
 };
@@ -795,8 +801,8 @@ export const renderGeneralConsultFromGroundedPayload = (
 
   const joined = blocks.join("\n\n").trim();
   const maxWords = payload.complexity === "complex"
-    ? (isLongSource ? 245 : 280)
-    : (isLongSource ? 230 : 250);
-  const sparseSectionBonus = sectionCount <= 2 ? 35 : 0;
+    ? (isLongSource ? 340 : 380)
+    : (isLongSource ? 310 : 330);
+  const sparseSectionBonus = sectionCount <= 2 ? 55 : 0;
   return trimToWordBudget(joined, maxWords + sparseSectionBonus);
 };
