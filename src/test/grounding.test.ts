@@ -470,7 +470,7 @@ describe('general consult grounding', () => {
     const rendered = renderGeneralConsultFromGroundedPayload(filtered);
 
     expect(filtered.sections.ASSESSMENT).toHaveLength(1);
-    expect(filtered.sections.PLAN).toHaveLength(5);
+    expect(filtered.sections.PLAN).toHaveLength(6);
     expect(rendered).toBe(FIXTURE_EXPECTED_GENERAL_CONSULT);
     expect(rendered).toContain('Maropitant 1 mg/kg SC in clinic');
     expect(rendered).toContain('Pro-Kolin 5 ml PO q8h x3 days');
@@ -529,9 +529,9 @@ ${'Detailed discussion about vomiting and diarrhoea. '.repeat(1700)}`;
     const rendered = renderGeneralConsultFromGroundedPayload(filtered, longSource);
     const renderedWordCount = rendered.split(/\s+/).filter(Boolean).length;
 
-    expect(filtered.sections.SUBJECTIVE.length).toBeLessThanOrEqual(5);
-    expect(filtered.sections.PLAN.length).toBeLessThanOrEqual(5);
+    expect(filtered.sections.SUBJECTIVE.length).toBeLessThanOrEqual(7);
+    expect(filtered.sections.PLAN.length).toBeLessThanOrEqual(7);
     expect(rendered).toContain('T 38.7C');
-    expect(renderedWordCount).toBeLessThanOrEqual(170);
+    expect(renderedWordCount).toBeLessThanOrEqual(220);
   });
 });

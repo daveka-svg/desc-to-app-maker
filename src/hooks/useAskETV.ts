@@ -43,6 +43,7 @@ export function useAskETV() {
         body: {
           transcript: composedContext,
           templatePrompt: ASK_ETV_SYSTEM,
+          requestType: 'chat',
           llmProvider: aiConfig.provider,
           llmModel: aiConfig.model,
         },

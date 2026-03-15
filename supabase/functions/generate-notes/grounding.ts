@@ -22,17 +22,17 @@ const SECTION_ORDER: GeneralSection[] = [
 ];
 
 const DEFAULT_MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
-  SUBJECTIVE: 4,
+  SUBJECTIVE: 6,
   OBJECTIVE: 4,
   ASSESSMENT: 1,
-  PLAN: 4,
+  PLAN: 6,
 };
 
 const LONG_SOURCE_MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
-  SUBJECTIVE: 5,
+  SUBJECTIVE: 7,
   OBJECTIVE: 4,
   ASSESSMENT: 1,
-  PLAN: 5,
+  PLAN: 7,
 };
 
 const LONG_SOURCE_WORD_THRESHOLD = 1600;
@@ -104,6 +104,49 @@ const MEDICATION_MARKERS = [
   "sc",
   "im",
   "iv",
+];
+
+const DECISION_MARKERS = [
+  "agreed",
+  "decided",
+  "discussed",
+  "discussion",
+  "opted",
+  "preferred",
+  "preference",
+  "trial",
+  "switch",
+  "switched",
+  "continue",
+  "continued",
+  "start",
+  "started",
+  "stop",
+  "stopped",
+  "hold",
+  "declined",
+];
+
+const DIRECT_TREATMENT_MARKERS = [
+  "give",
+  "given",
+  "administer",
+  "administered",
+  "start",
+  "started",
+  "continue",
+  "continued",
+  "dispense",
+  "dispensed",
+  "switch",
+  "switched",
+  "trial",
+  "feed",
+  "fed",
+  "apply",
+  "applied",
+  "use",
+  "used",
 ];
 
 const IGNORED_TOKENS = new Set([
@@ -203,7 +246,12 @@ const hasTimingOrQuantity = (value: string): boolean =>
   );
 
 const hasCurrentClinicalSignal = (value: string): boolean =>
-  /\b(?:vomit|diarr|stool|mucus|blood|appetite|drinking|quiet|letharg|pain|urgency|strain|cough|sneez|pee|urinary|weight|dehydrat|dose|med|tablet|paste|food|diet)\w*\b/iu.test(
+  /\b(?:vomit|diarr|stool|mucus|blood|appetite|drinking|quiet|letharg|pain|urgency|strain|cough|sneez|pee|urinary|weight|dehydrat|dose|med|tablet|paste|food|diet|itch|lick|bleed|rash|skin|ear|eye)\w*\b/iu.test(
+    value,
+  );
+
+const hasPrimaryComplaintSignal = (value: string): boolean =>
+  /\b(?:vomit|diarr|loose stool|itch|bleed|pain|cough|sneez|lame|lameness|seiz|letharg|off food|reduced appetite|appetite|drinking|urinary)\w*\b/iu.test(
     value,
   );
 
@@ -238,7 +286,6 @@ const TITLE_CASE_WORDS = new Set([
   "february",
   "march",
   "april",
-  "may",
   "june",
   "july",
   "august",
@@ -464,39 +511,48 @@ const dedupeAndLimit = (
   return output;
 };
 
-const sortByPriority = (
+const dedupeItems = (items: GroundingItem[]): GroundingItem[] =>
+  dedupeAndLimit(items, Number.MAX_SAFE_INTEGER);
+
+const prioritizeAndLimitPreservingOrder = (
   items: GroundingItem[],
   scorer: (item: GroundingItem) => number,
+  maxItems: number,
 ): GroundingItem[] =>
   items
     .map((item, index) => ({ item, index, score: scorer(item) }))
     .sort((left, right) => right.score - left.score || left.index - right.index)
+    .slice(0, maxItems)
+    .sort((left, right) => left.index - right.index)
     .map(({ item }) => item);
 
 const scoreSubjectiveItem = (item: GroundingItem): number => {
   const combined = `${item.text} ${item.evidence}`;
   let score = 0;
-  if (hasCurrentClinicalSignal(combined)) score += 3;
+  if (hasCurrentClinicalSignal(combined)) score += 4;
+  if (hasPrimaryComplaintSignal(combined)) score += 4;
   if (hasTimingOrQuantity(combined)) score += 3;
-  if (hasMarker(combined, MEDICATION_MARKERS)) score += 2;
-  if (/\b(?:owner concern|worried|concerned|difficulty|struggling|fussy|admin)\b/iu.test(combined)) {
-    score += 1;
+  if (hasMarker(combined, MEDICATION_MARKERS)) score += 1;
+  if (/\b(?:owner|client).{0,24}(?:concern|worried|concerned|reports|reported|states|stated|noticed|noted|asked|mentions|mentioned)|\b(?:concern|worried|concerned|difficulty|struggling|fussy|admin|home treatment|at home|previous episode|same thing before)\b/iu.test(combined)) {
+    score += 2;
   }
-  if (hasHistoricalTiming(combined) && !hasCurrentVisitTiming(combined)) score -= 3;
+  if (hasHistoricalTiming(combined) && !hasCurrentVisitTiming(combined)) score -= 2;
   return score;
 };
 
 const scorePlanItem = (item: GroundingItem): number => {
   const combined = `${item.text} ${item.evidence}`;
   let score = 0;
-  if (hasMarker(combined, MEDICATION_MARKERS)) score += 4;
-  if (hasTimingOrQuantity(combined)) score += 3;
+  if (hasMarker(combined, MEDICATION_MARKERS)) score += 6;
+  if (hasTimingOrQuantity(combined)) score += 4;
+  if (hasMarker(combined, DIRECT_TREATMENT_MARKERS)) score += 3;
   if (/\b(?:recheck|follow ?up|call|book|schedule|review|return|48\s*h|24\s*h|15:30|tomorrow|today)\b/iu.test(combined)) {
-    score += 3;
+    score += 4;
   }
   if (/\b(?:monitor|red flags?|worsen|if no improvement|if still)\b/iu.test(combined)) {
     score += 2;
   }
+  if (hasMarker(combined, DECISION_MARKERS)) score += 3;
   if (hasMarker(combined, PLAN_MARKERS)) score += 1;
   return score;
 };
@@ -516,7 +572,7 @@ export const filterGroundedGeneralConsultPayload = (
     const grounded = payload.sections[section].filter((item) =>
       isItemGrounded(item, sourceText)
     );
-    next.sections[section] = dedupeAndLimit(grounded, maxItemsBySection[section]);
+    next.sections[section] = dedupeItems(grounded);
   }
 
   const focusTerms = buildFocusTerms(next);
@@ -529,10 +585,22 @@ export const filterGroundedGeneralConsultPayload = (
     isSupportedPlanItem(item, isShortConsult)
   );
 
-  next.sections.SUBJECTIVE = sortByPriority(next.sections.SUBJECTIVE, scoreSubjectiveItem);
-  next.sections.PLAN = sortByPriority(next.sections.PLAN, scorePlanItem);
+  next.sections.SUBJECTIVE = prioritizeAndLimitPreservingOrder(
+    next.sections.SUBJECTIVE,
+    scoreSubjectiveItem,
+    maxItemsBySection.SUBJECTIVE,
+  );
+  next.sections.PLAN = prioritizeAndLimitPreservingOrder(
+    next.sections.PLAN,
+    scorePlanItem,
+    maxItemsBySection.PLAN,
+  );
 
   for (const section of SECTION_ORDER) {
+    if (section === "SUBJECTIVE" || section === "PLAN") {
+      next.sections[section] = dedupeItems(next.sections[section]);
+      continue;
+    }
     next.sections[section] = dedupeAndLimit(next.sections[section], maxItemsBySection[section]);
   }
 
@@ -591,36 +659,41 @@ const getSectionWordBudget = (
   section: GeneralSection,
   complexity: "routine" | "complex",
   isLongSource: boolean,
+  sectionCount: number,
 ): number => {
   const routineBudgets: Record<GeneralSection, number> = isLongSource
     ? {
-        SUBJECTIVE: 56,
-        OBJECTIVE: 34,
+        SUBJECTIVE: 68,
+        OBJECTIVE: 36,
         ASSESSMENT: 18,
-        PLAN: 68,
+        PLAN: 84,
       }
     : {
-        SUBJECTIVE: 54,
-        OBJECTIVE: 38,
+        SUBJECTIVE: 66,
+        OBJECTIVE: 40,
         ASSESSMENT: 20,
-        PLAN: 62,
+        PLAN: 78,
       };
 
   const complexBudgets: Record<GeneralSection, number> = isLongSource
     ? {
-        SUBJECTIVE: 55,
+        SUBJECTIVE: 74,
         OBJECTIVE: 42,
         ASSESSMENT: 24,
-        PLAN: 55,
+        PLAN: 92,
       }
     : {
-        SUBJECTIVE: 62,
+        SUBJECTIVE: 78,
         OBJECTIVE: 46,
         ASSESSMENT: 26,
-        PLAN: 62,
+        PLAN: 96,
       };
 
-  return (complexity === "complex" ? complexBudgets : routineBudgets)[section];
+  const base = (complexity === "complex" ? complexBudgets : routineBudgets)[section];
+  if (sectionCount <= 2 && (section === "SUBJECTIVE" || section === "PLAN")) {
+    return base + (section === "SUBJECTIVE" ? 22 : 16);
+  }
+  return base;
 };
 
 const renderSectionBody = (items: GroundingItem[]): string => {
@@ -690,6 +763,7 @@ export const renderGeneralConsultFromGroundedPayload = (
 ): string => {
   const blocks: string[] = [];
   const isLongSource = sourceText ? sourceWordCount(sourceText) >= LONG_SOURCE_WORD_THRESHOLD : false;
+  const sectionCount = SECTION_ORDER.filter((section) => sectionHasContent(payload.sections[section])).length;
 
   for (const section of SECTION_ORDER) {
     const items = payload.sections[section];
@@ -697,7 +771,7 @@ export const renderGeneralConsultFromGroundedPayload = (
     const renderedBody = renderSectionBody(items);
     const body = trimToWordBudget(
       renderedBody,
-      getSectionWordBudget(section, payload.complexity, isLongSource),
+      getSectionWordBudget(section, payload.complexity, isLongSource, sectionCount),
     );
     if (!body) continue;
     blocks.push(`${section}:\n${body}`);
@@ -709,7 +783,8 @@ export const renderGeneralConsultFromGroundedPayload = (
 
   const joined = blocks.join("\n\n").trim();
   const maxWords = payload.complexity === "complex"
-    ? (isLongSource ? 210 : 240)
-    : (isLongSource ? 185 : 195);
-  return trimToWordBudget(joined, maxWords);
+    ? (isLongSource ? 245 : 280)
+    : (isLongSource ? 220 : 240);
+  const sparseSectionBonus = sectionCount <= 2 ? 25 : 0;
+  return trimToWordBudget(joined, maxWords + sparseSectionBonus);
 };

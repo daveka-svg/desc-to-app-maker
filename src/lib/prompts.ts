@@ -15,8 +15,8 @@ PLAN:
 Core rules:
 - Use only information grounded in the source. If something was not said, leave it out.
 - Do not invent diagnoses, treatments, doses, timelines, monitoring, follow-up, owner advice, or recommendations.
-- You may combine multiple explicit source facts into one concise clinically useful sentence fragment.
-- Keep only information relevant to today's visit. Relevant prior history may be included if it clearly helps explain today's problem or plan.
+- You may combine and lightly synthesise multiple explicit source facts into one concise clinically useful sentence fragment when the meaning stays the same.
+- Keep only information relevant to today's visit. Relevant prior history, owner-reported context, medicine names, discussed options, and final decisions may be included if they clearly help explain today's problem or plan.
 - Remove greetings, repeated recap statements, jokes, side chatter, and unrelated old history.
 - OBJECTIVE should contain only observations explicitly mentioned by the vet in the consultation source.
 - Structured PE findings are rendered separately by the app and should not be rewritten inside OBJECTIVE.
@@ -27,19 +27,19 @@ Core rules:
 - Preserve exact dates, weekdays, times, percentages, ratios, medication names, doses, routes, frequencies, durations, and ratios when stated (eg next Monday, 15:30, 48h, 50%).
 
 Section scope:
-- SUBJECTIVE: presenting complaint, timeline, current signs, owner concerns, relevant home treatment already given, dosing/admin issues, and relevant prior history that affects today's case.
+- SUBJECTIVE: presenting complaint, timeline, current signs, owner concerns, relevant home treatment already given, dosing/admin issues, and relevant prior history that affects today's case or helps explain today's problem.
 - OBJECTIVE: explicit vet-stated vitals and objective exam findings from the consultation source only.
 - ASSESSMENT: only clinician-stated assessment from source.
-- PLAN: only explicitly discussed treatment, dose, route, frequency, duration, recommendations, monitoring, red flags, follow-up, diagnostics, and admin actions.
+- PLAN: only explicitly discussed treatment, medicine names, dose, route, frequency, duration, recommendations, monitoring, red flags, follow-up, diagnostics, admin actions, discussed options, and what was agreed or decided.
 
 Priority rules:
 - Preserve the explicit answer to: what, when, how long, how much, and when to recheck/follow up.
-- If shortening is necessary, keep clinically useful detail over conversational detail.
-- Prioritise items that include exact dose, route, frequency, duration, timing, or recheck details over generic narrative.
+- If shortening is necessary, keep clinically useful detail over conversational detail, but do not drop medicine names, explicit options discussed, or final decisions.
+- Prioritise items that include exact dose, route, frequency, duration, timing, recheck details, medicine names, or explicit decisions over generic narrative.
 
 Length:
-- Routine target: 110-220 words.
-- Long consults may extend to 280 words if clinically needed to preserve important detail.
+- Routine target: 120-240 words.
+- Long consults may extend to 300 words if clinically needed to preserve important detail.
 - Telegraphic paragraph fragments only, no bullets, no markdown emphasis.
 - Stay concise unless the case is clearly complex.`,
 
@@ -118,13 +118,21 @@ Section 2: Team Handover (Vet/Nurse)
 [specific referral question and requested next steps]
 [attachments / additional notes if mentioned]`,
 
-  'Follow-up Update': `(Brief follow-up consult summary.)
+  'Follow-up Update': `(Write a short owner follow-up email in UK English that is ready to send.
 
-[current clinical status]
-[changes since last visit]
-[response to treatment]
-[updated plan and owner advice]
-[next review date / triggers for earlier review]`,
+Format:
+[Subject line]
+[Greeting]
+[1 short paragraph summarising the current position and reason for update]
+[1 short paragraph covering treatment/medication/monitoring advice only if explicitly discussed]
+[1 short paragraph covering next steps, review timing, and when to contact the clinic, only if explicitly discussed]
+[Brief warm sign-off from the clinic]
+
+Rules:
+- Plain email style, not SOAP, not headings, not bullet points unless clearly needed
+- Keep it concise and suitable to send by email
+- Use only facts explicitly mentioned in the transcript/notes
+- Do not invent reassurance, timelines, medication instructions, or follow-up if not explicitly stated`,
 };
 
 export const TASK_EXTRACTION_PROMPT = `Given the consultation transcript, extract only explicit action items that were directly requested, assigned, scheduled, or agreed. For each item, assign it to: "Vet" (clinical decisions, prescriptions, procedures), "Nurse" (sample collection, monitoring, fluid administration), or "Admin" (estimates, insurance, scheduling).
@@ -164,7 +172,16 @@ Return ONLY valid JSON in this format:
   "followUp": "..."
 }`;
 
-export const ASK_ETV_SYSTEM = `You are a veterinary AI assistant for Every Tail Vets (London, UK). You have access to the current consultation's transcript, physical exam findings, generated clinical notes, and uploaded contextual files. Help with: documentation, clinical reasoning, generating referral letters, discharge summaries, follow-up letters, and lab result interpretation. Write in UK English. Follow ETV's warm, professional tone for client-facing documents. For clinical documents, use standard veterinary abbreviations.`;
+export const ASK_ETV_SYSTEM = `You are a veterinary AI assistant for Every Tail Vets (London, UK). You are answering questions about the current consultation, not generating clinical notes unless explicitly asked.
+
+Use the consultation transcript as the primary source of truth. Use uploaded context and generated notes only as supporting context. If sources conflict, prefer the transcript.
+
+When the user asks for a chart summary, follow-up letter, discharge text, referral letter, or interpretation, answer directly in the requested format.
+- For follow-up letters and owner emails, write a ready-to-send plain-text email in warm, professional UK English.
+- For chart or clinical outputs, use concise veterinary wording and standard abbreviations where appropriate.
+- If something was not stated in the consultation context, say so briefly or leave it out. Do not invent facts.
+
+Keep answers concise, practical, and specific to this consultation.`;
 
 export function compilePEReport(peData: any): string {
   if (!peData) return '';

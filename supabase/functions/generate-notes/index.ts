@@ -553,6 +553,31 @@ const generateStandardNote = async (
   };
 };
 
+const generateDirectResponse = async (
+  userPrompt: string,
+  provider: LlmProvider,
+  apiKey: string,
+  modelCandidates: string[],
+  systemPrompt: string,
+  maxOutputTokens: number,
+) => {
+  const generated = await callModelWithFallbacks(
+    provider,
+    apiKey,
+    modelCandidates,
+    systemPrompt,
+    userPrompt,
+    maxOutputTokens,
+  );
+
+  return {
+    content: sanitizePlainClinicalText(generated.content),
+    model: generated.modelUsed,
+    chunked: false,
+    chunkCount: 1,
+  };
+};
+
 const generateChunkedStandardNote = async (
   sourceText: string,
   provider: LlmProvider,
@@ -694,6 +719,27 @@ Keep the language concise and professional. Use standard veterinary abbreviation
     }
 
     const systemPrompt = templatePrompt || defaultSystemPrompt;
+    if (requestType === "chat") {
+      const generated = await generateDirectResponse(
+        String(transcript || ""),
+        provider,
+        resolvedApiKey,
+        modelCandidates,
+        systemPrompt,
+        resolvedMaxTokens,
+      );
+
+      return new Response(JSON.stringify({
+        content: generated.content,
+        provider,
+        model: generated.model,
+        chunked: generated.chunked,
+        chunkCount: generated.chunkCount,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const parsedSource = parseNoteSource(String(transcript || ""));
     const generated = shouldChunkNoteTranscript(parsedSource.consultationTranscript)
       ? await generateChunkedStandardNote(
