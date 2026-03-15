@@ -143,12 +143,6 @@ const callOpenAI = async (
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    reasoning: {
-      effort: "minimal",
-    },
-    text: {
-      verbosity: "low",
-    },
     max_output_tokens: maxOutputTokens,
   };
 
@@ -188,6 +182,22 @@ const stripCodeFences = (value: string): string => {
   const trimmed = value.trim();
   if (!trimmed.startsWith("```")) return trimmed;
   return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+};
+
+const parseGroundedPayloadFromContent = (content: string) => {
+  const stripped = stripCodeFences(content);
+  const candidates = Array.from(new Set([
+    content.trim(),
+    stripped,
+    (stripped.match(/\{[\s\S]*\}/) || [""])[0].trim(),
+  ].filter(Boolean)));
+
+  for (const candidate of candidates) {
+    const parsed = parseGeneralConsultGroundingPayload(candidate);
+    if (parsed) return parsed;
+  }
+
+  return null;
 };
 
 const PLACEHOLDER_SENTENCE_RE =
@@ -362,24 +372,47 @@ const generateGeneralConsultNote = async (
 
   for (const chunk of noteChunks) {
     const chunkSource = buildNoteSource(chunk) || chunk.consultationTranscript.trim();
-    const groundedExtraction = await callModelWithFallbacks(
-      provider,
-      apiKey,
-      modelCandidates,
-      DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
-      buildGeneralConsultExtractionUserPrompt(chunkSource),
-      Math.max(maxOutputTokens, 2600),
-    );
+    let parsedPayload: ReturnType<typeof parseGroundedPayloadFromContent> = null;
+    let selectedModel = "";
+    let lastChunkError: Error | null = null;
 
-    const parsedPayload = parseGeneralConsultGroundingPayload(
-      stripCodeFences(groundedExtraction.content),
-    );
+    for (const model of modelCandidates) {
+      try {
+        const content = provider === "openai"
+          ? await callOpenAI(
+            apiKey,
+            model,
+            DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+            buildGeneralConsultExtractionUserPrompt(chunkSource),
+            Math.max(maxOutputTokens, 2600),
+          )
+          : await callInception(
+            apiKey,
+            model,
+            DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+            buildGeneralConsultExtractionUserPrompt(chunkSource),
+            Math.max(maxOutputTokens, 2600),
+          );
+
+        parsedPayload = parseGroundedPayloadFromContent(content);
+        if (!parsedPayload) {
+          throw new Error("Grounded extraction payload was not valid JSON");
+        }
+
+        selectedModel = model;
+        break;
+      } catch (err) {
+        lastChunkError = err instanceof Error ? err : new Error(String(err));
+        console.error("Grounded extraction attempt failed:", provider, model, lastChunkError.message);
+      }
+    }
+
     if (!parsedPayload) {
-      throw new Error("Could not parse grounded extraction payload");
+      throw lastChunkError || new Error("Could not parse grounded extraction payload");
     }
 
     payloads.push(parsedPayload);
-    modelsUsed.push(groundedExtraction.modelUsed);
+    modelsUsed.push(selectedModel);
   }
 
   const mergedPayload = mergeGeneralConsultGroundingPayloads(payloads);
