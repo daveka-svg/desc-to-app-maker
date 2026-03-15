@@ -197,6 +197,16 @@ const meaningfulTokens = (value: string): string[] =>
     .split(" ")
     .filter((token) => token.length >= 3 && !IGNORED_TOKENS.has(token));
 
+const hasTimingOrQuantity = (value: string): boolean =>
+  /\b\d+(?::\d{2})?\b|\b(?:today|tomorrow|overnight|am|pm|q\d+h|x\d+|daily|once|twice|hours?|days?|weeks?|months?|minutes?)\b/iu.test(
+    value,
+  );
+
+const hasCurrentClinicalSignal = (value: string): boolean =>
+  /\b(?:vomit|diarr|stool|mucus|blood|appetite|drinking|quiet|letharg|pain|urgency|strain|cough|sneez|pee|urinary|weight|dehydrat|dose|med|tablet|paste|food|diet)\w*\b/iu.test(
+    value,
+  );
+
 const sourceWordCount = (value: string): number =>
   normalize(value).split(" ").filter(Boolean).length;
 
@@ -416,6 +426,43 @@ const dedupeAndLimit = (
   return output;
 };
 
+const sortByPriority = (
+  items: GroundingItem[],
+  scorer: (item: GroundingItem) => number,
+): GroundingItem[] =>
+  items
+    .map((item, index) => ({ item, index, score: scorer(item) }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(({ item }) => item);
+
+const scoreSubjectiveItem = (item: GroundingItem): number => {
+  const combined = `${item.text} ${item.evidence}`;
+  let score = 0;
+  if (hasCurrentClinicalSignal(combined)) score += 3;
+  if (hasTimingOrQuantity(combined)) score += 3;
+  if (hasMarker(combined, MEDICATION_MARKERS)) score += 2;
+  if (/\b(?:owner concern|worried|concerned|difficulty|struggling|fussy|admin)\b/iu.test(combined)) {
+    score += 1;
+  }
+  if (hasHistoricalTiming(combined) && !hasCurrentVisitTiming(combined)) score -= 3;
+  return score;
+};
+
+const scorePlanItem = (item: GroundingItem): number => {
+  const combined = `${item.text} ${item.evidence}`;
+  let score = 0;
+  if (hasMarker(combined, MEDICATION_MARKERS)) score += 4;
+  if (hasTimingOrQuantity(combined)) score += 3;
+  if (/\b(?:recheck|follow ?up|call|book|schedule|review|return|48\s*h|24\s*h|15:30|tomorrow|today)\b/iu.test(combined)) {
+    score += 3;
+  }
+  if (/\b(?:monitor|red flags?|worsen|if no improvement|if still)\b/iu.test(combined)) {
+    score += 2;
+  }
+  if (hasMarker(combined, PLAN_MARKERS)) score += 1;
+  return score;
+};
+
 export const filterGroundedGeneralConsultPayload = (
   payload: GeneralConsultGroundingPayload,
   sourceText: string,
@@ -443,6 +490,9 @@ export const filterGroundedGeneralConsultPayload = (
   next.sections.PLAN = next.sections.PLAN.filter((item) =>
     isSupportedPlanItem(item, isShortConsult)
   );
+
+  next.sections.SUBJECTIVE = sortByPriority(next.sections.SUBJECTIVE, scoreSubjectiveItem);
+  next.sections.PLAN = sortByPriority(next.sections.PLAN, scorePlanItem);
 
   for (const section of SECTION_ORDER) {
     next.sections[section] = dedupeAndLimit(next.sections[section], maxItemsBySection[section]);
@@ -506,16 +556,16 @@ const getSectionWordBudget = (
 ): number => {
   const routineBudgets: Record<GeneralSection, number> = isLongSource
     ? {
-        SUBJECTIVE: 48,
+        SUBJECTIVE: 56,
         OBJECTIVE: 34,
         ASSESSMENT: 18,
-        PLAN: 52,
+        PLAN: 68,
       }
     : {
-        SUBJECTIVE: 48,
+        SUBJECTIVE: 54,
         OBJECTIVE: 38,
         ASSESSMENT: 20,
-        PLAN: 48,
+        PLAN: 62,
       };
 
   const complexBudgets: Record<GeneralSection, number> = isLongSource
@@ -536,6 +586,21 @@ const getSectionWordBudget = (
 };
 
 const renderSectionBody = (items: GroundingItem[]): string => {
+  const condenseClinicalText = (value: string): string =>
+    value
+      .replace(/\bowner\b/gi, "O")
+      .replace(/\bapproximately\b/gi, "approx")
+      .replace(/\b(\d+)\s*days?\b/gi, "$1d")
+      .replace(/\b(\d+)\s*weeks?\b/gi, "$1wk")
+      .replace(/\b(\d+)\s*months?\b/gi, "$1mo")
+      .replace(/\b(\d+)\s*hours?\b/gi, "$1h")
+      .replace(/\bby mouth\b/gi, "PO")
+      .replace(/\bsubcutaneous\b/gi, "SC")
+      .replace(/\bintramuscular\b/gi, "IM")
+      .replace(/\bintravenous\b/gi, "IV")
+      .replace(/\s+/g, " ")
+      .trim();
+
   const fragments = items
     .map((item) => compact(item.text).replace(/\s*[.;]+\s*$/g, "").trim())
     .filter(Boolean);
@@ -548,10 +613,11 @@ const renderSectionBody = (items: GroundingItem[]): string => {
         .filter(Boolean)
         .map(capitaliseSentence),
     )
-    .join(". ")
+    .join(". ");
+  const condensed = condenseClinicalText(rendered)
     .trim();
-  if (!rendered) return "";
-  return /[.!?]$/.test(rendered) ? rendered : `${rendered}.`;
+  if (!condensed) return "";
+  return /[.!?]$/.test(condensed) ? condensed : `${condensed}.`;
 };
 
 export const renderGeneralConsultFromGroundedPayload = (
@@ -580,6 +646,6 @@ export const renderGeneralConsultFromGroundedPayload = (
   const joined = blocks.join("\n\n").trim();
   const maxWords = payload.complexity === "complex"
     ? (isLongSource ? 210 : 240)
-    : (isLongSource ? 170 : 180);
+    : (isLongSource ? 185 : 195);
   return trimToWordBudget(joined, maxWords);
 };

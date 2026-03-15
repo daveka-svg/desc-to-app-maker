@@ -442,7 +442,8 @@ describe('general consult grounding', () => {
     expect(rendered).toBe(FIXTURE_EXPECTED_GENERAL_CONSULT);
     expect(rendered).toContain('Maropitant 1 mg/kg SC in clinic');
     expect(rendered).toContain('Pro-Kolin 5 ml PO q8h x3 days');
-    expect(rendered).toContain('Avoid high-fat treats and no new foods this week');
+    expect(rendered).toContain('no improvement by 48h');
+    expect(rendered).toContain('tomorrow at 15:30');
     expect(rendered).not.toContain('metronidazole');
   });
 

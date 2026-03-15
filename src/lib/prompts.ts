@@ -18,6 +18,8 @@ Formatting constraints:
 - For long consults, stay focused on today's reason for visit and keep SUBJECTIVE/PLAN concise.
 - OBJECTIVE should contain only observations explicitly mentioned by the vet in the consultation source.
 - Structured PE findings are rendered separately by the app and should not be rewritten inside OBJECTIVE.
+- When compressing, preserve the explicit answer to: what was recommended, when, how long, how much, and when to recheck/follow up.
+- Short obvious abbreviations are allowed where clear (eg O, d, wk, PO, SC, q8h).
 
 Section scope:
 - SUBJECTIVE: owner-reported history, timeline, current signs, home meds/dose/admin challenges, current concerns, and only past history that materially affects today's assessment or plan.
@@ -32,7 +34,8 @@ Strict rules:
 - Omit any empty section entirely.
 - Keep only clinically relevant facts for this visit.
 - Remove repetitive narrative and unrelated historical chatter.
-- Do not duplicate physical examination content.`,
+- Do not duplicate physical examination content.
+- Prioritise items that include exact dose, route, frequency, duration, timing, or recheck details over generic narrative.`,
 
   'Surgical Notes': `(Telegraphic style, vet abbreviations. Blank line between topics. Only include if mentioned.)
 

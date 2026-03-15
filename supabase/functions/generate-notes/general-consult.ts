@@ -25,6 +25,8 @@ Hard rules:
 - Keep wording concise, readable, and in UK veterinary style.
 - Prefer short sentence fragments, not bullets.
 - Keep SUBJECTIVE and PLAN brief. Focus on today's reason for visit. Do not repeat the same fact across sections.
+- When compressing, preserve the explicit answer to: what was recommended, when, how long, how much, and when to recheck/follow up.
+- Short obvious abbreviations are allowed where clear (eg O, d, wk, PO, SC, q8h).
 
 Section rules:
 - SUBJECTIVE: presenting complaint, timeline, current signs, owner concerns, relevant home treatment already given, dosing/admin difficulties, and only past history that clearly affects today's visit.
@@ -37,6 +39,7 @@ Length and limits:
 - Routine target: enough content for roughly a 90-170 word rendered note.
 - Long consults must stay concise and should usually remain under 170 rendered words unless clearly complex.
 - Max items: SUBJECTIVE 4, OBJECTIVE 4, ASSESSMENT 1, PLAN 4.
+- Prioritise items that include exact dose, route, frequency, duration, timing, or recheck details over generic narrative.
 
 Return JSON only. No markdown. No commentary.`;
 
