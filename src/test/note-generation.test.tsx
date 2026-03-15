@@ -88,24 +88,6 @@ describe('useNoteGeneration', () => {
     expect(state.peAppliedAt).not.toBeNull();
   });
 
-  it('passes the editable template body for General Consult generation', async () => {
-    const { result } = renderHook(() => useNoteGeneration());
-
-    await act(async () => {
-      await result.current.generateNote();
-    });
-
-    expect(vi.mocked(supabase.functions.invoke)).toHaveBeenCalledWith(
-      'generate-notes',
-      expect.objectContaining({
-        body: expect.objectContaining({
-          templateName: 'General Consult',
-          templatePromptBody: expect.stringMatching(/SUBJECTIVE:[\s\S]*PLAN:/),
-        }),
-      })
-    );
-  });
-
   it('uses the saved PE snapshot when raw PE data is missing', async () => {
     vi.mocked(supabase.functions.invoke).mockResolvedValue({
       data: { content: 'SUBJECTIVE:\nOwner reports diarrhoea for 3 days.\n\nOBJECTIVE:\nQuiet but responsive.' },

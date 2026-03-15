@@ -1,4 +1,4 @@
-export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v7" as const;
+export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v6" as const;
 
 export const DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT = `You are a veterinary clinical scribe extracting a concise SOAP note.
 Return ONLY valid JSON with this exact schema:
@@ -49,47 +49,13 @@ Length:
 
 Return JSON only. No markdown. No commentary.`;
 
-export const normalizeGeneralConsultTemplateOverride = (value: unknown): string =>
-  String(value ?? "")
-    .replace(/\r\n/g, "\n")
-    .trim();
-
-export const buildGeneralConsultSystemPrompt = (editableTemplatePrompt?: string): string => {
-  const templateOverride = normalizeGeneralConsultTemplateOverride(editableTemplatePrompt);
-  if (!templateOverride) {
-    return DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT;
-  }
-
-  return `${DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT}
-
-User-editable template instructions:
-- Apply the following template guidance as an additional override layer.
-- Keep the JSON schema, grounding rules, and transcript-only constraints above.
-- Use the editable template text to influence structure, wording, prioritisation, abbreviations, and what should be kept concise.
-- If the editable template conflicts with the schema or asks for invented content, follow the grounding rules above instead.
-
-Editable template text:
-${templateOverride}`;
-};
-
-export const buildGeneralConsultExtractionUserPrompt = (
-  sourceText: string,
-  editableTemplatePrompt?: string,
-): string => {
-  const templateOverride = normalizeGeneralConsultTemplateOverride(editableTemplatePrompt);
-  const templateBlock = templateOverride
-    ? `\n\nEditable template guidance that the user can change in Settings:\n${templateOverride}`
-    : "";
-
-  return `Extract a concise SOAP JSON note from this source.
+export const buildGeneralConsultExtractionUserPrompt = (sourceText: string): string => `Extract a concise SOAP JSON note from this source.
 
 Keep only grounded clinically relevant facts for today's visit. If something was not said, leave it out.
 Relevant prior history may be included if it clearly helps explain today's problem or plan.
 Keep OBJECTIVE limited to what the vet explicitly stated in the consultation source.
 Keep the note short, but preserve what was recommended, when, how long, how much, and when to recheck/follow up.
 Use digits instead of number words, and preserve exact dates, weekdays, times, percentages, and medication names when stated.
-${templateBlock}
 
 Source text:
 ${sourceText}`;
-};

@@ -575,11 +575,7 @@ export default function Settings() {
 
                 <Field
                   label="Template prompt"
-                  description={
-                    normalizeTemplateName(templateNameDraft) === 'general consult'
-                      ? 'This text is the editable override used by General Consult generation. Update it here to change the prompt behavior.'
-                      : 'This is the editable instruction body stored for this template.'
-                  }
+                  description="This is the editable instruction body stored for this template."
                 >
                   <textarea
                     value={templatePromptDraft}

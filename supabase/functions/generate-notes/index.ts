@@ -6,10 +6,9 @@ import {
   renderGeneralConsultFromGroundedPayload,
 } from "./grounding.ts";
 import {
-  buildGeneralConsultSystemPrompt,
   buildGeneralConsultExtractionUserPrompt,
+  DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
   GENERAL_CONSULT_PROMPT_VERSION,
-  normalizeGeneralConsultTemplateOverride,
 } from "./general-consult.ts";
 import {
   buildChunkedNoteSources,
@@ -355,38 +354,18 @@ const buildModelSummary = (modelsUsed: string[]): string => {
   return uniqueModels.join(", ");
 };
 
-const extractEditableTemplatePrompt = (
-  templatePromptBody: unknown,
-  templatePrompt: unknown,
-): string => {
-  const direct = normalizeGeneralConsultTemplateOverride(templatePromptBody);
-  if (direct) return direct;
-
-  const fullPrompt = String(templatePrompt ?? "").replace(/\r\n/g, "\n").trim();
-  if (!fullPrompt) return "";
-
-  const separatorIndex = fullPrompt.indexOf("\n\n");
-  if (separatorIndex >= 0) {
-    return fullPrompt.slice(separatorIndex + 2).trim();
-  }
-
-  return fullPrompt;
-};
-
 const generateGeneralConsultNote = async (
   sourceText: string,
   provider: LlmProvider,
   apiKey: string,
   modelCandidates: string[],
   maxOutputTokens: number,
-  editableTemplatePrompt = "",
 ) => {
   const parsedSource = parseNoteSource(sourceText);
   const fullSource = buildGeneralConsultSource(parsedSource) || parsedSource.consultationTranscript.trim();
   const noteChunks = shouldChunkNoteTranscript(parsedSource.consultationTranscript)
     ? buildChunkedNoteSources(fullSource)
     : [parseNoteSource(fullSource)];
-  const systemPrompt = buildGeneralConsultSystemPrompt(editableTemplatePrompt);
 
   const payloads = [];
   const modelsUsed: string[] = [];
@@ -403,15 +382,15 @@ const generateGeneralConsultNote = async (
           ? await callOpenAI(
             apiKey,
             model,
-            systemPrompt,
-            buildGeneralConsultExtractionUserPrompt(chunkSource, editableTemplatePrompt),
+            DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+            buildGeneralConsultExtractionUserPrompt(chunkSource),
             Math.max(maxOutputTokens, 2600),
           )
           : await callInception(
             apiKey,
             model,
-            systemPrompt,
-            buildGeneralConsultExtractionUserPrompt(chunkSource, editableTemplatePrompt),
+            DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+            buildGeneralConsultExtractionUserPrompt(chunkSource),
             Math.max(maxOutputTokens, 2600),
           );
 
@@ -547,7 +526,6 @@ serve(async (req) => {
       transcript,
       peData,
       templatePrompt,
-      templatePromptBody,
       requestType,
       templateName,
       templateKind,
@@ -595,14 +573,12 @@ Keep the language concise and professional. Use standard veterinary abbreviation
       requestType === "notes" &&
       (resolvedTemplateKind === "general_consult" || isGeneralConsultTemplate(templateName))
     ) {
-      const editableTemplatePrompt = extractEditableTemplatePrompt(templatePromptBody, templatePrompt);
       const generated = await generateGeneralConsultNote(
         String(transcript || ""),
         provider,
         resolvedApiKey,
         modelCandidates,
         resolvedMaxTokens,
-        editableTemplatePrompt,
       );
 
       return new Response(JSON.stringify({
@@ -613,7 +589,6 @@ Keep the language concise and professional. Use standard veterinary abbreviation
         chunked: generated.chunked,
         chunkCount: generated.chunkCount,
         promptCandidate: GENERAL_CONSULT_PROMPT_VERSION,
-        editableTemplateApplied: Boolean(editableTemplatePrompt),
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
