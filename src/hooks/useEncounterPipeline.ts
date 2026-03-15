@@ -95,6 +95,7 @@ export function useEncounterPipeline() {
           transcript: userContent,
           peData: includeClinicalContext ? peData : null,
           templatePrompt: fullPrompt,
+          templatePromptBody: templatePrompt,
           requestType: 'notes',
           templateName: templateToUse,
           templateKind,

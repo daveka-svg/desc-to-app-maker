@@ -57,6 +57,7 @@ export function useNoteGeneration() {
           transcript: payloadTranscript,
           peData: includeClinicalContext ? peData : null,
           templatePrompt: fullPrompt,
+          templatePromptBody: templatePrompt,
           requestType: 'notes',
           templateName: templateToUse,
           templateKind,
