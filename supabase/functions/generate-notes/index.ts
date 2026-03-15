@@ -178,6 +178,55 @@ const callOpenAI = async (
   return content;
 };
 
+const callLovableAI = async (
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  maxOutputTokens: number,
+) => {
+  const body: Record<string, unknown> = {
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    max_tokens: maxOutputTokens,
+    temperature: 0,
+  };
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const text = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    parsed = {};
+  }
+
+  if (!response.ok) {
+    const errorMessage = typeof (parsed as any)?.error?.message === "string"
+      ? (parsed as any).error.message
+      : text;
+    throw new Error(`Lovable AI error [${response.status}] (${model}): ${errorMessage}`);
+  }
+
+  const content = extractProviderContent(parsed);
+  if (!content) {
+    throw new Error(`Lovable AI returned empty content (${model})`);
+  }
+
+  return content;
+};
+
 const stripCodeFences = (value: string): string => {
   const trimmed = value.trim();
   if (!trimmed.startsWith("```")) return trimmed;
