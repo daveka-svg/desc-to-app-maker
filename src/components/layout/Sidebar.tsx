@@ -9,6 +9,7 @@ import {
   Pen,
   Pencil,
   Plus,
+  RotateCcw,
   Save,
   Settings,
   Trash2,
@@ -20,7 +21,7 @@ import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import AllTasksPanel from '@/components/panels/AllTasksPanel';
 import { useToast } from '@/hooks/use-toast';
-import { compilePEReport } from '@/lib/prompts';
+import { compilePEReport, TEMPLATES } from '@/lib/prompts';
 import { DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE } from '@/lib/defaultClinicKnowledgeBase';
 import { createRecordingSignedUrl, getRecordingFileNameFromPath } from '@/lib/recordings';
 import {
@@ -238,6 +239,52 @@ export default function Sidebar() {
       toast({
         title: 'Save failed',
         description: 'Could not save template prompt.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  };
+
+  const handleResetTemplateToLibraryDefault = async () => {
+    if (!activeTemplate) return;
+    const libraryPrompt = TEMPLATES[activeTemplate.name];
+    if (!libraryPrompt) {
+      toast({
+        title: 'No library default',
+        description: 'This template does not have a built-in library default to restore.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (activeTemplate.systemPrompt.trim() === libraryPrompt.trim()) {
+      toast({
+        title: 'Already up to date',
+        description: `${activeTemplate.name} already matches the library default.`,
+      });
+      return;
+    }
+
+    if (!window.confirm(`Reset "${activeTemplate.name}" to the current library default prompt?`)) {
+      return;
+    }
+
+    setIsSavingTemplate(true);
+    try {
+      const saved = await updateTemplate(activeTemplate.id, {
+        systemPrompt: libraryPrompt,
+      });
+      upsertTemplateDraft(saved.id, saved);
+      toast({
+        title: 'Template reset',
+        description: `${saved.name} now matches the library default prompt.`,
+      });
+    } catch (error) {
+      console.error('Template reset failed:', error);
+      toast({
+        title: 'Reset failed',
+        description: 'Could not restore the library default prompt.',
         variant: 'destructive',
       });
     } finally {
@@ -840,18 +887,34 @@ export default function Sidebar() {
                 <>
                   <div className="flex items-center justify-between">
                     <div className="text-[13px] font-semibold text-bark">{activeTemplate.name}</div>
-                    <button
-                      onClick={handleSaveTemplate}
-                      disabled={isSavingTemplate}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-forest text-primary-foreground disabled:opacity-50"
-                    >
-                      {isSavingTemplate ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <Save size={14} />
-                      )}
-                      Save template
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {TEMPLATES[activeTemplate.name] ? (
+                        <button
+                          onClick={handleResetTemplateToLibraryDefault}
+                          disabled={isSavingTemplate}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card text-text-primary disabled:opacity-50"
+                        >
+                          {isSavingTemplate ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <RotateCcw size={14} />
+                          )}
+                          Reset to library default
+                        </button>
+                      ) : null}
+                      <button
+                        onClick={handleSaveTemplate}
+                        disabled={isSavingTemplate}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-forest text-primary-foreground disabled:opacity-50"
+                      >
+                        {isSavingTemplate ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Save size={14} />
+                        )}
+                        Save template
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     value={activeTemplate.systemPrompt}
