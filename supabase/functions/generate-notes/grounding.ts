@@ -255,6 +255,16 @@ const hasPrimaryComplaintSignal = (value: string): boolean =>
     value,
   );
 
+const hasDietOrFeedingSignal = (value: string): boolean =>
+  /\b(?:food|diet|feeding|fed|eating|eat|appetite|cat food|dog food|treats?|royal canin|purina|gastrointestinal|gi food|complete food)\b/iu.test(
+    value,
+  );
+
+const hasPriorEpisodeSignal = (value: string): boolean =>
+  /\b(?:same thing|similar episode|previous episode|2-3 months ago|3-4 months ago|iv overnight|hospitali[sz]ed|put on an iv|had this before)\b/iu.test(
+    value,
+  );
+
 const sourceWordCount = (value: string): number =>
   normalize(value).split(" ").filter(Boolean).length;
 
@@ -531,6 +541,8 @@ const scoreSubjectiveItem = (item: GroundingItem): number => {
   let score = 0;
   if (hasCurrentClinicalSignal(combined)) score += 4;
   if (hasPrimaryComplaintSignal(combined)) score += 4;
+  if (hasDietOrFeedingSignal(combined)) score += 3;
+  if (hasPriorEpisodeSignal(combined)) score += 2;
   if (hasTimingOrQuantity(combined)) score += 3;
   if (hasMarker(combined, MEDICATION_MARKERS)) score += 1;
   if (/\b(?:owner|client).{0,24}(?:concern|worried|concerned|reports|reported|states|stated|noticed|noted|asked|mentions|mentioned)|\b(?:concern|worried|concerned|difficulty|struggling|fussy|admin|home treatment|at home|previous episode|same thing before)\b/iu.test(combined)) {
@@ -662,14 +674,14 @@ const getSectionWordBudget = (
   sectionCount: number,
 ): number => {
   const routineBudgets: Record<GeneralSection, number> = isLongSource
-    ? {
-        SUBJECTIVE: 68,
+      ? {
+        SUBJECTIVE: 76,
         OBJECTIVE: 36,
         ASSESSMENT: 18,
         PLAN: 84,
       }
     : {
-        SUBJECTIVE: 66,
+        SUBJECTIVE: 74,
         OBJECTIVE: 40,
         ASSESSMENT: 20,
         PLAN: 78,
@@ -784,7 +796,7 @@ export const renderGeneralConsultFromGroundedPayload = (
   const joined = blocks.join("\n\n").trim();
   const maxWords = payload.complexity === "complex"
     ? (isLongSource ? 245 : 280)
-    : (isLongSource ? 220 : 240);
-  const sparseSectionBonus = sectionCount <= 2 ? 25 : 0;
+    : (isLongSource ? 230 : 250);
+  const sparseSectionBonus = sectionCount <= 2 ? 35 : 0;
   return trimToWordBudget(joined, maxWords + sparseSectionBonus);
 };

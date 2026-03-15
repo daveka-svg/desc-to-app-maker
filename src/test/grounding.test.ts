@@ -534,4 +534,77 @@ ${'Detailed discussion about vomiting and diarrhoea. '.repeat(1700)}`;
     expect(rendered).toContain('T 38.7C');
     expect(renderedWordCount).toBeLessThanOrEqual(220);
   });
+
+  it('retains elaborated diet and prior-episode context when central to the consult', () => {
+    const source = `
+      Consultation transcript:
+      Owner: Diarrhoea for 4 days.
+      Owner: Same thing happened 2-3 months ago and he was on IV fluids overnight.
+      Owner: He has mostly been eating Applaws cat chicken and broth because he struggles to eat normal food.
+      Owner: No vomiting.
+      Vet: He is a little thin to me.
+      Vet: He needs a complete dog food long term.
+      Vet: Royal Canin GI or Purina GI were suggested.
+      Vet: Buscopan 1/2 of a 10 mg tablet once daily for 3-4 days if straining/frequent stools.
+      Vet: Transition 50% new diet with 50% current diet over 1 week.
+    `;
+
+    const payload = parseGeneralConsultGroundingPayload(JSON.stringify({
+      complexity: 'routine',
+      sections: {
+        SUBJECTIVE: [
+          {
+            text: 'Diarrhoea for 4 days',
+            evidence: 'Diarrhoea for 4 days',
+          },
+          {
+            text: 'Previous similar episode 2-3 months ago, hospitalised overnight on IV fluids',
+            evidence: 'Same thing happened 2-3 months ago and he was on IV fluids overnight',
+          },
+          {
+            text: 'Mostly eating Applaws cat chicken and broth because he struggles to eat normal food',
+            evidence: 'He has mostly been eating Applaws cat chicken and broth because he struggles to eat normal food',
+          },
+          {
+            text: 'No vomiting',
+            evidence: 'No vomiting',
+          },
+        ],
+        OBJECTIVE: [
+          {
+            text: 'Thin body condition observed',
+            evidence: 'He is a little thin to me',
+          },
+        ],
+        ASSESSMENT: [],
+        PLAN: [
+          {
+            text: 'Needs complete dog food long term',
+            evidence: 'He needs a complete dog food long term',
+          },
+          {
+            text: 'Royal Canin GI or Purina GI suggested',
+            evidence: 'Royal Canin GI or Purina GI were suggested',
+          },
+          {
+            text: 'Buscopan 1/2 of a 10 mg tablet once daily for 3-4 days if straining/frequent stools',
+            evidence: 'Buscopan 1/2 of a 10 mg tablet once daily for 3-4 days if straining/frequent stools',
+          },
+          {
+            text: 'Transition 50% new diet with 50% current diet over 1 week',
+            evidence: 'Transition 50% new diet with 50% current diet over 1 week',
+          },
+        ],
+      },
+    }));
+
+    const filtered = filterGroundedGeneralConsultPayload(payload!, source);
+    const rendered = renderGeneralConsultFromGroundedPayload(filtered, source);
+
+    expect(rendered).toContain('Applaws cat chicken and broth');
+    expect(rendered).toContain('2-3mo ago');
+    expect(rendered).toContain('No vomiting');
+    expect(rendered).toContain('Buscopan 1/2 of a 10 mg tablet 1x daily for 3-4d');
+    expect(rendered).toContain('50% new diet with 50% current diet over 1wk');
+  });
 });
