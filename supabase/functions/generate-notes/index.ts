@@ -187,6 +187,22 @@ const stripCodeFences = (value: string): string => {
   return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 };
 
+const parseGroundedPayloadFromContent = (content: string) => {
+  const stripped = stripCodeFences(content);
+  const candidates = Array.from(new Set([
+    content.trim(),
+    stripped,
+    (stripped.match(/\{[\s\S]*\}/) || [""])[0].trim(),
+  ].filter(Boolean)));
+
+  for (const candidate of candidates) {
+    const parsed = parseGeneralConsultGroundingPayload(candidate);
+    if (parsed) return parsed;
+  }
+
+  return null;
+};
+
 const PLACEHOLDER_SENTENCE_RE =
   /^(?:No|None|Not)\b.*\b(?:documented|recorded|provided|discussed|mentioned|available|noted|stated)\b.*$|^No explicit assessment.*$/i;
 
