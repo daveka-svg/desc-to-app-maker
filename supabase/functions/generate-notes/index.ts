@@ -143,9 +143,6 @@ const callOpenAI = async (
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    text: {
-      verbosity: "low",
-    },
     max_output_tokens: maxOutputTokens,
   };
 
