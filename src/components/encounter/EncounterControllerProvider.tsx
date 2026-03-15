@@ -112,6 +112,9 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
         store.setTasks([]);
         store.setTaskExtractionState('idle');
         store.setClientInstructions(null);
+        // Reset PE data so previous session's exam doesn't carry over
+        const { createDefaultPEData } = await import('@/stores/useSessionStore');
+        useSessionStore.setState({ peData: createDefaultPEData() });
       }
 
       const {
