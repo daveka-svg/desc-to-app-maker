@@ -34,6 +34,17 @@ describe('sanitizePlainClinicalText', () => {
     );
   });
 
+  it('flattens markdown pipe tables into plain text', () => {
+    const input = `| Item | What to do | Why |
+|------|------------|-----|
+| Diet change | Start a complete dog food. <br> Mix 50% new + 50% current for 3-5 days. | Provides balanced nutrition. |
+| Buscopan | Give 1/2 x 10 mg tablet once daily for 3-4 days. | Reduces gut cramping. |`;
+
+    expect(sanitizePlainClinicalText(input)).toBe(
+      `Diet change. What to do: Start a complete dog food; Mix 50% new + 50% current for 3-5 days. Why: Provides balanced nutrition.\nBuscopan. What to do: Give 1/2 x 10 mg tablet once daily for 3-4 days. Why: Reduces gut cramping.`,
+    );
+  });
+
   it('inserts a separate PE section below OBJECTIVE', () => {
     const input = `SUBJECTIVE:\nVomiting since yesterday.\n\nOBJECTIVE:\nQuiet, hydrated.\n\nPLAN:\nMonitor at home.`;
 

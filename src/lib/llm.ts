@@ -84,8 +84,63 @@ const stripPlaceholderSections = (value: string): string =>
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
+const isTableSeparatorRow = (line: string): boolean =>
+  /^\|?(?:\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?$/u.test(line.trim());
+
+const splitMarkdownTableRow = (line: string): string[] =>
+  line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((cell) => cell.replace(/<br\s*\/?>/gi, '; ').replace(/\s+/g, ' ').trim());
+
+const ensureSentence = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+};
+
+const flattenMarkdownTables = (value: string): string =>
+  value
+    .split(/\n{2,}/)
+    .map((block) => {
+      const lines = block.split('\n').map((line) => line.trim()).filter(Boolean);
+      if (lines.length < 2) return block.trim();
+      if (!lines.every((line) => line.includes('|'))) return block.trim();
+      if (!isTableSeparatorRow(lines[1])) return block.trim();
+
+      const headers = splitMarkdownTableRow(lines[0]).filter(Boolean);
+      const rows = lines.slice(2)
+        .filter((line) => line.includes('|'))
+        .map(splitMarkdownTableRow)
+        .filter((cells) => cells.some(Boolean));
+
+      if (headers.length === 0 || rows.length === 0) return block.trim();
+
+      return rows.map((cells) => {
+        const pairs = headers.map((header, index) => ({
+          header: header.replace(/[*_`]/g, '').trim(),
+          value: (cells[index] || '').replace(/[*_`]/g, '').trim(),
+        })).filter((pair) => pair.header && pair.value);
+
+        if (pairs.length === 0) return '';
+        if (pairs.length === 1) return pairs[0].value;
+
+        const first = pairs[0];
+        const rest = pairs.slice(1)
+          .map((pair) => ensureSentence(`${pair.header}: ${pair.value}`))
+          .join(' ');
+
+        return `${ensureSentence(first.value)} ${rest}`.trim().replace(/\.\s*;/g, ';');
+      }).filter(Boolean).join('\n');
+    })
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
+
 export function sanitizePlainClinicalText(value: string): string {
-  const cleaned = value
+  const cleaned = flattenMarkdownTables(value)
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/__([^_]+)__/g, '$1')
     .replace(/^\s*#{1,6}\s+/gm, '')

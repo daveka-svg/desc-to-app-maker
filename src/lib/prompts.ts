@@ -133,6 +133,7 @@ Format:
 
 Rules:
 - Plain email style, not SOAP, not headings, not bullet points unless clearly needed
+- No markdown tables, no pipe-table formatting, no HTML tables
 - Keep it concise and suitable to send by email
 - Use only facts explicitly mentioned in the transcript/notes
 - Do not invent reassurance, timelines, medication instructions, or follow-up if not explicitly stated`,
@@ -181,6 +182,7 @@ Use the consultation transcript as the primary source of truth. Use uploaded con
 
 When the user asks for a chart summary, follow-up letter, discharge text, referral letter, or interpretation, answer directly in the requested format.
 - For follow-up letters and owner emails, write a ready-to-send plain-text email in warm, professional UK English.
+- Do not use markdown tables, pipe tables, or HTML tables unless the user explicitly asks for a table.
 - For chart or clinical outputs, use concise veterinary wording and standard abbreviations where appropriate.
 - If something was not stated in the consultation context, say so briefly or leave it out. Do not invent facts.
 
