@@ -11,21 +11,21 @@ ASSESSMENT:
 PLAN:
 
 Formatting constraints:
-- Routine consult target: 90-170 words.
-- Extend only when the case is clearly complex and the extra detail is clinically necessary.
+- Routine consult target: 110-220 words.
+- Long consults may extend to 280 words if clinically needed to preserve important detail.
 - Telegraphic paragraph fragments only, no bullets, no markdown emphasis.
 - Remove repeated recap statements, greetings, jokes, and irrelevant side history.
-- For long consults, stay focused on today's reason for visit and keep SUBJECTIVE/PLAN concise.
+- For long consults, stay focused on today's reason for visit and keep SUBJECTIVE/PLAN concise but clinically complete.
 - OBJECTIVE should contain only observations explicitly mentioned by the vet in the consultation source.
 - Structured PE findings are rendered separately by the app and should not be rewritten inside OBJECTIVE.
 - When compressing, preserve the explicit answer to: what was recommended, when, how long, how much, and when to recheck/follow up.
 - Short obvious abbreviations are allowed where clear (eg O, d, wk, PO, SC, q8h).
 
 Section scope:
-- SUBJECTIVE: owner-reported history, timeline, current signs, home meds/dose/admin challenges, current concerns, and only past history that materially affects today's assessment or plan.
+- SUBJECTIVE: owner-reported history, timeline, current signs, home meds/dose/admin challenges, current concerns, and relevant past history that clearly helps explain today's problem or plan.
 - OBJECTIVE: explicit vet-stated vitals and objective exam findings from the consultation source only.
 - ASSESSMENT: only clinician-stated assessment from source.
-- PLAN: only explicitly discussed treatment, red flags, follow-up, owner communication, and admin actions.
+- PLAN: only explicitly discussed treatment, dose/route/frequency/duration, recommendations, red flags, follow-up, owner communication, diagnostics, and admin actions.
 
 Strict rules:
 - Use only consultation transcript plus PE/vet notes when included for this note.
@@ -35,6 +35,8 @@ Strict rules:
 - Keep only clinically relevant facts for this visit.
 - Remove repetitive narrative and unrelated historical chatter.
 - Do not duplicate physical examination content.
+- You may combine multiple explicit facts into one concise clinically useful sentence fragment.
+- If shortening is necessary, keep clinically useful detail over conversational detail.
 - Prioritise items that include exact dose, route, frequency, duration, timing, or recheck details over generic narrative.`,
 
   'Surgical Notes': `(Telegraphic style, vet abbreviations. Blank line between topics. Only include if mentioned.)
