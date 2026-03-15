@@ -354,6 +354,8 @@ const isGeneralConsultTemplate = (value: unknown): boolean => {
   return normalized === "general consult" || normalized === "general consultation";
 };
 
+const LOVABLE_FALLBACK_MODELS = ["google/gemini-2.5-flash", "google/gemini-2.5-pro"];
+
 const callModelWithFallbacks = async (
   provider: LlmProvider,
   apiKey: string,
@@ -366,6 +368,7 @@ const callModelWithFallbacks = async (
   let modelUsed = modelCandidates[0] || (provider === "openai" ? "gpt-5.2-chat-latest" : "mercury-2");
   let lastError: Error | null = null;
 
+  // Try primary provider models
   for (const model of modelCandidates) {
     try {
       content = provider === "openai"
@@ -376,6 +379,24 @@ const callModelWithFallbacks = async (
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       console.error("Generation attempt failed:", provider, model, lastError.message);
+    }
+  }
+
+  // Fallback to Lovable AI gateway
+  if (!content.trim()) {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (lovableKey) {
+      for (const model of LOVABLE_FALLBACK_MODELS) {
+        try {
+          content = await callLovableAI(lovableKey, model, systemPrompt, userPrompt, maxOutputTokens);
+          modelUsed = `lovable:${model}`;
+          console.log("Lovable AI fallback succeeded:", model);
+          break;
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error(String(err));
+          console.error("Lovable AI fallback failed:", model, lastError.message);
+        }
+      }
     }
   }
 
