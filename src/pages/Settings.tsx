@@ -22,7 +22,6 @@ import {
   createTemplate,
   deleteTemplate,
   listUserTemplates,
-  syncDefaultTemplatePrompts,
   updateTemplate,
   type UserTemplate,
 } from '@/lib/templatePrompts';
@@ -185,7 +184,6 @@ export default function Settings() {
       try {
         await cleanupDuplicateTemplates();
         await bootstrapUserTemplates();
-        await syncDefaultTemplatePrompts();
         const nextTemplates = await listUserTemplates();
         applyTemplateSelection(nextTemplates);
       } catch (error) {

@@ -30,7 +30,6 @@ import {
   createTemplate,
   deleteTemplate,
   listUserTemplates,
-  syncDefaultTemplatePrompts,
   type UserTemplate,
   updateTemplate,
 } from '@/lib/templatePrompts';
@@ -174,7 +173,6 @@ export default function Sidebar() {
   const fetchTemplates = async () => {
     try {
       await bootstrapUserTemplates();
-      await syncDefaultTemplatePrompts();
       const removedDuplicates = await cleanupDuplicateTemplates();
       const rows = sortTemplates(await listUserTemplates());
       setTemplates(rows);
