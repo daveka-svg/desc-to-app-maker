@@ -375,7 +375,7 @@ const generateGeneralConsultNote = async (
 
   for (const chunk of noteChunks) {
     const chunkSource = buildNoteSource(chunk) || chunk.consultationTranscript.trim();
-    let parsedPayload = null;
+    let parsedPayload: ReturnType<typeof parseGroundedPayloadFromContent> = null;
     let selectedModel = "";
     let lastChunkError: Error | null = null;
 
