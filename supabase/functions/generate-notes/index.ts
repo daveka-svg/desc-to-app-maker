@@ -7,7 +7,7 @@ import {
 } from "./grounding.ts";
 import {
   buildGeneralConsultExtractionUserPrompt,
-  DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+  buildGeneralConsultExtractionSystemPrompt,
   GENERAL_CONSULT_PROMPT_VERSION,
 } from "./general-consult.ts";
 import {
@@ -430,12 +430,14 @@ const generateGeneralConsultNote = async (
   apiKey: string,
   modelCandidates: string[],
   maxOutputTokens: number,
+  templateInstructions?: string,
 ) => {
   const parsedSource = parseNoteSource(sourceText);
   const fullSource = buildGeneralConsultSource(parsedSource) || parsedSource.consultationTranscript.trim();
   const noteChunks = shouldChunkNoteTranscript(parsedSource.consultationTranscript)
     ? buildChunkedNoteSources(fullSource)
     : [parseNoteSource(fullSource)];
+  const generalConsultSystemPrompt = buildGeneralConsultExtractionSystemPrompt(templateInstructions);
 
   const payloads = [];
   const modelsUsed: string[] = [];
@@ -452,14 +454,14 @@ const generateGeneralConsultNote = async (
           ? await callOpenAI(
             apiKey,
             model,
-            DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+            generalConsultSystemPrompt,
             buildGeneralConsultExtractionUserPrompt(chunkSource),
             Math.max(maxOutputTokens, 2600),
           )
           : await callInception(
             apiKey,
             model,
-            DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+            generalConsultSystemPrompt,
             buildGeneralConsultExtractionUserPrompt(chunkSource),
             Math.max(maxOutputTokens, 2600),
           );
@@ -486,7 +488,7 @@ const generateGeneralConsultNote = async (
             const content = await callLovableAI(
               lovableKey,
               fbModel,
-              DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+              generalConsultSystemPrompt,
               buildGeneralConsultExtractionUserPrompt(chunkSource),
               Math.max(maxOutputTokens, 2600),
             );
@@ -650,6 +652,7 @@ serve(async (req) => {
       transcript,
       peData,
       templatePrompt,
+      generalConsultTemplatePrompt,
       requestType,
       templateName,
       templateKind,
@@ -703,6 +706,7 @@ Keep the language concise and professional. Use standard veterinary abbreviation
         resolvedApiKey,
         modelCandidates,
         resolvedMaxTokens,
+        String(generalConsultTemplatePrompt || ""),
       );
 
       return new Response(JSON.stringify({

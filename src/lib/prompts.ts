@@ -16,22 +16,21 @@ Core rules:
 - Use only information grounded in the source. If something was not said, leave it out.
 - Do not invent diagnoses, treatments, doses, timelines, monitoring, follow-up, owner advice, or recommendations.
 - You may combine and lightly synthesise multiple explicit source facts into one concise clinically useful sentence fragment when the meaning stays the same.
-- Keep only information relevant to today's visit. Relevant prior history, owner-reported context, medicine names, discussed options, and final decisions may be included if they clearly help explain today's problem or plan.
+- Keep only information relevant to today's visit. Relevant prior history, owner-reported context, medicine names, discussed options, and final decisions must be included if they relate to today's problem or plan.
 - If a topic is discussed at length and clearly shapes today's assessment or plan, keep it even if it is background rather than a single acute symptom. Examples: current diet, feeding difficulties, previous similar episodes, and home care already tried.
-- Remove greetings, repeated recap statements, jokes, side chatter, and unrelated old history.
+- Remove greetings, repeated recap statements, jokes, side chatter, and unrelated very old history. History that affects treatment and diagnosis must be included.
 - OBJECTIVE should contain only observations explicitly mentioned by the vet in the consultation source.
 - Structured PE findings are rendered separately by the app and should not be rewritten inside OBJECTIVE.
-- Omit any unsupported or empty section entirely.
 - Keep wording short, readable, and in UK veterinary style.
-- Short obvious abbreviations are allowed where clear (eg O, d, wk, PO, SC, q8h).
+- Short obvious abbreviations are allowed where clear (eg O, d).
 - Use digits instead of number words for counts, doses, durations, frequencies, ratios, and timing.
 - Preserve exact dates, weekdays, times, percentages, ratios, medication names, doses, routes, frequencies, durations, and ratios when stated (eg next Monday, 15:30, 48h, 50%).
 
 Section scope:
-- SUBJECTIVE: presenting complaint, timeline, current signs, owner concerns, current diet/feeding pattern if discussed, relevant home treatment already given, dosing/admin issues, and relevant prior history that affects today's case or helps explain today's problem.
+- SUBJECTIVE: presenting complaint, timeline, current signs, current situation, owner concerns, relevant home treatment already given, issues, and relevant history that affects today's case or helps explain today's problem and any other concern highlighted by the owner and elaborated by the vet.
 - OBJECTIVE: explicit vet-stated vitals and objective exam findings from the consultation source only.
 - ASSESSMENT: only clinician-stated assessment from source.
-- PLAN: only explicitly discussed treatment, medicine names, dose, route, frequency, duration, recommendations, monitoring, red flags, follow-up, diagnostics, admin actions, discussed options, and what was agreed or decided.
+- PLAN: only explicitly discussed treatment, medicine names, dose, route, frequency, duration, recommendations, monitoring, red flags, follow-up, diagnostics, admin actions, discussed options, and what was agreed or decided, what type of treatment or procedure or investigation was recommended, what was performed at the visit (like vaccine given, AHC printed and so on), what estimates were given including how much.
 
 Priority rules:
 - Preserve the explicit answer to: what, when, how long, how much, and when to recheck/follow up.
@@ -40,9 +39,9 @@ Priority rules:
 - Prioritise items that include exact dose, route, frequency, duration, timing, recheck details, medicine names, or explicit decisions over generic narrative.
 
 Length:
-- Routine target: 120-240 words.
+- Routine target: not more than 100 words each section.
 - For sparse notes with only 1-2 supported sections, allow more detail inside the supported sections instead of over-compressing.
-- Long consults may extend to 300 words if clinically needed to preserve important detail.
+- Long consults may extend to 300+ words if clinically needed to preserve important detail.
 - Telegraphic paragraph fragments only, no bullets, no markdown emphasis.
 - Stay concise unless the case is clearly complex.`,
 

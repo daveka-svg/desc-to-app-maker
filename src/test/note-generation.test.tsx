@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { supabase } from '@/integrations/supabase/client';
+import { TEMPLATES } from '@/lib/prompts';
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -217,6 +218,23 @@ describe('useNoteGeneration', () => {
     const state = useSessionStore.getState();
     expect(state.notes).toContain('PE:\nTemp 38.5 C, HR 110 bpm, BCS 5/9, BAR.');
     expect(state.notes).not.toContain('VET NOTES:');
+  });
+
+  it('passes the editable general consult template prompt to the edge function', async () => {
+    const { result } = renderHook(() => useNoteGeneration());
+
+    await act(async () => {
+      await result.current.generateNote();
+    });
+
+    expect(vi.mocked(supabase.functions.invoke)).toHaveBeenCalledWith(
+      'generate-notes',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          generalConsultTemplatePrompt: TEMPLATES['General Consult'],
+        }),
+      }),
+    );
   });
 
   it('does not duplicate PE section when already present', async () => {
