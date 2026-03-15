@@ -198,7 +198,7 @@ const meaningfulTokens = (value: string): string[] =>
     .filter((token) => token.length >= 3 && !IGNORED_TOKENS.has(token));
 
 const hasTimingOrQuantity = (value: string): boolean =>
-  /\b\d+(?::\d{2})?\b|\b(?:today|tomorrow|overnight|am|pm|q\d+h|x\d+|daily|once|twice|hours?|days?|weeks?|months?|minutes?)\b/iu.test(
+  /\b\d+(?::\d{2})?\b|\b(?:today|tomorrow|overnight|next|this|am|pm|q\d+h|x\d+|daily|once|twice|hours?|days?|weeks?|months?|minutes?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december)\b/iu.test(
     value,
   );
 
@@ -209,6 +209,44 @@ const hasCurrentClinicalSignal = (value: string): boolean =>
 
 const sourceWordCount = (value: string): number =>
   normalize(value).split(" ").filter(Boolean).length;
+
+const NUMBER_WORD_MAP: Record<string, string> = {
+  zero: "0",
+  one: "1",
+  two: "2",
+  three: "3",
+  four: "4",
+  five: "5",
+  six: "6",
+  seven: "7",
+  eight: "8",
+  nine: "9",
+  ten: "10",
+  eleven: "11",
+  twelve: "12",
+};
+
+const TITLE_CASE_WORDS = new Set([
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+]);
 
 const toArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 
@@ -586,8 +624,34 @@ const getSectionWordBudget = (
 };
 
 const renderSectionBody = (items: GroundingItem[]): string => {
+  const replaceNumberWords = (value: string): string =>
+    value.replace(
+      /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi,
+      (match) => NUMBER_WORD_MAP[match.toLowerCase()] ?? match,
+    );
+
+  const titleCaseTimingWords = (value: string): string =>
+    value.replace(/\b([a-z]+)\b/gi, (match) =>
+      TITLE_CASE_WORDS.has(match.toLowerCase())
+        ? `${match.charAt(0).toUpperCase()}${match.slice(1).toLowerCase()}`
+        : match
+    );
+
   const condenseClinicalText = (value: string): string =>
-    value
+    titleCaseTimingWords(replaceNumberWords(value))
+      .replace(/\bhalf and half\b/gi, "50%/50%")
+      .replace(/\bhalf\b/gi, "1/2")
+      .replace(/\bquarter\b/gi, "1/4")
+      .replace(/\bonce\b/gi, "1x")
+      .replace(/\btwice\b/gi, "2x")
+      .replace(/\b(\d+)\s+times?\b/gi, "$1x")
+      .replace(/\b(\d+)\s*(?:or|to)\s*(\d+)\s*days?\b/gi, "$1-$2d")
+      .replace(/\b(\d+)\s*(?:or|to)\s*(\d+)\s*weeks?\b/gi, "$1-$2wk")
+      .replace(/\b(\d+)\s*(?:or|to)\s*(\d+)\s*months?\b/gi, "$1-$2mo")
+      .replace(/\b(\d+)\s*(?:or|to)\s*(\d+)\s*hours?\b/gi, "$1-$2h")
+      .replace(/\bevery\s+(\d+)\s*hours?\b/gi, "q$1h")
+      .replace(/\bevery\s+(\d+)\s*days?\b/gi, "q$1d")
+      .replace(/\b(\d+)\s*(?:percent|per cent)\b/gi, "$1%")
       .replace(/\bowner\b/gi, "O")
       .replace(/\bapproximately\b/gi, "approx")
       .replace(/\b(\d+)\s*days?\b/gi, "$1d")

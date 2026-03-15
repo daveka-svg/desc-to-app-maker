@@ -182,6 +182,38 @@ describe('general consult grounding', () => {
     expect(rendered).toBe('');
   });
 
+  it('renders numeric details, exact weekdays, and percentages in normalized form', () => {
+    const rendered = renderGeneralConsultFromGroundedPayload({
+      complexity: 'routine',
+      sections: {
+        SUBJECTIVE: [
+          {
+            text: 'Loose stool for three days and one vomit this morning',
+            evidence: 'Loose stool for three days and one vomit this morning',
+          },
+        ],
+        OBJECTIVE: [],
+        ASSESSMENT: [],
+        PLAN: [
+          {
+            text: 'Give one tablet twice daily for three days starting next monday',
+            evidence: 'Give one tablet twice daily for three days starting next Monday',
+          },
+          {
+            text: 'Split diet half and half for one week',
+            evidence: 'Split diet half and half for one week',
+          },
+        ],
+      },
+    });
+
+    expect(rendered).toContain('3d');
+    expect(rendered).toContain('1 vomit');
+    expect(rendered).toContain('1 tablet 2x daily for 3d starting next Monday');
+    expect(rendered).toContain('50%/50%');
+    expect(rendered).toContain('1wk');
+  });
+
   it('drops placeholder JSON items such as N/A and null', () => {
     const payload = parseGeneralConsultGroundingPayload(JSON.stringify({
       complexity: 'routine',

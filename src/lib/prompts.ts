@@ -20,6 +20,8 @@ Formatting constraints:
 - Structured PE findings are rendered separately by the app and should not be rewritten inside OBJECTIVE.
 - When compressing, preserve the explicit answer to: what was recommended, when, how long, how much, and when to recheck/follow up.
 - Short obvious abbreviations are allowed where clear (eg O, d, wk, PO, SC, q8h).
+- Use digits instead of number words for counts, doses, durations, frequencies, ratios, and timing.
+- Preserve exact dates, weekdays, times, percentages, ratios, and medication names when stated (eg next Monday, 15:30, 48h, 50%).
 
 Section scope:
 - SUBJECTIVE: owner-reported history, timeline, current signs, home meds/dose/admin challenges, current concerns, and relevant past history that clearly helps explain today's problem or plan.

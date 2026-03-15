@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
 import { ArrowLeft, Save, Check, Loader2, Upload, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,16 @@ import {
   resetTaskExtractionPrompt,
   setTaskExtractionPrompt,
 } from '@/lib/promptSettings';
+import {
+  bootstrapUserTemplates,
+  cleanupDuplicateTemplates,
+  createTemplate,
+  deleteTemplate,
+  listUserTemplates,
+  syncDefaultTemplatePrompts,
+  updateTemplate,
+  type UserTemplate,
+} from '@/lib/templatePrompts';
 
 interface AppSettings {
   aiGenerationMode: AiGenerationMode;
@@ -49,6 +59,22 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 const KNOWLEDGE_BASE_MAX_CHARS = 500000;
 const TASK_PROMPT_MAX_CHARS = 40000;
+const TEMPLATE_PROMPT_MAX_CHARS = 40000;
+
+const normalizeTemplateName = (name: string): string =>
+  name.trim().toLowerCase().replace(/\s+/g, ' ');
+
+const getNextTemplateName = (templates: UserTemplate[]): string => {
+  const existingNames = new Set(templates.map((template) => normalizeTemplateName(template.name)));
+  let counter = 1;
+  while (true) {
+    const candidate = counter === 1 ? 'New Template' : `New Template ${counter}`;
+    if (!existingNames.has(normalizeTemplateName(candidate))) {
+      return candidate;
+    }
+    counter += 1;
+  }
+};
 
 const loadSettings = (): AppSettings => {
   try {
@@ -72,8 +98,50 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
   const [loadingKnowledge, setLoadingKnowledge] = useState(true);
   const [savingKnowledge, setSavingKnowledge] = useState(false);
+  const [templates, setTemplates] = useState<UserTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [templateNameDraft, setTemplateNameDraft] = useState('');
+  const [templatePromptDraft, setTemplatePromptDraft] = useState('');
   const setStoreClinicKnowledgeBase = useSessionStore((s) => s.setClinicKnowledgeBase);
+  const setStoreAvailableTemplates = useSessionStore((s) => s.setAvailableTemplates);
+  const selectedTemplateInStore = useSessionStore((s) => s.selectedTemplate);
+  const setStoreSelectedTemplate = useSessionStore((s) => s.setSelectedTemplate);
   const { toast } = useToast();
+
+  const applyTemplateSelection = useCallback((
+    nextTemplates: UserTemplate[],
+    preferredTemplateId?: string,
+    preferredTemplateName?: string
+  ) => {
+    setTemplates(nextTemplates);
+    const templateNames = nextTemplates.map((template) => template.name);
+    setStoreAvailableTemplates(templateNames);
+
+    const selected =
+      nextTemplates.find((template) => template.id === preferredTemplateId) ||
+      nextTemplates.find(
+        (template) => normalizeTemplateName(template.name) === normalizeTemplateName(preferredTemplateName || '')
+      ) ||
+      nextTemplates.find(
+        (template) => normalizeTemplateName(template.name) === normalizeTemplateName(selectedTemplateInStore)
+      ) ||
+      nextTemplates[0] ||
+      null;
+
+    if (!selected) {
+      setSelectedTemplateId('');
+      setTemplateNameDraft('');
+      setTemplatePromptDraft('');
+      return;
+    }
+
+    setSelectedTemplateId(selected.id);
+    setTemplateNameDraft(selected.name);
+    setTemplatePromptDraft(selected.systemPrompt);
+  }, [selectedTemplateInStore, setStoreAvailableTemplates]);
 
   useEffect(() => {
     const loadKnowledgeBase = async () => {
@@ -110,6 +178,30 @@ export default function Settings() {
 
     loadKnowledgeBase();
   }, [setStoreClinicKnowledgeBase]);
+
+  useEffect(() => {
+    const loadTemplates = async () => {
+      setLoadingTemplates(true);
+      try {
+        await cleanupDuplicateTemplates();
+        await bootstrapUserTemplates();
+        await syncDefaultTemplatePrompts();
+        const nextTemplates = await listUserTemplates();
+        applyTemplateSelection(nextTemplates);
+      } catch (error) {
+        console.error('Could not load templates:', error);
+        toast({
+          title: 'Template load failed',
+          description: 'Could not load editable templates from storage.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+
+    loadTemplates();
+  }, [applyTemplateSelection, toast]);
 
   const update = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings((s) => ({ ...s, [key]: value }));
@@ -210,6 +302,129 @@ export default function Settings() {
     }
   };
 
+  const handleTemplateSelect = (templateId: string) => {
+    const selected = templates.find((template) => template.id === templateId);
+    setSelectedTemplateId(templateId);
+    setTemplateSaved(false);
+    setTemplateNameDraft(selected?.name || '');
+    setTemplatePromptDraft(selected?.systemPrompt || '');
+  };
+
+  const handleCreateTemplate = async () => {
+    setSavingTemplate(true);
+    try {
+      const created = await createTemplate(getNextTemplateName(templates), '');
+      const nextTemplates = await listUserTemplates();
+      applyTemplateSelection(nextTemplates, created.id);
+      setTemplateSaved(false);
+      toast({
+        title: 'Template created',
+        description: 'New template added. Edit the name and prompt, then save.',
+      });
+    } catch (error) {
+      console.error('Template creation failed:', error);
+      toast({
+        title: 'Template creation failed',
+        description: error instanceof Error ? error.message : 'Could not create template.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!selectedTemplateId) return;
+    const trimmedName = templateNameDraft.trim();
+    if (!trimmedName) {
+      toast({
+        title: 'Template name required',
+        description: 'Enter a template name before saving.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSavingTemplate(true);
+    try {
+      const currentTemplate = templates.find((template) => template.id === selectedTemplateId) || null;
+      const updated = await updateTemplate(selectedTemplateId, {
+        name: trimmedName,
+        systemPrompt: templatePromptDraft.slice(0, TEMPLATE_PROMPT_MAX_CHARS),
+      });
+      const nextTemplates = await listUserTemplates();
+      applyTemplateSelection(nextTemplates, updated.id, updated.name);
+
+      if (settings.defaultTemplate === currentTemplate?.name) {
+        setSettings((state) => ({ ...state, defaultTemplate: updated.name }));
+      }
+      if (normalizeTemplateName(selectedTemplateInStore) === normalizeTemplateName(currentTemplate?.name || '')) {
+        setStoreSelectedTemplate(updated.name);
+      }
+
+      setTemplateSaved(true);
+      setTimeout(() => setTemplateSaved(false), 2000);
+      toast({
+        title: 'Template saved',
+        description: 'Template name and prompt have been updated.',
+      });
+    } catch (error) {
+      console.error('Template save failed:', error);
+      toast({
+        title: 'Template save failed',
+        description: error instanceof Error ? error.message : 'Could not save template.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!selectedTemplateId) return;
+    if (templates.length <= 1) {
+      toast({
+        title: 'Cannot delete last template',
+        description: 'Keep at least one template available.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSavingTemplate(true);
+    try {
+      const currentTemplate = templates.find((template) => template.id === selectedTemplateId) || null;
+      await deleteTemplate(selectedTemplateId);
+      const nextTemplates = await listUserTemplates();
+      applyTemplateSelection(nextTemplates);
+
+      if (settings.defaultTemplate === currentTemplate?.name) {
+        setSettings((state) => ({
+          ...state,
+          defaultTemplate: nextTemplates[0]?.name || state.defaultTemplate,
+        }));
+      }
+      if (normalizeTemplateName(selectedTemplateInStore) === normalizeTemplateName(currentTemplate?.name || '')) {
+        setStoreSelectedTemplate(nextTemplates[0]?.name || 'General Consult');
+      }
+
+      setTemplateSaved(false);
+      toast({
+        title: 'Template deleted',
+        description: 'Template removed from your settings.',
+      });
+    } catch (error) {
+      console.error('Template deletion failed:', error);
+      toast({
+        title: 'Template delete failed',
+        description: error instanceof Error ? error.message : 'Could not delete template.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-cream">
       <div className="flex-1 overflow-y-auto">
@@ -295,6 +510,92 @@ export default function Settings() {
           </Section>
 
           <Section
+            title="Template Settings"
+            description="Edit the note templates used for generation. Changes here affect future regenerations."
+          >
+            {loadingTemplates ? (
+              <div className="flex items-center gap-2 text-sm text-text-muted">
+                <Loader2 size={16} className="animate-spin" /> Loading templates...
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCreateTemplate}
+                    disabled={savingTemplate}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:bg-sand disabled:opacity-40"
+                  >
+                    <Upload size={13} />
+                    Add template
+                  </button>
+                  <button
+                    onClick={handleDeleteTemplate}
+                    disabled={savingTemplate || !selectedTemplateId || templates.length <= 1}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:bg-sand disabled:opacity-40"
+                  >
+                    <Trash2 size={13} />
+                    Delete template
+                  </button>
+                  <button
+                    onClick={handleSaveTemplate}
+                    disabled={savingTemplate || !selectedTemplateId}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-forest text-primary-foreground hover:bg-forest-dark disabled:opacity-40"
+                  >
+                    {savingTemplate ? <Loader2 size={13} className="animate-spin" /> : templateSaved ? <Check size={13} /> : <Save size={13} />}
+                    {savingTemplate ? 'Saving...' : templateSaved ? 'Saved' : 'Save template'}
+                  </button>
+                </div>
+
+                <Field label="Template">
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => handleTemplateSelect(e.target.value)}
+                    className="settings-input"
+                  >
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Template name">
+                  <input
+                    type="text"
+                    value={templateNameDraft}
+                    onChange={(e) => {
+                      setTemplateNameDraft(e.target.value);
+                      setTemplateSaved(false);
+                    }}
+                    className="settings-input"
+                    placeholder="Template name"
+                  />
+                </Field>
+
+                <Field
+                  label="Template prompt"
+                  description="This is the editable instruction body stored for this template."
+                >
+                  <textarea
+                    value={templatePromptDraft}
+                    onChange={(event) => {
+                      setTemplatePromptDraft(event.target.value.slice(0, TEMPLATE_PROMPT_MAX_CHARS));
+                      setTemplateSaved(false);
+                    }}
+                    className="settings-textarea"
+                    placeholder="Template prompt"
+                  />
+                </Field>
+
+                <div className="text-[11px] text-text-muted">
+                  Stored: {templatePromptDraft.length.toLocaleString()} / {TEMPLATE_PROMPT_MAX_CHARS.toLocaleString()} characters.
+                </div>
+              </>
+            )}
+          </Section>
+
+          <Section
             title="Task Extraction Prompt"
             description="Edit the exact instruction used when AI extracts tasks from generated notes."
           >
@@ -369,7 +670,7 @@ Consultation transcript:
           <Section title="Session Defaults" description="Default settings for new sessions">
             <Field label="Default template">
               <select value={settings.defaultTemplate} onChange={(e) => update('defaultTemplate', e.target.value)} className="settings-input">
-                {['General Consult', 'Surgical Notes', 'Emergency', 'Vaccination', 'Dental', 'Post-op Check'].map((t) => (
+                {(templates.length > 0 ? templates.map((template) => template.name) : ['General Consult', 'Surgical Notes', 'Emergency', 'Vaccination', 'Dental', 'Post-op Check']).map((t) => (
                   <option key={t}>{t}</option>
                 ))}
               </select>

@@ -1,4 +1,4 @@
-export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v5" as const;
+export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v6" as const;
 
 export const DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT = `You are a veterinary clinical scribe extracting a concise SOAP note.
 Return ONLY valid JSON with this exact schema:
@@ -26,6 +26,9 @@ Core rules:
 - Do not output placeholder values such as "N/A", "NA", the string "null", "not available", "not documented", or "no assessment provided".
 - Keep wording short, readable, and in UK veterinary style.
 - Short obvious abbreviations are allowed where clear (eg O, d, wk, PO, SC, q8h).
+- Use numeric digits, not spelled-out number words, wherever the source gives a count, dose, duration, frequency, ratio, or timing.
+- Preserve exact schedule/date wording when stated, including references such as "next Monday", "tomorrow", "15:30", "48h", and "50%".
+- Preserve exact medication names, doses, routes, frequencies, durations, and ratios unchanged where stated.
 
 Section rules:
 - SUBJECTIVE: presenting complaint, timeline, current signs, owner concerns, relevant home treatment already given, dosing/admin issues, and relevant prior history that affects today's case.
@@ -52,6 +55,7 @@ Keep only grounded clinically relevant facts for today's visit. If something was
 Relevant prior history may be included if it clearly helps explain today's problem or plan.
 Keep OBJECTIVE limited to what the vet explicitly stated in the consultation source.
 Keep the note short, but preserve what was recommended, when, how long, how much, and when to recheck/follow up.
+Use digits instead of number words, and preserve exact dates, weekdays, times, percentages, and medication names when stated.
 
 Source text:
 ${sourceText}`;
