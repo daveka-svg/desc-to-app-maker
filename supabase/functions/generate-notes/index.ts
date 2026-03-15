@@ -178,6 +178,55 @@ const callOpenAI = async (
   return content;
 };
 
+const callLovableAI = async (
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  maxOutputTokens: number,
+) => {
+  const body: Record<string, unknown> = {
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    max_tokens: maxOutputTokens,
+    temperature: 0,
+  };
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const text = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    parsed = {};
+  }
+
+  if (!response.ok) {
+    const errorMessage = typeof (parsed as any)?.error?.message === "string"
+      ? (parsed as any).error.message
+      : text;
+    throw new Error(`Lovable AI error [${response.status}] (${model}): ${errorMessage}`);
+  }
+
+  const content = extractProviderContent(parsed);
+  if (!content) {
+    throw new Error(`Lovable AI returned empty content (${model})`);
+  }
+
+  return content;
+};
+
 const stripCodeFences = (value: string): string => {
   const trimmed = value.trim();
   if (!trimmed.startsWith("```")) return trimmed;
@@ -305,6 +354,8 @@ const isGeneralConsultTemplate = (value: unknown): boolean => {
   return normalized === "general consult" || normalized === "general consultation";
 };
 
+const LOVABLE_FALLBACK_MODELS = ["google/gemini-2.5-flash", "google/gemini-2.5-pro"];
+
 const callModelWithFallbacks = async (
   provider: LlmProvider,
   apiKey: string,
@@ -317,6 +368,7 @@ const callModelWithFallbacks = async (
   let modelUsed = modelCandidates[0] || (provider === "openai" ? "gpt-5.2-chat-latest" : "mercury-2");
   let lastError: Error | null = null;
 
+  // Try primary provider models
   for (const model of modelCandidates) {
     try {
       content = provider === "openai"
@@ -327,6 +379,24 @@ const callModelWithFallbacks = async (
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       console.error("Generation attempt failed:", provider, model, lastError.message);
+    }
+  }
+
+  // Fallback to Lovable AI gateway
+  if (!content.trim()) {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (lovableKey) {
+      for (const model of LOVABLE_FALLBACK_MODELS) {
+        try {
+          content = await callLovableAI(lovableKey, model, systemPrompt, userPrompt, maxOutputTokens);
+          modelUsed = `lovable:${model}`;
+          console.log("Lovable AI fallback succeeded:", model);
+          break;
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error(String(err));
+          console.error("Lovable AI fallback failed:", model, lastError.message);
+        }
+      }
     }
   }
 
@@ -404,6 +474,35 @@ const generateGeneralConsultNote = async (
       } catch (err) {
         lastChunkError = err instanceof Error ? err : new Error(String(err));
         console.error("Grounded extraction attempt failed:", provider, model, lastChunkError.message);
+      }
+    }
+
+    // Lovable AI fallback for general consult grounding
+    if (!parsedPayload) {
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (lovableKey) {
+        for (const fbModel of LOVABLE_FALLBACK_MODELS) {
+          try {
+            const content = await callLovableAI(
+              lovableKey,
+              fbModel,
+              DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+              buildGeneralConsultExtractionUserPrompt(chunkSource),
+              Math.max(maxOutputTokens, 2600),
+            );
+            parsedPayload = parseGroundedPayloadFromContent(content);
+            if (!parsedPayload) {
+              throw new Error("Lovable AI grounded extraction was not valid JSON");
+            }
+            selectedModel = `lovable:${fbModel}`;
+            console.log("Lovable AI fallback succeeded for grounding:", fbModel);
+            break;
+          } catch (err) {
+            const fbErr = err instanceof Error ? err : new Error(String(err));
+            console.error("Lovable AI grounding fallback failed:", fbModel, fbErr.message);
+            lastChunkError = fbErr;
+          }
+        }
       }
     }
 
