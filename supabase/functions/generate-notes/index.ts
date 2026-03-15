@@ -477,6 +477,35 @@ const generateGeneralConsultNote = async (
       }
     }
 
+    // Lovable AI fallback for general consult grounding
+    if (!parsedPayload) {
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (lovableKey) {
+        for (const fbModel of LOVABLE_FALLBACK_MODELS) {
+          try {
+            const content = await callLovableAI(
+              lovableKey,
+              fbModel,
+              DEFAULT_GENERAL_CONSULT_EXTRACTION_PROMPT,
+              buildGeneralConsultExtractionUserPrompt(chunkSource),
+              Math.max(maxOutputTokens, 2600),
+            );
+            parsedPayload = parseGroundedPayloadFromContent(content);
+            if (!parsedPayload) {
+              throw new Error("Lovable AI grounded extraction was not valid JSON");
+            }
+            selectedModel = `lovable:${fbModel}`;
+            console.log("Lovable AI fallback succeeded for grounding:", fbModel);
+            break;
+          } catch (err) {
+            const fbErr = err instanceof Error ? err : new Error(String(err));
+            console.error("Lovable AI grounding fallback failed:", fbModel, fbErr.message);
+            lastChunkError = fbErr;
+          }
+        }
+      }
+    }
+
     if (!parsedPayload) {
       throw lastChunkError || new Error("Could not parse grounded extraction payload");
     }
