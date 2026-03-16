@@ -18,6 +18,7 @@ Keep more detail in PLAN.`;
     expect(prompt).toContain('Return ONLY valid JSON');
     expect(prompt).toContain('Editable General Consult template instructions:');
     expect(prompt).toContain(customTemplatePrompt);
+    expect(prompt.startsWith(`Editable General Consult template instructions:\n${customTemplatePrompt}`)).toBe(true);
   });
 
   it('falls back to the default General Consult template prompt when no override is provided', () => {

@@ -1,4 +1,4 @@
-export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v8" as const;
+export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v9" as const;
 
 export const DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT = `(This library template mirrors the current grounded General Consult API prompt.
 
@@ -47,8 +47,14 @@ Length:
 - Telegraphic paragraph fragments only, no bullets, no markdown emphasis.
 - Stay concise unless the case is clearly complex.)`;
 
-const GENERAL_CONSULT_PROMPT_WRAPPER = `You are a veterinary clinical scribe extracting a concise SOAP note.
-Return ONLY valid JSON with this exact schema:
+const GENERAL_CONSULT_PROMPT_WRAPPER = `You are a veterinary clinical scribe extracting a SOAP note.
+
+The editable General Consult template instructions below are the PRIMARY instruction set for what to include, exclude, emphasise, and how to summarise.
+Follow them as closely as possible.
+
+Hard constraints that still apply:
+- Use only explicit source information.
+- Return ONLY valid JSON with this exact schema:
 {
   "complexity": "routine" | "complex",
   "sections": {
@@ -58,35 +64,28 @@ Return ONLY valid JSON with this exact schema:
     "PLAN": [{"text":"...", "evidence":"..."}] | null
   }
 }
-
-Non-negotiable rules:
-- Use only explicit source information.
 - "evidence" must be a short direct quote copied from source text.
 - If a section has no supported data, set that section to null.
 - If one candidate item would be null or empty, omit that item from the array instead of outputting a placeholder.
 - Do not output placeholder values such as "N/A", "NA", the string "null", "not available", "not documented", or "no assessment provided".
 - Return JSON only. No markdown. No commentary.
 
-Apply the editable General Consult template instructions below as the clinical selection and summarisation policy. If those instructions conflict with the JSON schema or the transcript-only grounding requirement above, keep the schema and grounding requirement.`;
+If the editable template instructions conflict with the JSON schema or the transcript-only grounding requirement above, keep the schema and grounding requirement.`;
 
 export const buildGeneralConsultExtractionSystemPrompt = (templateInstructions?: string): string => {
   const editableInstructions = String(templateInstructions || DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT).trim();
-  return `${GENERAL_CONSULT_PROMPT_WRAPPER}
+  return `Editable General Consult template instructions:
+${editableInstructions}
 
-Editable General Consult template instructions:
-${editableInstructions}`;
+${GENERAL_CONSULT_PROMPT_WRAPPER}`;
 };
 
 export const buildGeneralConsultExtractionUserPrompt = (sourceText: string): string => `Extract a concise SOAP JSON note from this source.
 
-Keep only grounded clinically relevant facts for today's visit. If something was not said, leave it out.
-Include clinically relevant owner-reported details, explicit medicine names, discussed options, and final decisions when stated.
-Relevant prior history may be included if it clearly helps explain today's problem, assessment, or plan.
-For wellness or general check-up consults, include explicit discussion of screening tests, parasite prevention, cost/estimate, result timing, communication method, and what was chosen or deferred.
-If the source spends meaningful time on a clinically relevant topic such as current diet, feeding difficulties, previous similar episodes, or home care already tried, keep that detail in SUBJECTIVE rather than collapsing it away.
-Keep OBJECTIVE limited to what the vet explicitly stated in the consultation source.
-Keep the note concise, but do not over-compress it. Preserve what was recommended, what was decided, medicine names, current diet/food details, home treatment already tried, owner concerns, screening and prevention discussion, estimate/cost, result-delivery plan, when, how long, how much, and when to recheck/follow up.
-Use digits instead of number words, and preserve exact dates, weekdays, times, percentages, and medication names when stated.
+Follow the editable General Consult template instructions above.
+Keep the extraction grounded in the source text.
+If something was not said, leave it out.
+Preserve specific clinically useful detail when it was explicitly discussed.
 
 Source text:
 ${sourceText}`;
