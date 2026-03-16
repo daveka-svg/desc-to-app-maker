@@ -607,4 +607,94 @@ ${'Detailed discussion about vomiting and diarrhoea. '.repeat(1700)}`;
     expect(rendered).toContain('Buscopan 1/2 of a 10 mg tablet 1x daily for 3-4d');
     expect(rendered).toContain('50% new diet with 50% current diet over 1wk');
   });
+
+  it('retains wellness screening, estimate, and follow-up communication details when explicitly discussed', () => {
+    const source = `
+      Consultation transcript:
+      Owner: First time here, wants a general check up.
+      Owner: She eats cooked natural food, no dry food. Previous scratching stopped after dry food was removed. Possible chicken allergy.
+      Vet: Weight is 13.9 kg. Muscle tone is good. Teeth are nice and clean.
+      Vet: She is in very good condition for her age.
+      Owner: Do you think she needs a blood test?
+      Vet: We could do a general profile now or in 1-2 months for peace of mind and future comparison.
+      Vet: The profile would look at white blood cells, red blood cells, liver function, kidney function, pancreas enzymes, and electrolytes.
+      Vet: I will take the blood sample today and email the results on Monday.
+      Owner: Email please.
+      Vet: We have Spectra for fleas, ticks, and worms, or Milpro as the worming tablet.
+      Owner: Just the worming tablet.
+      Vet: Milpro is 1 tablet every 3 months and costs £24.30.
+    `;
+
+    const payload = parseGeneralConsultGroundingPayload(JSON.stringify({
+      complexity: 'routine',
+      sections: {
+        SUBJECTIVE: [
+          {
+            text: 'First visit for a general check up',
+            evidence: 'First time here, wants a general check up',
+          },
+          {
+            text: 'Cooked natural food only, no dry food; previous scratching stopped after dry food was removed; possible chicken allergy',
+            evidence: 'She eats cooked natural food, no dry food. Previous scratching stopped after dry food was removed. Possible chicken allergy',
+          },
+          {
+            text: 'Owner asked whether blood testing is needed',
+            evidence: 'Do you think she needs a blood test?',
+          },
+        ],
+        OBJECTIVE: [
+          {
+            text: 'Wt 13.9 kg, good muscle tone, teeth clean',
+            evidence: 'Weight is 13.9 kg. Muscle tone is good. Teeth are nice and clean',
+          },
+        ],
+        ASSESSMENT: [
+          {
+            text: 'Very good condition for age',
+            evidence: 'She is in very good condition for her age',
+          },
+        ],
+        PLAN: [
+          {
+            text: 'General profile offered now or in 1-2 months for peace of mind and future comparison',
+            evidence: 'We could do a general profile now or in 1-2 months for peace of mind and future comparison',
+          },
+          {
+            text: 'Profile would assess WBC, RBC, liver, kidney, pancreas enzymes, and electrolytes',
+            evidence: 'The profile would look at white blood cells, red blood cells, liver function, kidney function, pancreas enzymes, and electrolytes',
+          },
+          {
+            text: 'Blood sample to be taken today; results by email on Monday',
+            evidence: 'I will take the blood sample today and email the results on Monday',
+          },
+          {
+            text: 'Owner prefers email communication',
+            evidence: 'Email please',
+          },
+          {
+            text: 'Spectra discussed for fleas, ticks, and worms; owner chose Milpro',
+            evidence: 'We have Spectra for fleas, ticks, and worms, or Milpro as the worming tablet',
+          },
+          {
+            text: 'Milpro 1 tablet q3 months, £24.30',
+            evidence: 'Milpro is 1 tablet every 3 months and costs £24.30',
+          },
+        ],
+      },
+    }));
+
+    const filtered = filterGroundedGeneralConsultPayload(payload!, source);
+    const rendered = renderGeneralConsultFromGroundedPayload(filtered, source);
+
+    expect(rendered).toContain('general check up');
+    expect(rendered).toContain('Cooked natural food');
+    expect(rendered).toContain('Previous scratching stopped after dry food was removed');
+    expect(rendered).toContain('13.9 kg');
+    expect(rendered).toContain('General profile offered now or in 1-2mo');
+    expect(rendered).toContain('Blood sample to be taken today');
+    expect(rendered).toContain('Results by email on Monday');
+    expect(rendered).toContain('Spectra');
+    expect(rendered).toContain('Milpro 1 tablet');
+    expect(rendered).toContain('£24.30');
+  });
 });

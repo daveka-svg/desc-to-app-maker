@@ -66,6 +66,24 @@ const PLAN_MARKERS = [
   "continue",
   "avoid",
   "email",
+  "results",
+  "result",
+  "blood",
+  "profile",
+  "screen",
+  "screening",
+  "sample",
+  "estimate",
+  "cost",
+  "price",
+  "£",
+  "worm",
+  "worming",
+  "deworm",
+  "flea",
+  "tick",
+  "spectra",
+  "milpro",
   "provide",
   "provided",
   "dose",
@@ -104,6 +122,12 @@ const MEDICATION_MARKERS = [
   "sc",
   "im",
   "iv",
+  "milpro",
+  "spectra",
+  "worming",
+  "dewormer",
+  "flea",
+  "tick",
 ];
 
 const DECISION_MARKERS = [
@@ -125,6 +149,12 @@ const DECISION_MARKERS = [
   "stopped",
   "hold",
   "declined",
+  "choose",
+  "chose",
+  "prefers",
+  "prefer",
+  "wanted",
+  "wants",
 ];
 
 const DIRECT_TREATMENT_MARKERS = [
@@ -147,6 +177,10 @@ const DIRECT_TREATMENT_MARKERS = [
   "applied",
   "use",
   "used",
+  "test",
+  "sample",
+  "email",
+  "order",
 ];
 
 const IGNORED_TOKENS = new Set([
@@ -257,6 +291,11 @@ const hasPrimaryComplaintSignal = (value: string): boolean =>
 
 const hasDietOrFeedingSignal = (value: string): boolean =>
   /\b(?:food|diet|feeding|fed|eating|eat|appetite|cat food|dog food|treats?|royal canin|purina|gastrointestinal|gi food|complete food)\b/iu.test(
+    value,
+  );
+
+const hasWellnessOrPreventiveSignal = (value: string): boolean =>
+  /\b(?:check up|checkup|general check|wellness|baseline|blood test|blood work|general profile|screening|peace of mind|email|results|worming|deworm|milpro|spectra|flea|tick|estimate|price|cost)\b/iu.test(
     value,
   );
 
@@ -545,6 +584,7 @@ const scoreSubjectiveItem = (item: GroundingItem): number => {
   if (hasPriorEpisodeSignal(combined)) score += 2;
   if (hasTimingOrQuantity(combined)) score += 3;
   if (hasMarker(combined, MEDICATION_MARKERS)) score += 1;
+  if (hasWellnessOrPreventiveSignal(combined)) score += 3;
   if (/\b(?:no vomiting|no diarrhoea|still drinking|still eating|fussy|struggling to eat|home treatment|probiotic|pro-kolin|buscopan|applaws|royal canin|purina|cat food|dog food|dried fish|treats?)\b/iu.test(combined)) {
     score += 3;
   }
@@ -561,6 +601,9 @@ const scorePlanItem = (item: GroundingItem): number => {
   if (hasMarker(combined, MEDICATION_MARKERS)) score += 6;
   if (hasTimingOrQuantity(combined)) score += 4;
   if (hasMarker(combined, DIRECT_TREATMENT_MARKERS)) score += 3;
+  if (/\b(?:blood test|blood work|general profile|screening|sample|results?|monday|email|estimate|cost|price|£|milpro|spectra|worming|flea|tick|parasite)\b/iu.test(combined)) {
+    score += 5;
+  }
   if (/\b(?:recheck|follow ?up|call|book|schedule|review|return|48\s*h|24\s*h|15:30|tomorrow|today)\b/iu.test(combined)) {
     score += 4;
   }
