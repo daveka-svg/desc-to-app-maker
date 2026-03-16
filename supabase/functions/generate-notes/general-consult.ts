@@ -61,21 +61,17 @@ const hasUsableTemplateInstructions = (value: string): boolean => {
   return TEMPLATE_HINT_KEYWORDS.some((keyword) => normalized.includes(keyword));
 };
 
-const buildInvalidTemplatePrompt = (): string => `The saved General Consult template is empty or does not contain usable note-writing instructions.
-Return an empty string.
-Do not write a note.
-Do not infer a default structure.
-Do not add headings.
-Do not add commentary.`;
+const resolveTemplateInstructions = (templateInstructions?: string): string => {
+  if (templateInstructions === undefined) return DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT;
+
+  const provided = String(templateInstructions).trim();
+  if (hasUsableTemplateInstructions(provided)) return provided;
+
+  return DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT;
+};
 
 export const buildGeneralConsultSystemPrompt = (templateInstructions?: string): string => {
-  const resolvedTemplate = templateInstructions === undefined
-    ? DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT
-    : String(templateInstructions);
-
-  if (!hasUsableTemplateInstructions(resolvedTemplate)) {
-    return buildInvalidTemplatePrompt();
-  }
+  const resolvedTemplate = resolveTemplateInstructions(templateInstructions);
 
   return `You are a veterinary clinical scribe.
 

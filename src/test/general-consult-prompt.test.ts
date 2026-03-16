@@ -20,17 +20,17 @@ Keep more detail in PLAN.`;
     expect(prompt).toContain(customTemplatePrompt);
   });
 
-  it('returns an empty-note guard prompt when an empty template is intentionally provided', () => {
+  it('falls back to the default template when an empty template is provided', () => {
     const prompt = buildGeneralConsultSystemPrompt('');
 
-    expect(prompt).toContain('Return an empty string.');
-    expect(prompt).not.toContain('SUBJECTIVE:');
+    expect(prompt).toContain(DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT);
+    expect(prompt).toContain('SUBJECTIVE:');
   });
 
-  it('returns an empty-note guard prompt when the template text is nonsense', () => {
+  it('falls back to the default template when the template text is unusable', () => {
     const prompt = buildGeneralConsultSystemPrompt('no text');
 
-    expect(prompt).toContain('Return an empty string.');
+    expect(prompt).toContain(DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT);
     expect(prompt).not.toContain('Saved General Consult template instructions:\nno text');
   });
 
