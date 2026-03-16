@@ -22,17 +22,17 @@ const SECTION_ORDER: GeneralSection[] = [
 ];
 
 const DEFAULT_MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
-  SUBJECTIVE: 8,
-  OBJECTIVE: 4,
-  ASSESSMENT: 1,
-  PLAN: 8,
-};
-
-const LONG_SOURCE_MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
   SUBJECTIVE: 10,
   OBJECTIVE: 4,
   ASSESSMENT: 1,
-  PLAN: 9,
+  PLAN: 10,
+};
+
+const LONG_SOURCE_MAX_ITEMS_BY_SECTION: Record<GeneralSection, number> = {
+  SUBJECTIVE: 13,
+  OBJECTIVE: 4,
+  ASSESSMENT: 1,
+  PLAN: 12,
 };
 
 const LONG_SOURCE_WORD_THRESHOLD = 1600;
@@ -183,8 +183,29 @@ const DIRECT_TREATMENT_MARKERS = [
   "order",
 ];
 
+const OWNER_INSTRUCTION_MARKERS = [
+  "stop",
+  "avoid",
+  "watch",
+  "observe",
+  "monitor",
+  "contact",
+  "email",
+  "call",
+  "return",
+  "bring",
+  "feed",
+  "feeding",
+  "diet",
+  "transition",
+  "switch",
+  "continue",
+  "start",
+];
+
 const IGNORED_TOKENS = new Set([
   "about",
+  "and",
   "after",
   "also",
   "been",
@@ -301,6 +322,11 @@ const hasWellnessOrPreventiveSignal = (value: string): boolean =>
 
 const hasPriorEpisodeSignal = (value: string): boolean =>
   /\b(?:same thing|similar episode|previous episode|2-3 months ago|3-4 months ago|iv overnight|hospitali[sz]ed|put on an iv|had this before)\b/iu.test(
+    value,
+  );
+
+const hasAdministrativeOrEstimateSignal = (value: string): boolean =>
+  /\b(?:estimate|cost|price|results?|email|whatsapp|call|communication|profile|screening|sample|blood test|blood work|general profile|monday|tuesday|wednesday|thursday|friday|saturday|sunday|Â£|£)\b/iu.test(
     value,
   );
 
@@ -463,13 +489,26 @@ const buildFocusTerms = (payload: GeneralConsultGroundingPayload): Set<string> =
   }
 
   for (const item of payload.sections.PLAN) {
-    if (hasMarker(item.evidence, PLAN_MARKERS) || hasMarker(item.text, PLAN_MARKERS)) {
-      addTokens(item.text);
-      addTokens(item.evidence);
-    }
+    addTokens(item.text);
+    addTokens(item.evidence);
   }
 
   return focus;
+};
+
+const buildPlanContextTerms = (payload: GeneralConsultGroundingPayload): Set<string> => {
+  const terms = new Set<string>();
+  for (const item of payload.sections.PLAN) {
+    for (const token of meaningfulTokens(`${item.text} ${item.evidence}`)) {
+      if (token.length >= 3) terms.add(token);
+    }
+  }
+  return terms;
+};
+
+const overlapsPlanContext = (value: string, planTerms: Set<string>): boolean => {
+  if (planTerms.size === 0) return false;
+  return meaningfulTokens(value).some((token) => planTerms.has(token));
 };
 
 const overlapsFocusTerms = (value: string, focusTerms: Set<string>): boolean => {
@@ -503,15 +542,32 @@ const isSupportedPlanItem = (
   item: GroundingItem,
   isShortConsult: boolean,
 ): boolean => {
-  const strongEvidenceAlignment = meaningfulOverlapScore(item.text, item.evidence) >= 0.34;
-  const hasExplicitPlanSignal =
+  const strongEvidenceAlignment = meaningfulOverlapScore(item.text, item.evidence) >= 0.22;
+  const evidenceHasPlanSignal =
     hasMarker(item.evidence, PLAN_MARKERS) ||
-    strongEvidenceAlignment;
+    hasMarker(item.evidence, DIRECT_TREATMENT_MARKERS) ||
+    hasMarker(item.evidence, DECISION_MARKERS) ||
+    hasMarker(item.evidence, MEDICATION_MARKERS) ||
+    hasMarker(item.evidence, OWNER_INSTRUCTION_MARKERS) ||
+    hasAdministrativeOrEstimateSignal(item.evidence);
+  const textHasPlanSignal =
+    hasMarker(item.text, PLAN_MARKERS) ||
+    hasMarker(item.text, DIRECT_TREATMENT_MARKERS) ||
+    hasMarker(item.text, DECISION_MARKERS) ||
+    hasMarker(item.text, MEDICATION_MARKERS) ||
+    hasMarker(item.text, OWNER_INSTRUCTION_MARKERS) ||
+    hasAdministrativeOrEstimateSignal(item.text);
+  const hasExplicitPlanSignal =
+    evidenceHasPlanSignal || (textHasPlanSignal && strongEvidenceAlignment) || strongEvidenceAlignment;
 
   if (!hasExplicitPlanSignal) return false;
   if (!isShortConsult) return true;
 
-  return hasMarker(item.evidence, PLAN_MARKERS) || strongEvidenceAlignment;
+  return (
+    evidenceHasPlanSignal ||
+    (textHasPlanSignal && strongEvidenceAlignment) ||
+    strongEvidenceAlignment
+  );
 };
 
 const resolveMaxItemsBySection = (sourceText: string): Record<GeneralSection, number> =>
