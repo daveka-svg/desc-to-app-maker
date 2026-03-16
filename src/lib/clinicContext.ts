@@ -117,41 +117,20 @@ export const buildClientInstructionsInput = ({
 };
 
 interface ChatInputParams {
-  patientName: string;
   transcript: string;
-  notes: string;
-  peReport?: string;
-  supplementalContext?: string;
-  clinicKnowledgeBase?: string;
   userRequest: string;
 }
 
 export const buildChatInput = ({
-  patientName,
   transcript,
-  notes,
-  peReport = '',
-  supplementalContext = '',
-  clinicKnowledgeBase = '',
   userRequest,
 }: ChatInputParams): string => {
   const parts: string[] = [];
-  if (patientName.trim()) {
-    parts.push(`Patient:\n${patientName.trim()}`);
-  }
 
   const transcriptChunk = clipForModel(transcript, 30000);
-  const notesChunk = clipForModel(notes, 16000);
-  const peChunk = clipForModel(peReport, 5000);
-  const supplementalChunk = clipForModel(supplementalContext, 10000);
-  const clinicChunk = clipForModel(buildClinicProfileContext(clinicKnowledgeBase), 20000);
   const requestChunk = clipForModel(userRequest, 4000);
 
   if (transcriptChunk) parts.push(`Consultation transcript:\n${transcriptChunk}`);
-  if (notesChunk) parts.push(`Clinical notes:\n${notesChunk}`);
-  if (peChunk) parts.push(`PE findings:\n${peChunk}`);
-  if (supplementalChunk) parts.push(`Additional context:\n${supplementalChunk}`);
-  if (clinicChunk) parts.push(`Clinic personalization context:\n${clinicChunk}`);
 
   parts.push(`User request:\n${requestChunk}`);
   return `Current consultation context:\n\n${parts.join('\n\n')}`;

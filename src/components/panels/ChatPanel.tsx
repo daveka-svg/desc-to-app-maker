@@ -32,7 +32,6 @@ export default function ChatPanel() {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const { sendMessage, isChatStreaming } = useAskETV();
   const chatMessages = useSessionStore((s) => s.chatMessages);
-  const supplementalContext = useSessionStore((s) => s.supplementalContext);
   const { toast } = useToast();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -147,7 +146,7 @@ export default function ChatPanel() {
       <div className="px-5 py-3 bg-card border-b border-border-light">
         <h2 className="text-[14px] font-semibold text-bark">Chat With Consultation</h2>
         <p className="text-xs text-text-muted">
-          Source of truth: transcript first, then additional uploaded context, then generated notes.
+          Source of truth: consultation transcript only.
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {quickStarters.map((prompt) => (
@@ -161,11 +160,6 @@ export default function ChatPanel() {
             </button>
           ))}
         </div>
-        {supplementalContext.trim() && (
-          <div className="mt-2 text-[11px] text-text-muted bg-sand rounded-md px-2 py-1 border border-border-light">
-            Uploaded context is included in chat reasoning.
-          </div>
-        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 bg-cream">

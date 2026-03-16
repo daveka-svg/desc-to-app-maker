@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { RecordingArtifact } from '@/stores/useSessionStore';
 
 export const RECORDINGS_BUCKET = 'session-recordings';
+export const RECORDING_RETENTION_DAYS = 14;
 
 const buildRecordingFileName = (now = new Date()): string => {
   const stamp = now.toISOString().replace(/[:.]/g, '-');
@@ -25,6 +26,61 @@ export const createRecordingSignedUrl = async (path: string): Promise<string | n
     .createSignedUrl(trimmed, 60 * 60 * 24 * 30);
   if (error || !data?.signedUrl) return null;
   return data.signedUrl;
+};
+
+const chunkPaths = (paths: string[], chunkSize = 100): string[][] => {
+  const chunks: string[][] = [];
+  for (let index = 0; index < paths.length; index += chunkSize) {
+    chunks.push(paths.slice(index, index + chunkSize));
+  }
+  return chunks;
+};
+
+export const purgeExpiredRemoteRecordings = async (now = Date.now()): Promise<number> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  const cutoffIso = new Date(now - RECORDING_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('id, audio_url, created_at')
+    .eq('user_id', user.id)
+    .not('audio_url', 'is', null)
+    .lt('created_at', cutoffIso);
+
+  if (error || !data?.length) {
+    if (error) {
+      console.warn('Recording retention cleanup query failed:', error.message);
+    }
+    return 0;
+  }
+
+  const paths = data
+    .map((row) => String(row.audio_url || '').trim())
+    .filter(Boolean);
+  const sessionIds = data.map((row) => row.id);
+
+  for (const chunk of chunkPaths(paths)) {
+    const { error: removeError } = await supabase.storage.from(RECORDINGS_BUCKET).remove(chunk);
+    if (removeError) {
+      console.warn('Recording retention cleanup storage delete failed:', removeError.message);
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from('sessions')
+    .update({ audio_url: null })
+    .eq('user_id', user.id)
+    .in('id', sessionIds);
+
+  if (updateError) {
+    console.warn('Recording retention cleanup session update failed:', updateError.message);
+    return 0;
+  }
+
+  return sessionIds.length;
 };
 
 interface UploadSessionRecordingInput {

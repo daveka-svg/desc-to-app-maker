@@ -87,6 +87,13 @@ describe('useAskETV', () => {
       }),
     );
 
+    const requestBody = vi.mocked(supabase.functions.invoke).mock.calls[0]?.[1]?.body as { transcript: string; templatePrompt: string };
+    expect(requestBody.transcript).not.toContain('Clinical notes:');
+    expect(requestBody.transcript).not.toContain('PE findings:');
+    expect(requestBody.transcript).not.toContain('Additional context:');
+    expect(requestBody.transcript).not.toContain('Clinic personalization context:');
+    expect(requestBody.templatePrompt).toContain('write only the reusable body text');
+
     expect(useSessionStore.getState().chatMessages.at(-1)?.content).toBe('Drafted follow-up email.');
   });
 });

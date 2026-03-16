@@ -23,7 +23,11 @@ import AllTasksPanel from '@/components/panels/AllTasksPanel';
 import { useToast } from '@/hooks/use-toast';
 import { compilePEReport, TEMPLATES } from '@/lib/prompts';
 import { DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE } from '@/lib/defaultClinicKnowledgeBase';
-import { createRecordingSignedUrl, getRecordingFileNameFromPath } from '@/lib/recordings';
+import {
+  createRecordingSignedUrl,
+  getRecordingFileNameFromPath,
+  purgeExpiredRemoteRecordings,
+} from '@/lib/recordings';
 import {
   bootstrapUserTemplates,
   cleanupDuplicateTemplates,
@@ -123,6 +127,12 @@ export default function Sidebar() {
   }, [showArchived]);
 
   const fetchSessions = async () => {
+    try {
+      await purgeExpiredRemoteRecordings();
+    } catch (error) {
+      console.warn('Recording retention cleanup failed:', error);
+    }
+
     let query = supabase
       .from('sessions')
       .select('id, title, patient_name, audio_url, session_type, created_at, duration_seconds, pe_data, pe_enabled, status, archived_at')
