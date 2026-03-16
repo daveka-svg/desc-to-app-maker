@@ -1,4 +1,4 @@
-export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v12" as const;
+export const GENERAL_CONSULT_PROMPT_VERSION = "direct-template-v1" as const;
 
 export const DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT = `Use concise UK veterinary documentation style with common abbreviations where relevant (eg BAR, QAR, NAD, CRT<2, RR, HR, MM, WNL).
 Use these exact ALL-CAPS headings in this order:
@@ -39,49 +39,15 @@ Length:
 - Telegraphic paragraph fragments only, no bullets, no markdown emphasis.
 - Stay concise unless the case is clearly complex.`;
 
-const GENERAL_CONSULT_PROMPT_WRAPPER = `You are a veterinary clinical scribe.
+export const buildGeneralConsultSystemPrompt = (templateInstructions?: string): string =>
+  String(templateInstructions || DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT).trim();
 
-Use the editable General Consult template instructions below as the main rule set.
+export const buildGeneralConsultUserPrompt = (sourceText: string): string => `Write the General Consult note directly from this consultation source.
 
-Return ONLY valid JSON with this exact schema:
-{
-  "SUBJECTIVE": ["..."] | null,
-  "OBJECTIVE": ["..."] | null,
-  "ASSESSMENT": ["..."] | null,
-  "PLAN": ["..."] | null
-}
-
-Rules:
-- Use only information explicitly stated in the consultation source.
-- If something was not said, leave it out.
-- Do not invent diagnosis, treatment, dose, recommendation, follow-up, or owner advice.
-- You may combine and lightly synthesise multiple explicit source facts into concise clinically useful sentence fragments when the meaning stays the same.
-- Keep only information relevant to today's visit.
-- Remove greetings, repeated recap statements, jokes, side chatter, and unrelated very old history. History that affects treatment and diagnosis must be included.
-- Keep wording short, readable, and in UK veterinary style.
-- Short obvious abbreviations are allowed where clear.
-- Use digits instead of number words for counts, doses, durations, frequencies, ratios, and timing.
-- Preserve exact dates, weekdays, times, percentages, ratios, medication names, doses, routes, frequencies, durations, and ratios when stated.
-- If the owner raises a concern and the vet explores it in detail, keep that detail in the note.
-- If treatment options, medicine names, diet changes, follow-up timing, monitoring advice, final decisions, blood tests, screening, parasite prevention, costs, estimates, or communication timing were discussed, keep those exact details when stated.
-- OBJECTIVE must include only vet-stated findings from the consultation source.
-- Structured PE is shown separately by the app, so do not rewrite PE into OBJECTIVE.
-- If a section has no supported content, return null.
-- No markdown. No bullets. No commentary.`;
-
-export const buildGeneralConsultExtractionSystemPrompt = (templateInstructions?: string): string => {
-  const editableInstructions = String(templateInstructions || DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT).trim();
-  return `Editable General Consult template instructions:
-${editableInstructions}
-
-${GENERAL_CONSULT_PROMPT_WRAPPER}`;
-};
-
-export const buildGeneralConsultExtractionUserPrompt = (sourceText: string): string => `Extract a concise SOAP JSON note from this source.
-
-Follow the editable General Consult template instructions above.
+Use the editable template instructions exactly.
 If something was not said, leave it out.
-Preserve specific clinically useful detail when it was explicitly discussed.
+Do not invent facts.
+Return plain note text only.
 
 Source text:
 ${sourceText}`;

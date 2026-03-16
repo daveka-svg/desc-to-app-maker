@@ -1,13 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
-  filterGroundedGeneralConsultPayload,
-  mergeGeneralConsultGroundingPayloads,
-  parseGeneralConsultGroundingPayload,
-  renderGeneralConsultFromGroundedPayload,
-} from "./grounding.ts";
-import {
-  buildGeneralConsultExtractionUserPrompt,
-  buildGeneralConsultExtractionSystemPrompt,
+  buildGeneralConsultSystemPrompt,
+  buildGeneralConsultUserPrompt,
   GENERAL_CONSULT_PROMPT_VERSION,
 } from "./general-consult.ts";
 import {
@@ -227,28 +221,6 @@ const callLovableAI = async (
   return content;
 };
 
-const stripCodeFences = (value: string): string => {
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("```")) return trimmed;
-  return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-};
-
-const parseGroundedPayloadFromContent = (content: string) => {
-  const stripped = stripCodeFences(content);
-  const candidates = Array.from(new Set([
-    content.trim(),
-    stripped,
-    (stripped.match(/\{[\s\S]*\}/) || [""])[0].trim(),
-  ].filter(Boolean)));
-
-  for (const candidate of candidates) {
-    const parsed = parseGeneralConsultGroundingPayload(candidate);
-    if (parsed) return parsed;
-  }
-
-  return null;
-};
-
 const PLACEHOLDER_SENTENCE_RE =
   /^(?:No|None|Not)\b.*\b(?:documented|recorded|provided|discussed|mentioned|available|noted|stated)\b.*$|^No explicit assessment.*$/i;
 
@@ -424,85 +396,6 @@ const buildModelSummary = (modelsUsed: string[]): string => {
   return uniqueModels.join(", ");
 };
 
-const extractGroundedGeneralConsultChunk = async (
-  chunkSource: string,
-  provider: LlmProvider,
-  apiKey: string,
-  modelCandidates: string[],
-  maxOutputTokens: number,
-  systemPrompt: string,
-  userPrompt: string,
-) => {
-  let parsedPayload: ReturnType<typeof parseGroundedPayloadFromContent> = null;
-  let selectedModel = "";
-  let lastChunkError: Error | null = null;
-
-  for (const model of modelCandidates) {
-    try {
-      const content = provider === "openai"
-        ? await callOpenAI(
-          apiKey,
-          model,
-          systemPrompt,
-          userPrompt,
-          Math.max(maxOutputTokens, 2600),
-        )
-        : await callInception(
-          apiKey,
-          model,
-          systemPrompt,
-          userPrompt,
-          Math.max(maxOutputTokens, 2600),
-        );
-
-      parsedPayload = parseGroundedPayloadFromContent(content);
-      if (!parsedPayload) {
-        throw new Error("Grounded extraction payload was not valid JSON");
-      }
-
-      selectedModel = model;
-      break;
-    } catch (err) {
-      lastChunkError = err instanceof Error ? err : new Error(String(err));
-      console.error("Grounded extraction attempt failed:", provider, model, lastChunkError.message);
-    }
-  }
-
-  if (!parsedPayload) {
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (lovableKey) {
-      for (const fbModel of LOVABLE_FALLBACK_MODELS) {
-        try {
-          const content = await callLovableAI(
-            lovableKey,
-            fbModel,
-            systemPrompt,
-            userPrompt,
-            Math.max(maxOutputTokens, 2600),
-          );
-          parsedPayload = parseGroundedPayloadFromContent(content);
-          if (!parsedPayload) {
-            throw new Error("Lovable AI grounded extraction was not valid JSON");
-          }
-          selectedModel = `lovable:${fbModel}`;
-          console.log("Lovable AI fallback succeeded for grounding:", fbModel);
-          break;
-        } catch (err) {
-          const fbErr = err instanceof Error ? err : new Error(String(err));
-          console.error("Lovable AI grounding fallback failed:", fbModel, fbErr.message);
-          lastChunkError = fbErr;
-        }
-      }
-    }
-  }
-
-  if (!parsedPayload) {
-    throw lastChunkError || new Error("Could not parse grounded extraction payload");
-  }
-
-  return { parsedPayload, selectedModel };
-};
-
 const generateGeneralConsultNote = async (
   sourceText: string,
   provider: LlmProvider,
@@ -513,40 +406,37 @@ const generateGeneralConsultNote = async (
 ) => {
   const parsedSource = parseNoteSource(sourceText);
   const fullSource = buildGeneralConsultSource(parsedSource) || parsedSource.consultationTranscript.trim();
-  const noteChunks = shouldChunkNoteTranscript(parsedSource.consultationTranscript)
-    ? buildChunkedNoteSources(fullSource)
-    : [parseNoteSource(fullSource)];
-  const generalConsultSystemPrompt = buildGeneralConsultExtractionSystemPrompt(templateInstructions);
-
-  const payloads = [];
-  const modelsUsed: string[] = [];
-
-  for (const chunk of noteChunks) {
-    const chunkSource = buildNoteSource(chunk) || chunk.consultationTranscript.trim();
-    const extraction = await extractGroundedGeneralConsultChunk(
-      chunkSource,
+  const generalConsultSystemPrompt = buildGeneralConsultSystemPrompt(templateInstructions);
+  const generated = shouldChunkNoteTranscript(parsedSource.consultationTranscript)
+    ? await generateChunkedStandardNote(
+      fullSource,
       provider,
       apiKey,
       modelCandidates,
-      maxOutputTokens,
       generalConsultSystemPrompt,
-      buildGeneralConsultExtractionUserPrompt(chunkSource),
+      maxOutputTokens,
+    ) || await generateDirectResponse(
+      buildGeneralConsultUserPrompt(fullSource),
+      provider,
+      apiKey,
+      modelCandidates,
+      generalConsultSystemPrompt,
+      maxOutputTokens,
+    )
+    : await generateDirectResponse(
+      buildGeneralConsultUserPrompt(fullSource),
+      provider,
+      apiKey,
+      modelCandidates,
+      generalConsultSystemPrompt,
+      maxOutputTokens,
     );
 
-    payloads.push(extraction.parsedPayload);
-    modelsUsed.push(extraction.selectedModel);
-  }
-
-  const mergedPayload = mergeGeneralConsultGroundingPayloads(payloads);
-  const filteredPayload = filterGroundedGeneralConsultPayload(mergedPayload, fullSource);
-
   return {
-    content: sanitizePlainClinicalText(
-      renderGeneralConsultFromGroundedPayload(filteredPayload, fullSource),
-    ),
-    model: buildModelSummary(modelsUsed),
-    chunked: noteChunks.length > 1,
-    chunkCount: noteChunks.length,
+    content: sanitizePlainClinicalText(generated.content),
+    model: generated.model,
+    chunked: generated.chunked,
+    chunkCount: generated.chunkCount,
   };
 };
 

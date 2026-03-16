@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildGeneralConsultExtractionSystemPrompt,
-  buildGeneralConsultExtractionUserPrompt,
+  buildGeneralConsultSystemPrompt,
+  buildGeneralConsultUserPrompt,
   DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT,
 } from '../../supabase/functions/generate-notes/general-consult';
 
@@ -14,26 +14,23 @@ PLAN:
 
 Keep more detail in PLAN.`;
 
-    const prompt = buildGeneralConsultExtractionSystemPrompt(customTemplatePrompt);
+    const prompt = buildGeneralConsultSystemPrompt(customTemplatePrompt);
 
-    expect(prompt).toContain('Return ONLY valid JSON');
-    expect(prompt).toContain('Editable General Consult template instructions:');
-    expect(prompt).toContain(customTemplatePrompt);
-    expect(prompt.startsWith(`Editable General Consult template instructions:\n${customTemplatePrompt}`)).toBe(true);
+    expect(prompt).toBe(customTemplatePrompt);
   });
 
   it('falls back to the default General Consult template prompt when no override is provided', () => {
-    const prompt = buildGeneralConsultExtractionSystemPrompt();
+    const prompt = buildGeneralConsultSystemPrompt();
 
-    expect(prompt).toContain(DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT);
+    expect(prompt).toBe(DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT);
     expect(prompt).toContain('Use only information explicitly stated in the consultation source.');
-    expect(prompt).toContain('"SUBJECTIVE": ["..."] | null');
   });
 
   it('builds a simple extraction user prompt for the full consultation source', () => {
-    const prompt = buildGeneralConsultExtractionUserPrompt('Consultation transcript:\nTest');
+    const prompt = buildGeneralConsultUserPrompt('Consultation transcript:\nTest');
 
-    expect(prompt).toContain('Extract a concise SOAP JSON note from this source.');
+    expect(prompt).toContain('Write the General Consult note directly from this consultation source.');
+    expect(prompt).toContain('Return plain note text only.');
     expect(prompt).toContain('Consultation transcript:\nTest');
   });
 });
