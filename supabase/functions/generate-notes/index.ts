@@ -407,30 +407,14 @@ const generateGeneralConsultNote = async (
   const parsedSource = parseNoteSource(sourceText);
   const fullSource = buildGeneralConsultSource(parsedSource) || parsedSource.consultationTranscript.trim();
   const generalConsultSystemPrompt = buildGeneralConsultSystemPrompt(templateInstructions);
-  const generated = shouldChunkNoteTranscript(parsedSource.consultationTranscript)
-    ? await generateChunkedStandardNote(
-      fullSource,
-      provider,
-      apiKey,
-      modelCandidates,
-      generalConsultSystemPrompt,
-      maxOutputTokens,
-    ) || await generateDirectResponse(
-      buildGeneralConsultUserPrompt(fullSource),
-      provider,
-      apiKey,
-      modelCandidates,
-      generalConsultSystemPrompt,
-      maxOutputTokens,
-    )
-    : await generateDirectResponse(
-      buildGeneralConsultUserPrompt(fullSource),
-      provider,
-      apiKey,
-      modelCandidates,
-      generalConsultSystemPrompt,
-      maxOutputTokens,
-    );
+  const generated = await generateDirectResponse(
+    buildGeneralConsultUserPrompt(fullSource),
+    provider,
+    apiKey,
+    modelCandidates,
+    generalConsultSystemPrompt,
+    maxOutputTokens,
+  );
 
   return {
     content: sanitizePlainClinicalText(generated.content),

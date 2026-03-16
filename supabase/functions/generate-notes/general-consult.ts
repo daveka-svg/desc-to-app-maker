@@ -1,4 +1,4 @@
-export const GENERAL_CONSULT_PROMPT_VERSION = "direct-template-v1" as const;
+export const GENERAL_CONSULT_PROMPT_VERSION = "direct-template-v2" as const;
 
 export const DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT = `Use concise UK veterinary documentation style with common abbreviations where relevant (eg BAR, QAR, NAD, CRT<2, RR, HR, MM, WNL).
 Use these exact ALL-CAPS headings in this order:
