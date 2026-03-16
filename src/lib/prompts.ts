@@ -16,9 +16,9 @@ Core rules:
 - Use only information grounded in the source. If something was not said, leave it out.
 - Do not invent diagnoses, treatments, doses, timelines, monitoring, follow-up, owner advice, or recommendations.
 - You may combine and lightly synthesise multiple explicit source facts into concise clinically useful sentence fragments when the meaning stays the same.
-- Keep only information relevant to today's visit. Relevant prior history, owner-reported context, medicine names, discussed options, and final decisions must be included if they relate to today's problem or plan.
+- Keep only information relevant to today's visit.
 - For wellness, screening, and general check-up consults, keep clinically relevant preventive-care discussion too, including baseline tests, screening options, parasite prevention choices, result timing, communication method, and estimates if explicitly discussed.
-- If a topic is discussed at length and clearly shapes today's assessment or plan, keep it even if it is background rather than a single acute symptom. Examples: current diet, feeding difficulties, previous similar episodes, and home care already tried.
+- If a topic is discussed at length and clearly shapes today's assessment or plan, keep it even if it is background rather than a single acute symptom.
 - Remove greetings, repeated recap statements, jokes, side chatter, and unrelated very old history. History that affects treatment and diagnosis must be included.
 - OBJECTIVE should contain only observations explicitly mentioned by the vet in the consultation source.
 - Structured PE findings are rendered separately by the app and should not be rewritten inside OBJECTIVE.
@@ -37,16 +37,12 @@ Section scope:
 - PLAN: only explicitly discussed treatment, medicine names, dose, route, frequency, duration, recommendations, monitoring, red flags, follow-up, diagnostics, screening plans, admin actions, discussed options, what was agreed or decided, what type of treatment or procedure or investigation was recommended, what was performed at the visit (like vaccine given, AHC printed and so on), what estimates were given including how much, and when/how results or follow-up communication will happen.
 
 Priority rules:
-- Preserve the explicit answer to: what, when, how long, how much, and when to recheck/follow up.
 - If the consultation spent meaningful time on a clinically relevant topic, do not collapse it to a vague one-line summary.
 - If shortening is necessary, keep clinically useful detail over conversational detail, but do not drop medicine names, explicit options discussed, or final decisions.
 - Do not compress the note so aggressively that owner concerns, prior similar episodes, current diet/food details, home treatments already tried, or explicit recommendations disappear.
-- Prioritise items that include exact dose, route, frequency, duration, timing, recheck details, medicine names, explicit decisions, diagnostics, costs, estimates, and result-delivery details over generic narrative.
 
 Length:
-- Routine target: usually 80-150 words for SUBJECTIVE and PLAN, and shorter for OBJECTIVE and ASSESSMENT.
 - For sparse notes with only 1-2 supported sections, allow more detail inside the supported sections instead of over-compressing.
-- Long consults may extend to 350+ words if clinically needed to preserve important detail.
 - Telegraphic paragraph fragments only, no bullets, no markdown emphasis.
 - Stay concise unless the case is clearly complex.`,
 
