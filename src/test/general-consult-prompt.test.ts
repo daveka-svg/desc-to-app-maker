@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildGeneralConsultExtractionSystemPrompt,
+  buildGeneralConsultRecoverySystemPrompt,
+  buildGeneralConsultRecoveryUserPrompt,
   DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT,
 } from '../../supabase/functions/generate-notes/general-consult';
 
@@ -26,5 +28,22 @@ Keep more detail in PLAN.`;
 
     expect(prompt).toContain(DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT);
     expect(prompt).toContain('Use only explicit source information.');
+  });
+
+  it('builds a recovery prompt that explicitly asks for higher recall on noisy transcripts', () => {
+    const prompt = buildGeneralConsultRecoverySystemPrompt('SUBJECTIVE:\nPLAN:\nKeep more detail.');
+
+    expect(prompt).toContain('Recovery mode:');
+    expect(prompt).toContain('The first extraction was too sparse');
+    expect(prompt).toContain('do not rely on speaker labels being correct');
+    expect(prompt).toContain('PLAN should keep all explicitly discussed vet recommendations');
+  });
+
+  it('builds a recovery user prompt that asks for a less sparse re-extraction', () => {
+    const prompt = buildGeneralConsultRecoveryUserPrompt('Consultation transcript:\nTest');
+
+    expect(prompt).toContain('The first pass was too sparse');
+    expect(prompt).toContain('Do not be overly brief');
+    expect(prompt).toContain('Consultation transcript:\nTest');
   });
 });

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
   filterGroundedGeneralConsultPayload,
+  type GeneralConsultGroundingPayload,
   mergeGeneralConsultGroundingPayloads,
   parseGeneralConsultGroundingPayload,
   renderGeneralConsultFromGroundedPayload,
@@ -8,6 +9,8 @@ import {
 import {
   buildGeneralConsultExtractionUserPrompt,
   buildGeneralConsultExtractionSystemPrompt,
+  buildGeneralConsultRecoverySystemPrompt,
+  buildGeneralConsultRecoveryUserPrompt,
   GENERAL_CONSULT_PROMPT_VERSION,
 } from "./general-consult.ts";
 import {
@@ -424,6 +427,118 @@ const buildModelSummary = (modelsUsed: string[]): string => {
   return uniqueModels.join(", ");
 };
 
+const countSectionItems = (payload: GeneralConsultGroundingPayload): number =>
+  Object.values(payload.sections).reduce((sum, items) => sum + items.length, 0);
+
+const sourceWordCount = (value: string): number =>
+  value.trim().split(/\s+/).filter(Boolean).length;
+
+const SOURCE_HAS_RICH_SUBJECTIVE_RE =
+  /\b(?:same thing|similar episode|previous episode|prior episode|iv overnight|hospital|cat food|applaws|struggl(?:e|es|ing) to eat|feeding|treats?|home care|home treatment|dry food|wet food|diet)\b/iu;
+
+const SOURCE_HAS_RICH_PLAN_RE =
+  /\b(?:recommend|recommended|suggest|suggested|buscopan|tablet|mg|ml|diet|food|transition|switch|monitor|follow ?up|recheck|blood test|blood work|profile|email|results?|estimate|cost|price|royal canin|purina|milpro|spectra|sample|screening|worming|flea|tick)\b/iu;
+
+const shouldRetrySparseGeneralConsult = (
+  payload: GeneralConsultGroundingPayload,
+  sourceText: string,
+): boolean => {
+  const words = sourceWordCount(sourceText);
+  if (words < 350) return false;
+
+  const subjectiveCount = payload.sections.SUBJECTIVE.length;
+  const planCount = payload.sections.PLAN.length;
+  const totalCount = countSectionItems(payload);
+  const hasRichSubjectiveSignals = SOURCE_HAS_RICH_SUBJECTIVE_RE.test(sourceText);
+  const hasRichPlanSignals = SOURCE_HAS_RICH_PLAN_RE.test(sourceText);
+
+  if (totalCount <= 3) return true;
+  if (hasRichSubjectiveSignals && subjectiveCount <= 1) return true;
+  if (hasRichPlanSignals && planCount === 0) return true;
+  if (words >= 700 && subjectiveCount <= 2 && planCount <= 1) return true;
+
+  return false;
+};
+
+const extractGroundedGeneralConsultChunk = async (
+  chunkSource: string,
+  provider: LlmProvider,
+  apiKey: string,
+  modelCandidates: string[],
+  maxOutputTokens: number,
+  systemPrompt: string,
+  userPrompt: string,
+) => {
+  let parsedPayload: ReturnType<typeof parseGroundedPayloadFromContent> = null;
+  let selectedModel = "";
+  let lastChunkError: Error | null = null;
+
+  for (const model of modelCandidates) {
+    try {
+      const content = provider === "openai"
+        ? await callOpenAI(
+          apiKey,
+          model,
+          systemPrompt,
+          userPrompt,
+          Math.max(maxOutputTokens, 2600),
+        )
+        : await callInception(
+          apiKey,
+          model,
+          systemPrompt,
+          userPrompt,
+          Math.max(maxOutputTokens, 2600),
+        );
+
+      parsedPayload = parseGroundedPayloadFromContent(content);
+      if (!parsedPayload) {
+        throw new Error("Grounded extraction payload was not valid JSON");
+      }
+
+      selectedModel = model;
+      break;
+    } catch (err) {
+      lastChunkError = err instanceof Error ? err : new Error(String(err));
+      console.error("Grounded extraction attempt failed:", provider, model, lastChunkError.message);
+    }
+  }
+
+  if (!parsedPayload) {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (lovableKey) {
+      for (const fbModel of LOVABLE_FALLBACK_MODELS) {
+        try {
+          const content = await callLovableAI(
+            lovableKey,
+            fbModel,
+            systemPrompt,
+            userPrompt,
+            Math.max(maxOutputTokens, 2600),
+          );
+          parsedPayload = parseGroundedPayloadFromContent(content);
+          if (!parsedPayload) {
+            throw new Error("Lovable AI grounded extraction was not valid JSON");
+          }
+          selectedModel = `lovable:${fbModel}`;
+          console.log("Lovable AI fallback succeeded for grounding:", fbModel);
+          break;
+        } catch (err) {
+          const fbErr = err instanceof Error ? err : new Error(String(err));
+          console.error("Lovable AI grounding fallback failed:", fbModel, fbErr.message);
+          lastChunkError = fbErr;
+        }
+      }
+    }
+  }
+
+  if (!parsedPayload) {
+    throw lastChunkError || new Error("Could not parse grounded extraction payload");
+  }
+
+  return { parsedPayload, selectedModel };
+};
+
 const generateGeneralConsultNote = async (
   sourceText: string,
   provider: LlmProvider,
@@ -438,82 +553,45 @@ const generateGeneralConsultNote = async (
     ? buildChunkedNoteSources(fullSource)
     : [parseNoteSource(fullSource)];
   const generalConsultSystemPrompt = buildGeneralConsultExtractionSystemPrompt(templateInstructions);
+  const generalConsultRecoverySystemPrompt = buildGeneralConsultRecoverySystemPrompt(templateInstructions);
 
   const payloads = [];
   const modelsUsed: string[] = [];
 
   for (const chunk of noteChunks) {
     const chunkSource = buildNoteSource(chunk) || chunk.consultationTranscript.trim();
-    let parsedPayload: ReturnType<typeof parseGroundedPayloadFromContent> = null;
-    let selectedModel = "";
-    let lastChunkError: Error | null = null;
+    const initialExtraction = await extractGroundedGeneralConsultChunk(
+      chunkSource,
+      provider,
+      apiKey,
+      modelCandidates,
+      maxOutputTokens,
+      generalConsultSystemPrompt,
+      buildGeneralConsultExtractionUserPrompt(chunkSource),
+    );
 
-    for (const model of modelCandidates) {
-      try {
-        const content = provider === "openai"
-          ? await callOpenAI(
-            apiKey,
-            model,
-            generalConsultSystemPrompt,
-            buildGeneralConsultExtractionUserPrompt(chunkSource),
-            Math.max(maxOutputTokens, 2600),
-          )
-          : await callInception(
-            apiKey,
-            model,
-            generalConsultSystemPrompt,
-            buildGeneralConsultExtractionUserPrompt(chunkSource),
-            Math.max(maxOutputTokens, 2600),
-          );
+    let chunkPayload = initialExtraction.parsedPayload;
+    modelsUsed.push(initialExtraction.selectedModel);
 
-        parsedPayload = parseGroundedPayloadFromContent(content);
-        if (!parsedPayload) {
-          throw new Error("Grounded extraction payload was not valid JSON");
-        }
-
-        selectedModel = model;
-        break;
-      } catch (err) {
-        lastChunkError = err instanceof Error ? err : new Error(String(err));
-        console.error("Grounded extraction attempt failed:", provider, model, lastChunkError.message);
-      }
+    const initiallyFiltered = filterGroundedGeneralConsultPayload(chunkPayload, chunkSource);
+    if (shouldRetrySparseGeneralConsult(initiallyFiltered, chunkSource)) {
+      const recoveryExtraction = await extractGroundedGeneralConsultChunk(
+        chunkSource,
+        provider,
+        apiKey,
+        modelCandidates,
+        maxOutputTokens,
+        generalConsultRecoverySystemPrompt,
+        buildGeneralConsultRecoveryUserPrompt(chunkSource),
+      );
+      chunkPayload = mergeGeneralConsultGroundingPayloads([
+        chunkPayload,
+        recoveryExtraction.parsedPayload,
+      ]);
+      modelsUsed.push(recoveryExtraction.selectedModel);
     }
 
-    // Lovable AI fallback for general consult grounding
-    if (!parsedPayload) {
-      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-      if (lovableKey) {
-        for (const fbModel of LOVABLE_FALLBACK_MODELS) {
-          try {
-            const content = await callLovableAI(
-              lovableKey,
-              fbModel,
-              generalConsultSystemPrompt,
-              buildGeneralConsultExtractionUserPrompt(chunkSource),
-              Math.max(maxOutputTokens, 2600),
-            );
-            parsedPayload = parseGroundedPayloadFromContent(content);
-            if (!parsedPayload) {
-              throw new Error("Lovable AI grounded extraction was not valid JSON");
-            }
-            selectedModel = `lovable:${fbModel}`;
-            console.log("Lovable AI fallback succeeded for grounding:", fbModel);
-            break;
-          } catch (err) {
-            const fbErr = err instanceof Error ? err : new Error(String(err));
-            console.error("Lovable AI grounding fallback failed:", fbModel, fbErr.message);
-            lastChunkError = fbErr;
-          }
-        }
-      }
-    }
-
-    if (!parsedPayload) {
-      throw lastChunkError || new Error("Could not parse grounded extraction payload");
-    }
-
-    payloads.push(parsedPayload);
-    modelsUsed.push(selectedModel);
+    payloads.push(chunkPayload);
   }
 
   const mergedPayload = mergeGeneralConsultGroundingPayloads(payloads);

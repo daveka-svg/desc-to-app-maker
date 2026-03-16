@@ -1,4 +1,4 @@
-export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v10" as const;
+export const GENERAL_CONSULT_PROMPT_VERSION = "one-shot-json-v11" as const;
 
 export const DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT = `(This library template mirrors the current grounded General Consult API prompt.
 
@@ -68,6 +68,14 @@ Hard constraints that still apply:
 
 If the editable template instructions conflict with the JSON schema or the transcript-only grounding requirement above, keep the schema and grounding requirement.`;
 
+const GENERAL_CONSULT_RECOVERY_APPENDIX = `Recovery mode:
+- The first extraction was too sparse. Re-read the full source and prefer higher recall over aggressive brevity.
+- For noisy transcripts, do not rely on speaker labels being correct. Classify history, vet findings, assessment, and plan by the meaning of the utterance.
+- Keep clinically relevant details that were discussed at length, including current diet/food, feeding difficulties, prior similar episodes, home care already tried, medicine names, options discussed, diagnostics offered, estimates, result timing, and communication method.
+- PLAN should keep all explicitly discussed vet recommendations, treatment options, owner instructions, monitoring, follow-up, diagnostics, admin actions, estimates, and what was agreed, deferred, or chosen.
+- SUBJECTIVE should retain the supporting context needed to understand the PLAN. If the plan advises stopping or changing a food, SUBJECTIVE should mention the current food or feeding issue that led to that advice.
+- Do not become vague. Preserve specific clinically useful detail when it was explicitly discussed.`;
+
 export const buildGeneralConsultExtractionSystemPrompt = (templateInstructions?: string): string => {
   const editableInstructions = String(templateInstructions || DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT).trim();
   return `Editable General Consult template instructions:
@@ -76,12 +84,27 @@ ${editableInstructions}
 ${GENERAL_CONSULT_PROMPT_WRAPPER}`;
 };
 
+export const buildGeneralConsultRecoverySystemPrompt = (templateInstructions?: string): string =>
+  `${buildGeneralConsultExtractionSystemPrompt(templateInstructions)}
+
+${GENERAL_CONSULT_RECOVERY_APPENDIX}`;
+
 export const buildGeneralConsultExtractionUserPrompt = (sourceText: string): string => `Extract a concise SOAP JSON note from this source.
 
 Follow the editable General Consult template instructions above.
 Keep the extraction grounded in the source text.
 If something was not said, leave it out.
 Preserve specific clinically useful detail when it was explicitly discussed.
+
+Source text:
+${sourceText}`;
+
+export const buildGeneralConsultRecoveryUserPrompt = (sourceText: string): string => `Re-extract a SOAP JSON note from this source with higher recall.
+
+The first pass was too sparse for the amount of clinically relevant discussion in the consult.
+Keep the extraction grounded in the source text.
+If something was not said, leave it out.
+Do not be overly brief when explicit detail was discussed at length.
 
 Source text:
 ${sourceText}`;
