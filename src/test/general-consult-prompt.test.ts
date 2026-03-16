@@ -16,20 +16,36 @@ Keep more detail in PLAN.`;
 
     const prompt = buildGeneralConsultSystemPrompt(customTemplatePrompt);
 
-    expect(prompt).toBe(customTemplatePrompt);
+    expect(prompt).toContain('Use the saved General Consult template instructions below as the primary instruction set');
+    expect(prompt).toContain(customTemplatePrompt);
   });
 
-  it('does not fall back to the default prompt when an empty template is intentionally provided', () => {
+  it('returns an empty-note guard prompt when an empty template is intentionally provided', () => {
     const prompt = buildGeneralConsultSystemPrompt('');
 
-    expect(prompt).toBe('');
+    expect(prompt).toContain('Return an empty string.');
+    expect(prompt).not.toContain('SUBJECTIVE:');
+  });
+
+  it('returns an empty-note guard prompt when the template text is nonsense', () => {
+    const prompt = buildGeneralConsultSystemPrompt('no text');
+
+    expect(prompt).toContain('Return an empty string.');
+    expect(prompt).not.toContain('Saved General Consult template instructions:\nno text');
   });
 
   it('falls back to the default General Consult template prompt when no override is provided', () => {
     const prompt = buildGeneralConsultSystemPrompt();
 
-    expect(prompt).toBe(DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT);
+    expect(prompt).toContain(DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT);
     expect(prompt).toContain('Use only information explicitly stated in the consultation source.');
+  });
+
+  it('accepts a short but usable custom prompt', () => {
+    const prompt = buildGeneralConsultSystemPrompt('One paragraph summary');
+
+    expect(prompt).toContain('One paragraph summary');
+    expect(prompt).not.toContain('Return an empty string.');
   });
 
   it('uses the raw consultation source as the user prompt', () => {

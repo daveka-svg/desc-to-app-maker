@@ -1,4 +1,4 @@
-export const GENERAL_CONSULT_PROMPT_VERSION = "direct-template-v3" as const;
+export const GENERAL_CONSULT_PROMPT_VERSION = "direct-template-v4" as const;
 
 export const DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT = `Use concise UK veterinary documentation style with common abbreviations where relevant (eg BAR, QAR, NAD, CRT<2, RR, HR, MM, WNL).
 Use these exact ALL-CAPS headings in this order:
@@ -39,10 +39,65 @@ Length:
 - Telegraphic paragraph fragments only, no bullets, no markdown emphasis.
 - Stay concise unless the case is clearly complex.`;
 
-export const buildGeneralConsultSystemPrompt = (templateInstructions?: string): string =>
-  templateInstructions === undefined
+const TEMPLATE_HINT_KEYWORDS = [
+  "subjective",
+  "objective",
+  "assessment",
+  "plan",
+  "soap",
+  "summary",
+  "note",
+  "notes",
+  "paragraph",
+  "letter",
+  "email",
+  "owner",
+  "discharge",
+  "follow-up",
+  "follow up",
+];
+
+const hasUsableTemplateInstructions = (value: string): boolean => {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed.length >= 20) return true;
+
+  const normalized = trimmed.toLowerCase();
+  if (/[:\n]/.test(trimmed)) return true;
+  return TEMPLATE_HINT_KEYWORDS.some((keyword) => normalized.includes(keyword));
+};
+
+const buildInvalidTemplatePrompt = (): string => `The saved General Consult template is empty or does not contain usable note-writing instructions.
+Return an empty string.
+Do not write a note.
+Do not infer a default structure.
+Do not add headings.
+Do not add commentary.`;
+
+export const buildGeneralConsultSystemPrompt = (templateInstructions?: string): string => {
+  const resolvedTemplate = templateInstructions === undefined
     ? DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT
     : String(templateInstructions);
+
+  if (!hasUsableTemplateInstructions(resolvedTemplate)) {
+    return buildInvalidTemplatePrompt();
+  }
+
+  return `You are a veterinary clinical scribe.
+
+Use the saved General Consult template instructions below as the primary instruction set for structure, headings, emphasis, and detail.
+Do not invent your own default note format or headings when the template does not ask for them.
+If the template asks for headings or ordering, follow them exactly.
+
+Hard constraints:
+- Use only information explicitly stated in the consultation source.
+- Do not invent diagnoses, treatments, doses, timelines, monitoring, follow-up, owner advice, recommendations, or findings.
+- Remove greetings, repeated recap, jokes, side chatter, and unrelated old history unless clinically relevant.
+- Structured PE findings are shown separately by the app and should not be rewritten unless the template explicitly asks for PE inside the note.
+
+Saved General Consult template instructions:
+${resolvedTemplate}`.trim();
+};
 
 export const buildGeneralConsultUserPrompt = (sourceText: string): string =>
   String(sourceText || "").trim();
