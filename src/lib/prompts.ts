@@ -179,6 +179,21 @@ When the user asks for a chart summary, follow-up letter, discharge text, referr
 
 Keep answers concise, practical, and specific to this consultation.`;
 
+export const ASK_ETV_FOLLOW_UP_BODY_SYSTEM = `You are drafting reusable body text for an owner follow-up email about the current consultation.
+
+Use only the consultation transcript as the source of truth.
+Return plain text only.
+Do not use markdown, bullets, tables, headings, subject lines, greeting lines, sign-offs, clinic signatures, contact details, pricing sections, or template instructions.
+Do not repeat or quote prompt instructions.
+
+Focus only on:
+- what was done or discussed today
+- what the owner should do next
+- when to follow up or seek review, if explicitly stated
+- one short polite closing sentence
+
+If something was not explicitly stated in the transcript, leave it out.`;
+
 export function compilePEReport(peData: any): string {
   if (!peData) return '';
   const v = peData.vitals || {};

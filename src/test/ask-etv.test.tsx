@@ -64,7 +64,7 @@ describe('useAskETV', () => {
     const { result } = renderHook(() => useAskETV());
 
     await act(async () => {
-      await result.current.sendMessage('Generate follow-up email for this consultation.');
+      await result.current.sendMessage('Generate chart summary from this consultation.');
     });
 
     expect(vi.mocked(supabase.functions.invoke)).toHaveBeenCalledWith(
@@ -82,7 +82,7 @@ describe('useAskETV', () => {
       'generate-notes',
       expect.objectContaining({
         body: expect.objectContaining({
-          transcript: expect.stringContaining('User request:\nGenerate follow-up email for this consultation.'),
+          transcript: expect.stringContaining('User request:\nGenerate chart summary from this consultation.'),
         }),
       }),
     );
@@ -92,8 +92,42 @@ describe('useAskETV', () => {
     expect(requestBody.transcript).not.toContain('PE findings:');
     expect(requestBody.transcript).not.toContain('Additional context:');
     expect(requestBody.transcript).not.toContain('Clinic personalization context:');
-    expect(requestBody.templatePrompt).toContain('write only the reusable body text');
+    expect(requestBody.templatePrompt).toContain('veterinary AI assistant');
 
     expect(useSessionStore.getState().chatMessages.at(-1)?.content).toBe('Drafted follow-up email.');
+  });
+
+  it('uses follow-up body mode and strips prompt echo and email scaffolding', async () => {
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: {
+        content: `Subject: Follow-up
+
+Dear Sam,
+
+What we did today
+Your cat had a check and rabies vaccine today.
+
+What to do next
+Monitor the injection site and contact us if you are worried.
+
+You are doing AI scribe notes for a vet. Read the transcript of the consultation and summaries it.
+
+Warm regards,
+Every Tail Vets`,
+      },
+      error: null,
+    } as never);
+
+    const { result } = renderHook(() => useAskETV());
+
+    await act(async () => {
+      await result.current.sendMessage('Generate follow-up letter for this consultation.');
+    });
+
+    const requestBody = vi.mocked(supabase.functions.invoke).mock.calls[0]?.[1]?.body as { templatePrompt: string };
+    expect(requestBody.templatePrompt).toContain('Return plain text only.');
+    expect(useSessionStore.getState().chatMessages.at(-1)?.content).toBe(
+      'Your cat had a check and rabies vaccine today.\n\nMonitor the injection site and contact us if you are worried.'
+    );
   });
 });

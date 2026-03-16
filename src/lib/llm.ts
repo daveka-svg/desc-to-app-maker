@@ -152,6 +152,76 @@ export function sanitizePlainClinicalText(value: string): string {
   return stripPlaceholderSections(cleaned);
 }
 
+const FOLLOW_UP_PROMPT_ECHO_RE =
+  /(?:^|\n)(You are doing AI scribe notes for a vet\.|Use concise UK veterinary documentation style|Use these exact headings in this order|Rules:|Section scope:|Priority:)/i;
+
+const stripPromptEcho = (value: string): string => {
+  const match = FOLLOW_UP_PROMPT_ECHO_RE.exec(value);
+  if (!match || match.index < 0) return value.trim();
+  return value.slice(0, match.index).trim();
+};
+
+const stripFollowUpScaffold = (value: string): string => {
+  const source = stripPromptEcho(value);
+  const lines = source
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[\s>*•-]+/, '').trim());
+
+  const kept: string[] = [];
+  let dropRemainder = false;
+
+  for (const line of lines) {
+    if (!line) {
+      if (kept.length > 0 && kept[kept.length - 1] !== '') kept.push('');
+      continue;
+    }
+
+    const normalized = line.toLowerCase();
+
+    if (
+      /^subject\s*:/i.test(line) ||
+      /^dear\b/i.test(line) ||
+      /^hi\b/i.test(line) ||
+      /^hello\b/i.test(line) ||
+      /^cost\b/i.test(line) ||
+      /^contact details\b/i.test(line) ||
+      /^what we did today\b/i.test(line) ||
+      /^what to do next\b/i.test(line)
+    ) {
+      continue;
+    }
+
+    if (
+      /^(warm regards|kind regards|best regards|regards|sincerely|many thanks|thanks again)[,!]?\s*$/i.test(line) ||
+      /^\[.*\]$/.test(line) ||
+      /every tail vets/i.test(line) ||
+      /\bemail\s*:/i.test(line) ||
+      /\bphone\s*:/i.test(line) ||
+      /out-?of-?hours/i.test(line)
+    ) {
+      dropRemainder = true;
+      continue;
+    }
+
+    if (dropRemainder) continue;
+
+    kept.push(line);
+  }
+
+  return kept
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+};
+
+export function sanitizeChatAssistantText(value: string, mode: 'default' | 'followup-body' = 'default'): string {
+  const cleaned = sanitizePlainClinicalText(value);
+  if (mode === 'followup-body') {
+    return stripFollowUpScaffold(cleaned);
+  }
+  return cleaned;
+}
+
 const buildPESection = (peReport: string): string => {
   const body = peReport.replace(/^PE:\s*/i, '').trim();
   return body ? `PE:\n${body}` : '';

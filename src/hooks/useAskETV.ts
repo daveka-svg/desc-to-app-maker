@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ASK_ETV_SYSTEM } from '@/lib/prompts';
+import { ASK_ETV_FOLLOW_UP_BODY_SYSTEM, ASK_ETV_SYSTEM } from '@/lib/prompts';
 import { useSessionStore } from '@/stores/useSessionStore';
-import { extractLlmText } from '@/lib/llm';
+import { extractLlmText, sanitizeChatAssistantText } from '@/lib/llm';
 import { buildChatInput } from '@/lib/clinicContext';
 import { getAiGenerationConfig } from '@/lib/appSettings';
 
@@ -21,6 +21,7 @@ export function useAskETV() {
     setIsChatStreaming(true);
 
     try {
+      const isFollowUpLetterRequest = /follow-?\s*up (letter|email|update)|owner update/i.test(userText);
       const composedContext = buildChatInput({
         transcript,
         userRequest: userText,
@@ -30,7 +31,7 @@ export function useAskETV() {
       const { data, error } = await supabase.functions.invoke('generate-notes', {
         body: {
           transcript: composedContext,
-          templatePrompt: ASK_ETV_SYSTEM,
+          templatePrompt: isFollowUpLetterRequest ? ASK_ETV_FOLLOW_UP_BODY_SYSTEM : ASK_ETV_SYSTEM,
           requestType: 'chat',
           llmProvider: aiConfig.provider,
           llmModel: aiConfig.model,
@@ -39,7 +40,10 @@ export function useAskETV() {
 
       if (error) throw new Error(error.message);
 
-      const responseText = (await extractLlmText(data)).trim();
+      const responseText = sanitizeChatAssistantText(
+        await extractLlmText(data),
+        isFollowUpLetterRequest ? 'followup-body' : 'default',
+      ).trim();
       updateLastAssistantMessage(responseText || 'No response generated.');
     } catch (err) {
       console.error('Ask ETV error:', err);
