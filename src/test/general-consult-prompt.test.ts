@@ -19,6 +19,12 @@ Keep more detail in PLAN.`;
     expect(prompt).toBe(customTemplatePrompt);
   });
 
+  it('does not fall back to the default prompt when an empty template is intentionally provided', () => {
+    const prompt = buildGeneralConsultSystemPrompt('');
+
+    expect(prompt).toBe('');
+  });
+
   it('falls back to the default General Consult template prompt when no override is provided', () => {
     const prompt = buildGeneralConsultSystemPrompt();
 

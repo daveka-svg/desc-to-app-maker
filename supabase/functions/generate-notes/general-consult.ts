@@ -40,7 +40,9 @@ Length:
 - Stay concise unless the case is clearly complex.`;
 
 export const buildGeneralConsultSystemPrompt = (templateInstructions?: string): string =>
-  String(templateInstructions || DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT).trim();
+  templateInstructions === undefined
+    ? DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT
+    : String(templateInstructions);
 
 export const buildGeneralConsultUserPrompt = (sourceText: string): string =>
   String(sourceText || "").trim();

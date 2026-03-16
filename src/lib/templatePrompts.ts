@@ -270,8 +270,10 @@ export async function getTemplatePrompt(templateName: string, fallbackPrompt: st
     const match = data.find((row: any) =>
       normalizeTemplateName(String(row?.name || '')) === normalizeTemplateName(templateName)
     );
-    const prompt = match?.system_prompt?.trim();
-    return prompt || fallbackPrompt;
+    if (match) {
+      return typeof match.system_prompt === 'string' ? match.system_prompt : '';
+    }
+    return fallbackPrompt;
   }
 
   const legacy = await supabase
@@ -285,6 +287,8 @@ export async function getTemplatePrompt(templateName: string, fallbackPrompt: st
   const match = legacy.data.find((row: any) =>
     normalizeTemplateName(String(row?.name || '')) === normalizeTemplateName(templateName)
   );
-  const prompt = match?.system_prompt?.trim();
-  return prompt || fallbackPrompt;
+  if (match) {
+    return typeof match.system_prompt === 'string' ? match.system_prompt : '';
+  }
+  return fallbackPrompt;
 }
