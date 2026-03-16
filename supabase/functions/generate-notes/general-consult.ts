@@ -1,4 +1,4 @@
-export const GENERAL_CONSULT_PROMPT_VERSION = "direct-template-v2" as const;
+export const GENERAL_CONSULT_PROMPT_VERSION = "direct-template-v3" as const;
 
 export const DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT = `Use concise UK veterinary documentation style with common abbreviations where relevant (eg BAR, QAR, NAD, CRT<2, RR, HR, MM, WNL).
 Use these exact ALL-CAPS headings in this order:
@@ -42,12 +42,5 @@ Length:
 export const buildGeneralConsultSystemPrompt = (templateInstructions?: string): string =>
   String(templateInstructions || DEFAULT_GENERAL_CONSULT_TEMPLATE_PROMPT).trim();
 
-export const buildGeneralConsultUserPrompt = (sourceText: string): string => `Write the General Consult note directly from this consultation source.
-
-Use the editable template instructions exactly.
-If something was not said, leave it out.
-Do not invent facts.
-Return plain note text only.
-
-Source text:
-${sourceText}`;
+export const buildGeneralConsultUserPrompt = (sourceText: string): string =>
+  String(sourceText || "").trim();

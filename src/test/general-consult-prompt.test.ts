@@ -26,11 +26,9 @@ Keep more detail in PLAN.`;
     expect(prompt).toContain('Use only information explicitly stated in the consultation source.');
   });
 
-  it('builds a simple extraction user prompt for the full consultation source', () => {
+  it('uses the raw consultation source as the user prompt', () => {
     const prompt = buildGeneralConsultUserPrompt('Consultation transcript:\nTest');
 
-    expect(prompt).toContain('Write the General Consult note directly from this consultation source.');
-    expect(prompt).toContain('Return plain note text only.');
-    expect(prompt).toContain('Consultation transcript:\nTest');
+    expect(prompt).toBe('Consultation transcript:\nTest');
   });
 });
