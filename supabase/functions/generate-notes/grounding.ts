@@ -6,7 +6,7 @@ export type GeneralSection =
 
 export interface GroundingItem {
   text: string;
-  evidence: string;
+  evidence?: string;
 }
 
 export interface GeneralConsultGroundingPayload {
@@ -263,6 +263,11 @@ const normalizeEvidence = (value: string): string => {
 
 const compact = (value: string): string => value.replace(/\s+/g, " ").trim();
 
+const itemEvidenceText = (item: GroundingItem): string => compact(item.evidence ?? "");
+
+const itemCombinedText = (item: GroundingItem): string =>
+  compact([item.text, item.evidence ?? ""].filter(Boolean).join(" "));
+
 const isPlaceholderValue = (value: string): boolean => {
   const normalized = compact(value).toLowerCase().replace(/[.\s]+/g, " ").trim();
   if (!normalized) return true;
@@ -380,13 +385,21 @@ const emptySections = (): Record<GeneralSection, GroundingItem[]> => ({
 });
 
 const parseItem = (candidate: unknown): GroundingItem | null => {
+  if (typeof candidate === "string") {
+    const text = compact(candidate);
+    if (!text || isPlaceholderValue(text)) return null;
+    return { text };
+  }
   if (!candidate || typeof candidate !== "object") return null;
   const row = candidate as Record<string, unknown>;
   const text = compact(String(row.text ?? ""));
   const evidence = compact(String(row.evidence ?? ""));
-  if (!text || !evidence) return null;
-  if (isPlaceholderValue(text) || isPlaceholderValue(evidence)) return null;
-  return { text, evidence };
+  if (!text) return null;
+  if (isPlaceholderValue(text)) return null;
+  if (evidence && !isPlaceholderValue(evidence)) {
+    return { text, evidence };
+  }
+  return { text };
 };
 
 export const parseGeneralConsultGroundingPayload = (
@@ -399,7 +412,7 @@ export const parseGeneralConsultGroundingPayload = (
     const parsedSections =
       parsed.sections && typeof parsed.sections === "object"
         ? parsed.sections as Record<string, unknown>
-        : {};
+        : parsed;
 
     for (const section of SECTION_ORDER) {
       sections[section] = toArray(parsedSections[section])
@@ -415,10 +428,24 @@ export const parseGeneralConsultGroundingPayload = (
 
 const isItemGrounded = (item: GroundingItem, sourceText: string): boolean => {
   const source = normalize(sourceText);
-  const evidence = normalizeEvidence(item.evidence);
-  if (!source || !evidence) return false;
-  if (evidence.length < 8) return false;
-  return source.includes(evidence);
+  if (!source) return false;
+
+  const evidence = normalizeEvidence(item.evidence ?? "");
+  if (evidence) {
+    if (evidence.length < 8) return false;
+    return source.includes(evidence);
+  }
+
+  const sourceTokens = new Set(meaningfulTokens(sourceText));
+  const textTokens = meaningfulTokens(item.text);
+  if (textTokens.length === 0) return false;
+  let overlap = 0;
+  for (const token of textTokens) {
+    if (sourceTokens.has(token)) overlap += 1;
+  }
+  const coverage = overlap / textTokens.length;
+  if (textTokens.length <= 2) return coverage >= 0.5;
+  return coverage >= 0.6;
 };
 
 const overlapScore = (left: string, right: string): number => {
@@ -479,18 +506,18 @@ const buildFocusTerms = (payload: GeneralConsultGroundingPayload): Set<string> =
   for (const item of payload.sections.SUBJECTIVE) {
     if (!hasHistoricalTiming(item.text) || hasCurrentVisitTiming(item.text)) {
       addTokens(item.text);
-      addTokens(item.evidence);
+      addTokens(itemEvidenceText(item));
     }
   }
 
   for (const item of payload.sections.ASSESSMENT) {
     addTokens(item.text);
-    addTokens(item.evidence);
+    addTokens(itemEvidenceText(item));
   }
 
   for (const item of payload.sections.PLAN) {
     addTokens(item.text);
-    addTokens(item.evidence);
+    addTokens(itemEvidenceText(item));
   }
 
   return focus;
@@ -499,7 +526,7 @@ const buildFocusTerms = (payload: GeneralConsultGroundingPayload): Set<string> =
 const buildPlanContextTerms = (payload: GeneralConsultGroundingPayload): Set<string> => {
   const terms = new Set<string>();
   for (const item of payload.sections.PLAN) {
-    for (const token of meaningfulTokens(`${item.text} ${item.evidence}`)) {
+    for (const token of meaningfulTokens(itemCombinedText(item))) {
       if (token.length >= 3) terms.add(token);
     }
   }
@@ -517,9 +544,11 @@ const overlapsFocusTerms = (value: string, focusTerms: Set<string>): boolean => 
 };
 
 const itemTextSupportedByEvidence = (item: GroundingItem): boolean => {
-  const overlap = meaningfulOverlapScore(item.text, item.evidence);
+  const evidence = itemEvidenceText(item);
+  if (!evidence) return true;
+  const overlap = meaningfulOverlapScore(item.text, evidence);
   if (overlap >= MIN_TEXT_EVIDENCE_OVERLAP) return true;
-  if (sharesMeaningfulToken(item.text, item.evidence)) return true;
+  if (sharesMeaningfulToken(item.text, evidence)) return true;
   return false;
 };
 
@@ -527,29 +556,35 @@ const isRelevantSubjectiveItem = (
   item: GroundingItem,
   focusTerms: Set<string>,
 ): boolean => {
-  const combined = `${item.text} ${item.evidence}`;
+  const combined = itemCombinedText(item);
   const historicalOnly = hasHistoricalTiming(combined) && !hasCurrentVisitTiming(combined);
   if (!historicalOnly) return true;
   if (hasMarker(combined, MEDICATION_MARKERS)) return true;
   return overlapsFocusTerms(combined, focusTerms);
 };
 
-const isSupportedAssessmentItem = (item: GroundingItem): boolean =>
-  hasMarker(item.evidence, ASSESSMENT_MARKERS) ||
-  itemTextSupportedByEvidence(item);
+const isSupportedAssessmentItem = (item: GroundingItem): boolean => {
+  const evidence = itemEvidenceText(item);
+  if (hasMarker(evidence, ASSESSMENT_MARKERS)) return true;
+  if (!evidence && hasMarker(item.text, ASSESSMENT_MARKERS)) return true;
+  return itemTextSupportedByEvidence(item);
+};
 
 const isSupportedPlanItem = (
   item: GroundingItem,
   isShortConsult: boolean,
 ): boolean => {
-  const strongEvidenceAlignment = meaningfulOverlapScore(item.text, item.evidence) >= 0.22;
+  const evidence = itemEvidenceText(item);
+  const strongEvidenceAlignment = evidence
+    ? meaningfulOverlapScore(item.text, evidence) >= 0.22
+    : false;
   const evidenceHasPlanSignal =
-    hasMarker(item.evidence, PLAN_MARKERS) ||
-    hasMarker(item.evidence, DIRECT_TREATMENT_MARKERS) ||
-    hasMarker(item.evidence, DECISION_MARKERS) ||
-    hasMarker(item.evidence, MEDICATION_MARKERS) ||
-    hasMarker(item.evidence, OWNER_INSTRUCTION_MARKERS) ||
-    hasAdministrativeOrEstimateSignal(item.evidence);
+    hasMarker(evidence, PLAN_MARKERS) ||
+    hasMarker(evidence, DIRECT_TREATMENT_MARKERS) ||
+    hasMarker(evidence, DECISION_MARKERS) ||
+    hasMarker(evidence, MEDICATION_MARKERS) ||
+    hasMarker(evidence, OWNER_INSTRUCTION_MARKERS) ||
+    hasAdministrativeOrEstimateSignal(evidence);
   const textHasPlanSignal =
     hasMarker(item.text, PLAN_MARKERS) ||
     hasMarker(item.text, DIRECT_TREATMENT_MARKERS) ||
@@ -609,7 +644,7 @@ const dedupeAndLimit = (
     if (output.some((existing) => areNearDuplicates(existing, item))) continue;
     output.push({
       text: compact(item.text),
-      evidence: compact(item.evidence),
+      ...(itemEvidenceText(item) ? { evidence: itemEvidenceText(item) } : {}),
     });
     if (output.length >= maxItems) break;
   }
@@ -632,7 +667,7 @@ const prioritizeAndLimitPreservingOrder = (
     .map(({ item }) => item);
 
 const scoreSubjectiveItem = (item: GroundingItem): number => {
-  const combined = `${item.text} ${item.evidence}`;
+  const combined = itemCombinedText(item);
   let score = 0;
   if (hasCurrentClinicalSignal(combined)) score += 4;
   if (hasPrimaryComplaintSignal(combined)) score += 4;
@@ -652,7 +687,7 @@ const scoreSubjectiveItem = (item: GroundingItem): number => {
 };
 
 const scorePlanItem = (item: GroundingItem): number => {
-  const combined = `${item.text} ${item.evidence}`;
+  const combined = itemCombinedText(item);
   let score = 0;
   if (hasMarker(combined, MEDICATION_MARKERS)) score += 6;
   if (hasTimingOrQuantity(combined)) score += 4;

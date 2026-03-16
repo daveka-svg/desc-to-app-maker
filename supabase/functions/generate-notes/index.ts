@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
   filterGroundedGeneralConsultPayload,
-  type GeneralConsultGroundingPayload,
   mergeGeneralConsultGroundingPayloads,
   parseGeneralConsultGroundingPayload,
   renderGeneralConsultFromGroundedPayload,
@@ -9,8 +8,6 @@ import {
 import {
   buildGeneralConsultExtractionUserPrompt,
   buildGeneralConsultExtractionSystemPrompt,
-  buildGeneralConsultRecoverySystemPrompt,
-  buildGeneralConsultRecoveryUserPrompt,
   GENERAL_CONSULT_PROMPT_VERSION,
 } from "./general-consult.ts";
 import {
@@ -427,39 +424,6 @@ const buildModelSummary = (modelsUsed: string[]): string => {
   return uniqueModels.join(", ");
 };
 
-const countSectionItems = (payload: GeneralConsultGroundingPayload): number =>
-  Object.values(payload.sections).reduce((sum, items) => sum + items.length, 0);
-
-const sourceWordCount = (value: string): number =>
-  value.trim().split(/\s+/).filter(Boolean).length;
-
-const SOURCE_HAS_RICH_SUBJECTIVE_RE =
-  /\b(?:same thing|similar episode|previous episode|prior episode|iv overnight|hospital|cat food|applaws|struggl(?:e|es|ing) to eat|feeding|treats?|home care|home treatment|dry food|wet food|diet)\b/iu;
-
-const SOURCE_HAS_RICH_PLAN_RE =
-  /\b(?:recommend|recommended|suggest|suggested|buscopan|tablet|mg|ml|diet|food|transition|switch|monitor|follow ?up|recheck|blood test|blood work|profile|email|results?|estimate|cost|price|royal canin|purina|milpro|spectra|sample|screening|worming|flea|tick)\b/iu;
-
-const shouldRetrySparseGeneralConsult = (
-  payload: GeneralConsultGroundingPayload,
-  sourceText: string,
-): boolean => {
-  const words = sourceWordCount(sourceText);
-  if (words < 350) return false;
-
-  const subjectiveCount = payload.sections.SUBJECTIVE.length;
-  const planCount = payload.sections.PLAN.length;
-  const totalCount = countSectionItems(payload);
-  const hasRichSubjectiveSignals = SOURCE_HAS_RICH_SUBJECTIVE_RE.test(sourceText);
-  const hasRichPlanSignals = SOURCE_HAS_RICH_PLAN_RE.test(sourceText);
-
-  if (totalCount <= 3) return true;
-  if (hasRichSubjectiveSignals && subjectiveCount <= 1) return true;
-  if (hasRichPlanSignals && planCount === 0) return true;
-  if (words >= 700 && subjectiveCount <= 2 && planCount <= 1) return true;
-
-  return false;
-};
-
 const extractGroundedGeneralConsultChunk = async (
   chunkSource: string,
   provider: LlmProvider,
@@ -553,14 +517,13 @@ const generateGeneralConsultNote = async (
     ? buildChunkedNoteSources(fullSource)
     : [parseNoteSource(fullSource)];
   const generalConsultSystemPrompt = buildGeneralConsultExtractionSystemPrompt(templateInstructions);
-  const generalConsultRecoverySystemPrompt = buildGeneralConsultRecoverySystemPrompt(templateInstructions);
 
   const payloads = [];
   const modelsUsed: string[] = [];
 
   for (const chunk of noteChunks) {
     const chunkSource = buildNoteSource(chunk) || chunk.consultationTranscript.trim();
-    const initialExtraction = await extractGroundedGeneralConsultChunk(
+    const extraction = await extractGroundedGeneralConsultChunk(
       chunkSource,
       provider,
       apiKey,
@@ -570,28 +533,8 @@ const generateGeneralConsultNote = async (
       buildGeneralConsultExtractionUserPrompt(chunkSource),
     );
 
-    let chunkPayload = initialExtraction.parsedPayload;
-    modelsUsed.push(initialExtraction.selectedModel);
-
-    const initiallyFiltered = filterGroundedGeneralConsultPayload(chunkPayload, chunkSource);
-    if (shouldRetrySparseGeneralConsult(initiallyFiltered, chunkSource)) {
-      const recoveryExtraction = await extractGroundedGeneralConsultChunk(
-        chunkSource,
-        provider,
-        apiKey,
-        modelCandidates,
-        maxOutputTokens,
-        generalConsultRecoverySystemPrompt,
-        buildGeneralConsultRecoveryUserPrompt(chunkSource),
-      );
-      chunkPayload = mergeGeneralConsultGroundingPayloads([
-        chunkPayload,
-        recoveryExtraction.parsedPayload,
-      ]);
-      modelsUsed.push(recoveryExtraction.selectedModel);
-    }
-
-    payloads.push(chunkPayload);
+    payloads.push(extraction.parsedPayload);
+    modelsUsed.push(extraction.selectedModel);
   }
 
   const mergedPayload = mergeGeneralConsultGroundingPayloads(payloads);
