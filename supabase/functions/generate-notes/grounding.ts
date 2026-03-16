@@ -621,8 +621,8 @@ const areNearDuplicates = (left: GroundingItem, right: GroundingItem): boolean =
     return true;
   }
 
-  const leftEvidence = normalizeEvidence(left.evidence);
-  const rightEvidence = normalizeEvidence(right.evidence);
+  const leftEvidence = normalizeEvidence(left.evidence ?? '');
+  const rightEvidence = normalizeEvidence(right.evidence ?? '');
   if (leftEvidence && rightEvidence && leftEvidence === rightEvidence) return true;
 
   if (overlapScore(leftText, rightText) >= 0.82) return true;
