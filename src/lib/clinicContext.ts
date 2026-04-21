@@ -55,6 +55,7 @@ interface NoteInputParams {
   transcript: string;
   peReport?: string;
   vetNotes?: string;
+  supplementalContext?: string;
   clinicKnowledgeBase?: string;
   includeClinicContext?: boolean;
 }
@@ -63,6 +64,7 @@ export const buildNotesGenerationInput = ({
   transcript,
   peReport = '',
   vetNotes = '',
+  supplementalContext = '',
   clinicKnowledgeBase = '',
   includeClinicContext = true,
 }: NoteInputParams): string => {
@@ -73,9 +75,11 @@ export const buildNotesGenerationInput = ({
     : '';
   const peChunk = clipForModel(peReport, 6000);
   const vetNotesChunk = clipForModel(vetNotes, 8000);
+  const supplementalChunk = clipForModel(supplementalContext, 12000);
 
   if (transcriptChunk) parts.push(`Consultation transcript:\n${transcriptChunk}`);
   if (clinicChunk) parts.push(`Clinic personalization context:\n${clinicChunk}`);
+  if (supplementalChunk) parts.push(`Additional context:\n${supplementalChunk}`);
   if (peChunk) parts.push(`Physical examination:\n${peChunk}`);
   if (vetNotesChunk) parts.push(`Vet notes:\n${vetNotesChunk}`);
 

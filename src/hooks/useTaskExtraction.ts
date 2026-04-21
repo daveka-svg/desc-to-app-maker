@@ -5,17 +5,21 @@ import { extractLlmText } from '@/lib/llm';
 import { buildTaskExtractionInput } from '@/lib/clinicContext';
 import { normalizeExtractedTasks } from '@/lib/taskExtraction';
 import { getTaskExtractionPrompt } from '@/lib/promptSettings';
-import { getAiGenerationConfig } from '@/lib/appSettings';
+import { getAiGenerationConfig, getOpenAiGenerationConfig } from '@/lib/appSettings';
+
+interface ExtractTasksOptions {
+  forceOpenAI?: boolean;
+}
 
 export function useTaskExtraction() {
-  const transcript = useSessionStore((s) => s.transcript);
   const setTasks = useSessionStore((s) => s.setTasks);
   const setTasksNeedReview = useSessionStore((s) => s.setTasksNeedReview);
   const isExtractingTasks = useSessionStore((s) => s.isExtractingTasks);
   const setIsExtractingTasks = useSessionStore((s) => s.setIsExtractingTasks);
   const setTaskExtractionState = useSessionStore((s) => s.setTaskExtractionState);
 
-  const extractTasks = useCallback(async () => {
+  const extractTasks = useCallback(async (options: ExtractTasksOptions = {}) => {
+    const transcript = useSessionStore.getState().transcript;
     if (!transcript.trim()) throw new Error('No transcript available for task extraction');
 
     setIsExtractingTasks(true);
@@ -24,7 +28,7 @@ export function useTaskExtraction() {
     setTaskExtractionState('extracting');
     try {
       const taskExtractionPrompt = getTaskExtractionPrompt();
-      const aiConfig = getAiGenerationConfig();
+      const aiConfig = options.forceOpenAI ? getOpenAiGenerationConfig() : getAiGenerationConfig();
       const { data, error } = await supabase.functions.invoke('generate-notes', {
         body: {
           transcript: `${taskExtractionPrompt}\n\n${buildTaskExtractionInput({
@@ -61,7 +65,7 @@ export function useTaskExtraction() {
     } finally {
       setIsExtractingTasks(false);
     }
-  }, [transcript, setTasks, setTasksNeedReview, setIsExtractingTasks, setTaskExtractionState]);
+  }, [setTasks, setTasksNeedReview, setIsExtractingTasks, setTaskExtractionState]);
 
   return { extractTasks, isExtractingTasks };
 }

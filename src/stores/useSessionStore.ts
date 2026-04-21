@@ -6,6 +6,7 @@ import { DEFAULT_ETV_CLINIC_KNOWLEDGE_BASE } from '@/lib/defaultClinicKnowledgeB
 export type TabId = 'context' | 'transcript' | 'notes' | 'tasks' | 'chat';
 export type EncounterStatus = 'idle' | 'recording' | 'processing' | 'reviewing';
 export type TranscriptionConnectionState = 'connected' | 'reconnecting' | 'disconnected';
+export type FinalTranscriptionStatus = 'idle' | 'running' | 'done' | 'error';
 export type ProcessingStepStatus = 'pending' | 'active' | 'done' | 'error';
 export type TaskExtractionStatus = 'idle' | 'extracting' | 'success' | 'empty' | 'error';
 export type ProcessingStepId =
@@ -134,6 +135,8 @@ interface SessionStore {
   setTranscriptMergeWarning: (warning: string | null) => void;
   transcriptionConnectionState: TranscriptionConnectionState;
   setTranscriptionConnectionState: (state: TranscriptionConnectionState) => void;
+  finalTranscriptionStatus: FinalTranscriptionStatus;
+  setFinalTranscriptionStatus: (status: FinalTranscriptionStatus) => void;
   processingSteps: ProcessingStep[];
   setProcessingSteps: (steps: ProcessingStep[]) => void;
   setProcessingStepStatus: (id: ProcessingStepId, status: ProcessingStepStatus) => void;
@@ -393,6 +396,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setTranscriptMergeWarning: (warning) => set({ transcriptMergeWarning: warning }),
   transcriptionConnectionState: 'disconnected',
   setTranscriptionConnectionState: (state) => set({ transcriptionConnectionState: state }),
+  finalTranscriptionStatus: 'idle',
+  setFinalTranscriptionStatus: (status) => set({ finalTranscriptionStatus: status }),
   processingSteps: createDefaultProcessingSteps(),
   setProcessingSteps: (steps) => set({ processingSteps: steps }),
   setProcessingStepStatus: (id, status) => set((state) => ({
@@ -641,6 +646,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       selectedTemplate: 'General Consult',
       isRecording: false,
       transcriptionConnectionState: 'disconnected',
+      finalTranscriptionStatus: 'idle',
       processingSteps: createDefaultProcessingSteps(),
     });
   },
@@ -760,6 +766,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       clientInstructions: session.clientInstructions,
       chatMessages: [],
       activeTab: 'notes',
+      finalTranscriptionStatus: 'done',
     });
   },
 

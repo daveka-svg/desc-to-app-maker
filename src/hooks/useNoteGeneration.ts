@@ -5,57 +5,56 @@ import { useSessionStore } from '@/stores/useSessionStore';
 import { extractLlmText, sanitizePlainClinicalText, upsertSeparatePESection } from '@/lib/llm';
 import { getTemplatePrompt } from '@/lib/templatePrompts';
 import { buildNotesGenerationInput } from '@/lib/clinicContext';
-import { getAiGenerationConfig } from '@/lib/appSettings';
+import { getAiGenerationConfig, getOpenAiGenerationConfig } from '@/lib/appSettings';
 import { inferTemplateKind } from '@/lib/templateKind';
 
+interface GenerateNoteOptions {
+  forceOpenAI?: boolean;
+}
+
 export function useNoteGeneration() {
-  const transcript = useSessionStore((s) => s.transcript);
-  const peData = useSessionStore((s) => s.peData);
-  const peEnabled = useSessionStore((s) => s.peEnabled);
-  const peIncludeInNotes = useSessionStore((s) => s.peIncludeInNotes);
-  const selectedTemplate = useSessionStore((s) => s.selectedTemplate);
-  const vetNotes = useSessionStore((s) => s.vetNotes);
-  const clinicKnowledgeBase = useSessionStore((s) => s.clinicKnowledgeBase);
-  const peAppliedSummary = useSessionStore((s) => s.peAppliedSummary);
-  const setPEAppliedSnapshot = useSessionStore((s) => s.setPEAppliedSnapshot);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
   const isGeneratingNotes = useSessionStore((s) => s.isGeneratingNotes);
   const setIsGeneratingNotes = useSessionStore((s) => s.setIsGeneratingNotes);
 
-  const generateNote = useCallback(async (templateOverride?: string) => {
-    if (!transcript.trim()) throw new Error('No transcript available');
+  const generateNote = useCallback(async (templateOverride?: string, options: GenerateNoteOptions = {}) => {
+    const state = useSessionStore.getState();
+    const transcriptToUse = state.transcript;
+    if (!transcriptToUse.trim()) throw new Error('No transcript available');
 
     setIsGeneratingNotes(true);
     setNotes('');
 
     try {
-      const templateToUse = templateOverride || selectedTemplate;
+      const latest = useSessionStore.getState();
+      const templateToUse = templateOverride || latest.selectedTemplate;
       const fallbackTemplate = TEMPLATES[templateToUse] || TEMPLATES['General Consult'];
       const templatePrompt = await getTemplatePrompt(templateToUse, fallbackTemplate);
       const templateKind = inferTemplateKind(templateToUse, templatePrompt);
-      const includeClinicalContext = peEnabled && peIncludeInNotes;
+      const includeClinicalContext = latest.peEnabled && latest.peIncludeInNotes;
       const includeClinicContext = templateKind !== 'general_consult';
-      const compiledPEReport = includeClinicalContext ? compilePEReport(peData) : '';
+      const compiledPEReport = includeClinicalContext ? compilePEReport(latest.peData) : '';
       const peReport = includeClinicalContext
-        ? (compiledPEReport.trim() || peAppliedSummary.trim())
+        ? (compiledPEReport.trim() || latest.peAppliedSummary.trim())
         : '';
       const peReportForPrompt = templateKind === 'general_consult' ? '' : peReport;
-      const vetNotesForGeneration = includeClinicalContext ? vetNotes : '';
+      const vetNotesForGeneration = includeClinicalContext ? latest.vetNotes : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
-      const aiConfig = getAiGenerationConfig();
+      const aiConfig = options.forceOpenAI ? getOpenAiGenerationConfig() : getAiGenerationConfig();
       const payloadTranscript = buildNotesGenerationInput({
-        transcript,
+        transcript: transcriptToUse,
         peReport: peReportForPrompt,
         vetNotes: vetNotesForGeneration,
-        clinicKnowledgeBase,
+        supplementalContext: latest.supplementalContext,
+        clinicKnowledgeBase: latest.clinicKnowledgeBase,
         includeClinicContext,
       });
 
       const response = await supabase.functions.invoke('generate-notes', {
         body: {
           transcript: payloadTranscript,
-          peData: includeClinicalContext ? peData : null,
+          peData: includeClinicalContext ? latest.peData : null,
           templatePrompt: fullPrompt,
           generalConsultTemplatePrompt: templateKind === 'general_consult' ? templatePrompt : null,
           requestType: 'notes',
@@ -75,7 +74,7 @@ export function useNoteGeneration() {
           : rawNotesContent;
       setNotes(notesContent);
       if (includeClinicalContext && compiledPEReport.trim()) {
-        setPEAppliedSnapshot(compiledPEReport);
+        useSessionStore.getState().setPEAppliedSnapshot(compiledPEReport);
       }
     } catch (err) {
       console.error('Note generation error:', err);
@@ -83,19 +82,7 @@ export function useNoteGeneration() {
     } finally {
       setIsGeneratingNotes(false);
     }
-  }, [
-    transcript,
-    peData,
-    peEnabled,
-    peIncludeInNotes,
-    selectedTemplate,
-    vetNotes,
-    setNotes,
-    setIsGeneratingNotes,
-    clinicKnowledgeBase,
-    peAppliedSummary,
-    setPEAppliedSnapshot,
-  ]);
+  }, [setNotes, setIsGeneratingNotes]);
 
   return { notes, isGeneratingNotes, generateNote, setNotes };
 }

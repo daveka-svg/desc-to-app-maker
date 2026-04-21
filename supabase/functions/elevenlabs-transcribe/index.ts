@@ -14,7 +14,134 @@ const parseQuotaExceeded = (raw: string): boolean => {
   }
 };
 
-const transcribeWithOpenAI = async (audio: File) => {
+const VETERINARY_KEYTERMS = [
+  "Every Tail Vets",
+  "consultation",
+  "vaccination",
+  "microchip",
+  "neutered",
+  "spayed",
+  "diarrhoea",
+  "vomiting",
+  "regurgitation",
+  "straining",
+  "mucus",
+  "haematochezia",
+  "melena",
+  "pruritus",
+  "otitis",
+  "conjunctivitis",
+  "lameness",
+  "pyrexia",
+  "dehydration",
+  "mucous membranes",
+  "capillary refill time",
+  "CRT",
+  "BAR",
+  "QAR",
+  "NAD",
+  "WNL",
+  "BCS",
+  "heart rate",
+  "respiratory rate",
+  "abdominal palpation",
+  "peripheral lymph nodes",
+  "Pro-Kolin",
+  "Buscopan",
+  "maropitant",
+  "Cerenia",
+  "metacam",
+  "meloxicam",
+  "Apoquel",
+  "Cytopoint",
+  "Librela",
+  "Solensia",
+  "Milpro",
+  "Drontal",
+  "Panacur",
+  "Advocate",
+  "Bravecto",
+  "NexGard Spectra",
+  "Simparica",
+  "Stronghold",
+  "gabapentin",
+  "trazodone",
+  "amoxiclav",
+  "clavulanate",
+  "clindamycin",
+  "doxycycline",
+  "prednisolone",
+  "paracetamol",
+  "chlorhexidine",
+  "mirtazapine",
+  "omeprazole",
+  "famotidine",
+  "sucralfate",
+  "Royal Canin",
+  "Purina",
+  "Gastrointestinal",
+  "Hills",
+  "Hill's",
+  "hypoallergenic",
+  "single protein",
+  "bland diet",
+  "faecal",
+  "urinalysis",
+  "blood test",
+  "biochemistry",
+  "haematology",
+  "electrolytes",
+  "pancreas",
+  "pancreatitis",
+  "ultrasound",
+  "radiograph",
+  "cytology",
+  "fine needle aspirate",
+  "q8h",
+  "q12h",
+  "q24h",
+  "PO",
+  "SC",
+  "SQ",
+  "IV",
+  "IM",
+  "SID",
+  "BID",
+  "TID",
+];
+
+const normalizeKeyterm = (value: unknown): string => {
+  const cleaned = String(value ?? "")
+    .replace(/[^\p{L}\p{N}\s'./+-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "";
+  if (cleaned.length >= 50) return "";
+  if (cleaned.split(/\s+/).length > 5) return "";
+  return cleaned;
+};
+
+const buildKeyterms = (formData: FormData): string[] => {
+  const requestTerms = formData.getAll("keyterms").flatMap((value) =>
+    String(value ?? "")
+      .split(/[\n,;]+/)
+      .map(normalizeKeyterm)
+  );
+
+  const seen = new Set<string>();
+  return [...VETERINARY_KEYTERMS, ...requestTerms]
+    .map(normalizeKeyterm)
+    .filter(Boolean)
+    .filter((term) => {
+      const key = term.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 100);
+};
+
+const transcribeWithOpenAI = async (audio: File, keyterms: string[]) => {
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   if (!OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY not configured for fallback transcription");
@@ -24,6 +151,10 @@ const transcribeWithOpenAI = async (audio: File) => {
   form.append("file", audio, audio.name || "consultation.webm");
   form.append("model", "gpt-4o-mini-transcribe");
   form.append("response_format", "json");
+  form.append(
+    "prompt",
+    `Veterinary consultation between a vet and pet owner. Veterinary terms, medication names, diet names, doses, routes, and timings may be spoken. Prefer UK veterinary spelling and terminology. Common terms: ${keyterms.join(", ")}.`,
+  );
 
   const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
@@ -59,6 +190,7 @@ serve(async (req) => {
 
     const formData = await req.formData();
     const audio = formData.get("audio");
+    const keyterms = buildKeyterms(formData);
 
     if (!(audio instanceof File)) {
       return new Response(JSON.stringify({ error: "Audio file is required" }), {
@@ -73,6 +205,9 @@ serve(async (req) => {
     apiForm.append("diarize", "false");
     apiForm.append("tag_audio_events", "false");
     apiForm.append("language_code", "eng");
+    for (const term of keyterms) {
+      apiForm.append("keyterms", term);
+    }
 
     const response = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
       method: "POST",
@@ -86,7 +221,7 @@ serve(async (req) => {
       const errorText = await response.text();
       if (response.status === 401 && parseQuotaExceeded(errorText)) {
         console.warn("ElevenLabs quota exceeded, using OpenAI fallback transcription");
-        const fallback = await transcribeWithOpenAI(audio);
+        const fallback = await transcribeWithOpenAI(audio, keyterms);
         return new Response(JSON.stringify(fallback), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

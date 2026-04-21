@@ -6,7 +6,7 @@ interface AppSettingsSnapshot {
   aiGenerationMode?: AiGenerationMode;
 }
 
-export const DEFAULT_AI_GENERATION_MODE: AiGenerationMode = 'mercury-2';
+export const DEFAULT_AI_GENERATION_MODE: AiGenerationMode = 'openai-chatgpt';
 
 export const AI_GENERATION_OPTIONS: Array<{
   value: AiGenerationMode;
@@ -24,10 +24,10 @@ export const AI_GENERATION_OPTIONS: Array<{
   },
   {
     value: 'openai-chatgpt',
-    label: 'ChatGPT latest',
-    description: 'OpenAI ChatGPT model (gpt-5.2-chat-latest).',
+    label: 'ChatGPT 5.4 Pro',
+    description: 'OpenAI ChatGPT model (gpt-5.4-pro).',
     provider: 'openai',
-    model: 'gpt-5.2-chat-latest',
+    model: 'gpt-5.4-pro',
   },
 ];
 
@@ -50,3 +50,7 @@ export const getAiGenerationConfig = () => {
     AI_GENERATION_OPTIONS[0]
   );
 };
+
+export const getOpenAiGenerationConfig = () =>
+  AI_GENERATION_OPTIONS.find((option) => option.value === 'openai-chatgpt') ||
+  AI_GENERATION_OPTIONS[0];

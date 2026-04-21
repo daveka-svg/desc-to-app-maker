@@ -4,6 +4,7 @@ import { useNoteGeneration } from '@/hooks/useNoteGeneration';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { supabase } from '@/integrations/supabase/client';
 import { TEMPLATES } from '@/lib/prompts';
+import { SETTINGS_STORAGE_KEY } from '@/lib/appSettings';
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -52,6 +53,7 @@ const resetStore = () => {
 describe('useNoteGeneration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     resetStore();
     vi.mocked(supabase.functions.invoke).mockResolvedValue({
       data: { content: 'SUBJECTIVE:\nOwner reports diarrhoea for 3 days.' },
@@ -232,6 +234,48 @@ describe('useNoteGeneration', () => {
       expect.objectContaining({
         body: expect.objectContaining({
           generalConsultTemplatePrompt: TEMPLATES['General Consult'],
+        }),
+      }),
+    );
+  });
+
+  it('can force OpenAI GPT-5.4 Pro and uses latest context at generation time', async () => {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ aiGenerationMode: 'mercury-2' }));
+    const { result } = renderHook(() => useNoteGeneration());
+
+    useSessionStore.setState({
+      transcript: 'Updated transcript after background transcription finished.',
+      supplementalContext: 'Uploaded lab result: ALT normal.',
+      vetNotes: 'Vet note: give Pro-Kolin 5 ml q8h.',
+    });
+
+    await act(async () => {
+      await result.current.generateNote(undefined, { forceOpenAI: true });
+    });
+
+    expect(vi.mocked(supabase.functions.invoke)).toHaveBeenCalledWith(
+      'generate-notes',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          llmProvider: 'openai',
+          llmModel: 'gpt-5.4-pro',
+          transcript: expect.stringContaining('Updated transcript after background transcription finished.'),
+        }),
+      }),
+    );
+    expect(vi.mocked(supabase.functions.invoke)).toHaveBeenCalledWith(
+      'generate-notes',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          transcript: expect.stringContaining('Additional context:\nUploaded lab result: ALT normal.'),
+        }),
+      }),
+    );
+    expect(vi.mocked(supabase.functions.invoke)).toHaveBeenCalledWith(
+      'generate-notes',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          transcript: expect.stringContaining('Vet notes:\nVet note: give Pro-Kolin 5 ml q8h.'),
         }),
       }),
     );

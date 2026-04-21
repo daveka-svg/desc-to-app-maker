@@ -1,6 +1,7 @@
 const SECTION_LABELS = [
   "Consultation transcript",
   "Clinic personalization context",
+  "Additional context",
   "Physical examination",
   "Vet notes",
 ] as const;
@@ -10,6 +11,7 @@ type SectionLabel = typeof SECTION_LABELS[number];
 export interface ParsedNoteSource {
   consultationTranscript: string;
   clinicPersonalizationContext: string;
+  additionalContext: string;
   physicalExamination: string;
   vetNotes: string;
 }
@@ -71,6 +73,7 @@ export const parseNoteSource = (raw: string): ParsedNoteSource => {
     return {
       consultationTranscript: "",
       clinicPersonalizationContext: "",
+      additionalContext: "",
       physicalExamination: "",
       vetNotes: "",
     };
@@ -83,6 +86,7 @@ export const parseNoteSource = (raw: string): ParsedNoteSource => {
     return {
       consultationTranscript: normalized,
       clinicPersonalizationContext: "",
+      additionalContext: "",
       physicalExamination: "",
       vetNotes: "",
     };
@@ -91,6 +95,7 @@ export const parseNoteSource = (raw: string): ParsedNoteSource => {
   const sections: Record<SectionLabel, string[]> = {
     "Consultation transcript": [],
     "Clinic personalization context": [],
+    "Additional context": [],
     "Physical examination": [],
     "Vet notes": [],
   };
@@ -112,6 +117,7 @@ export const parseNoteSource = (raw: string): ParsedNoteSource => {
   return {
     consultationTranscript: sections["Consultation transcript"].join("\n").trim(),
     clinicPersonalizationContext: sections["Clinic personalization context"].join("\n").trim(),
+    additionalContext: sections["Additional context"].join("\n").trim(),
     physicalExamination: sections["Physical examination"].join("\n").trim(),
     vetNotes: sections["Vet notes"].join("\n").trim(),
   };
@@ -124,6 +130,9 @@ export const buildNoteSource = (parsed: ParsedNoteSource): string => {
   }
   if (parsed.clinicPersonalizationContext.trim()) {
     parts.push(`Clinic personalization context:\n${parsed.clinicPersonalizationContext.trim()}`);
+  }
+  if (parsed.additionalContext.trim()) {
+    parts.push(`Additional context:\n${parsed.additionalContext.trim()}`);
   }
   if (parsed.physicalExamination.trim()) {
     parts.push(`Physical examination:\n${parsed.physicalExamination.trim()}`);
@@ -193,6 +202,7 @@ export const buildStaticNoteContext = (parsed: ParsedNoteSource): string =>
   buildNoteSource({
     consultationTranscript: "",
     clinicPersonalizationContext: parsed.clinicPersonalizationContext,
+    additionalContext: parsed.additionalContext,
     physicalExamination: parsed.physicalExamination,
     vetNotes: parsed.vetNotes,
   });
@@ -201,6 +211,7 @@ export const buildGeneralConsultSource = (parsed: ParsedNoteSource): string =>
   buildNoteSource({
     consultationTranscript: parsed.consultationTranscript,
     clinicPersonalizationContext: "",
+    additionalContext: parsed.additionalContext,
     physicalExamination: parsed.physicalExamination,
     vetNotes: parsed.vetNotes,
   });

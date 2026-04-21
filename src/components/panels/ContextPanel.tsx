@@ -125,6 +125,7 @@ export default function ContextPanel() {
     waveformData,
     isSupported,
     transcriptionConnectionState,
+    finalTranscriptionStatus,
     startEncounter,
     pauseEncounter,
     resumeEncounter,
@@ -224,6 +225,7 @@ export default function ContextPanel() {
     setVetNotes('');
     setTasks([]);
     useSessionStore.getState().setTaskExtractionState('idle');
+    useSessionStore.getState().setFinalTranscriptionStatus('done');
     setEncounterStatus('reviewing');
     setActiveTab('transcript');
     toast({
@@ -376,11 +378,22 @@ export default function ContextPanel() {
                 New recording will be appended to this session and notes will regenerate from combined context.
               </div>
             )}
+            {finalTranscriptionStatus === 'running' && (
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-forest font-semibold">
+                <Loader2 size={12} className="animate-spin" />
+                Full transcript is processing in the background. You can keep editing context.
+              </div>
+            )}
+            {finalTranscriptionStatus === 'error' && !isRecording && (
+              <div className="text-[11px] text-warning text-center">
+                Full audio transcript was not completed. The live transcript is still available.
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2.5 text-sm text-text-secondary py-2">
             <Loader2 size={16} className="animate-spin text-forest" />
-            Finalizing transcript and generating consultation outputs...
+            Generating consultation notes, tasks, and saving session...
           </div>
         )}
       </div>

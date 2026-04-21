@@ -165,6 +165,7 @@ export function useTranscription() {
   // useScribe MUST be called at a stable position in the hook list
   const scribe = useScribe({
     modelId: 'scribe_v2_realtime',
+    languageCode: 'en',
     commitStrategy: CommitStrategy.VAD,
     onConnect: () => {
       console.log('[Scribe] Connected');
@@ -220,7 +221,7 @@ export function useTranscription() {
       const recognition = new Ctor();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = 'en-US';
+      recognition.lang = 'en-GB';
 
       recognition.onresult = (event: any) => {
         let interim = '';
