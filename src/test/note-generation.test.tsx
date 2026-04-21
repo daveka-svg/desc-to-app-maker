@@ -239,7 +239,7 @@ describe('useNoteGeneration', () => {
     );
   });
 
-  it('can force OpenAI GPT-5.4 Pro and uses latest context at generation time', async () => {
+  it('can force OpenAI GPT-5.2 Pro and uses latest context at generation time', async () => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ aiGenerationMode: 'mercury-2' }));
     const { result } = renderHook(() => useNoteGeneration());
 
@@ -258,7 +258,7 @@ describe('useNoteGeneration', () => {
       expect.objectContaining({
         body: expect.objectContaining({
           llmProvider: 'openai',
-          llmModel: 'gpt-5.4-pro',
+          llmModel: 'gpt-5.2-pro',
           transcript: expect.stringContaining('Updated transcript after background transcription finished.'),
         }),
       }),

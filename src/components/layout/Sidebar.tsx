@@ -75,6 +75,7 @@ export default function Sidebar() {
   const setEncounterStatus = useSessionStore((s) => s.setEncounterStatus);
   const setActiveSessionId = useSessionStore((s) => s.setActiveSessionId);
   const setNotes = useSessionStore((s) => s.setNotes);
+  const setNotesGeneratedAt = useSessionStore((s) => s.setNotesGeneratedAt);
   const setTranscript = useSessionStore((s) => s.setTranscript);
   const setInterimTranscript = useSessionStore((s) => s.setInterimTranscript);
   const setSupplementalContext = useSessionStore((s) => s.setSupplementalContext);
@@ -541,11 +542,17 @@ export default function Sidebar() {
     const noteData = noteRows?.[0] as any;
     if (noteData) {
       setNotes(noteData.content || '');
+      setNotesGeneratedAt(
+        noteData.updated_at || noteData.created_at
+          ? new Date(noteData.updated_at || noteData.created_at).getTime()
+          : null
+      );
       setTranscript(noteData.transcript || '');
       setSupplementalContext(noteData.supplemental_context || '');
       setVetNotes(noteData.vet_notes || '');
     } else {
       setNotes('');
+      setNotesGeneratedAt(null);
       setTranscript('');
       setSupplementalContext('');
       setVetNotes('');

@@ -24,10 +24,10 @@ export const AI_GENERATION_OPTIONS: Array<{
   },
   {
     value: 'openai-chatgpt',
-    label: 'ChatGPT 5.4 Pro',
-    description: 'OpenAI ChatGPT model (gpt-5.4-pro).',
+    label: 'ChatGPT 5.2 Pro',
+    description: 'OpenAI GPT-5.2 pro model (gpt-5.2-pro).',
     provider: 'openai',
-    model: 'gpt-5.4-pro',
+    model: 'gpt-5.2-pro',
   },
 ];
 

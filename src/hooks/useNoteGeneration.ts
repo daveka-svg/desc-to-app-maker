@@ -12,7 +12,82 @@ interface GenerateNoteOptions {
   forceOpenAI?: boolean;
 }
 
-let noteGenerationRunId = 0;
+interface NoteGenerationSnapshot {
+  sessionId: string | null;
+  transcript: string;
+  selectedTemplate: string;
+  peEnabled: boolean;
+  peIncludeInNotes: boolean;
+  peData: unknown;
+  peAppliedSummary: string;
+  vetNotes: string;
+  supplementalContext: string;
+  clinicKnowledgeBase: string;
+  patientName: string;
+  sessionTitle: string;
+  sessionDurationSeconds: number;
+}
+
+const DRAFT_GENERATION_KEY = '__draft__';
+const noteGenerationRunsBySession = new Map<string, number>();
+
+const formatDurationLabel = (seconds: number): string => {
+  if (!seconds || seconds <= 0) return '0m';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+};
+
+const resolveSessionTitle = (snapshot: NoteGenerationSnapshot): string => {
+  const currentTitle = snapshot.sessionTitle.trim();
+  const durationLabel = formatDurationLabel(snapshot.sessionDurationSeconds);
+  if (currentTitle && /\b0m$/i.test(currentTitle)) {
+    return currentTitle.replace(/\b0m$/i, durationLabel);
+  }
+  if (currentTitle) return currentTitle;
+
+  const now = new Date();
+  const date = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const prefix = snapshot.patientName.trim() || snapshot.selectedTemplate || 'Consultation';
+  return `${prefix} - ${date} ${time} - ${durationLabel}`;
+};
+
+const persistGeneratedNoteForSession = async (
+  snapshot: NoteGenerationSnapshot,
+  content: string,
+) => {
+  if (!snapshot.sessionId) return;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from('sessions')
+    .update({
+      patient_name: snapshot.patientName || null,
+      title: resolveSessionTitle(snapshot),
+      session_type: snapshot.selectedTemplate,
+      pe_data: snapshot.peEnabled ? (snapshot.peData as any) : null,
+      pe_enabled: snapshot.peEnabled,
+      duration_seconds: snapshot.sessionDurationSeconds,
+      status: 'completed',
+    })
+    .eq('id', snapshot.sessionId)
+    .eq('user_id', user.id);
+
+  await supabase.from('notes').delete().eq('session_id', snapshot.sessionId).eq('user_id', user.id);
+  await supabase.from('notes').insert({
+    user_id: user.id,
+    session_id: snapshot.sessionId,
+    content,
+    transcript: snapshot.transcript,
+    supplemental_context: snapshot.supplementalContext || null,
+    vet_notes: snapshot.vetNotes || null,
+  });
+};
 
 export function useNoteGeneration() {
   const notes = useSessionStore((s) => s.notes);
@@ -22,54 +97,76 @@ export function useNoteGeneration() {
 
   const generateNote = useCallback(async (templateOverride?: string, options: GenerateNoteOptions = {}) => {
     const state = useSessionStore.getState();
-    const transcriptToUse = state.transcript;
-    if (!transcriptToUse.trim()) throw new Error('No transcript available');
+    const snapshot: NoteGenerationSnapshot = {
+      sessionId: state.activeSessionId,
+      transcript: state.transcript,
+      selectedTemplate: templateOverride || state.selectedTemplate,
+      peEnabled: state.peEnabled,
+      peIncludeInNotes: state.peIncludeInNotes,
+      peData: state.peData,
+      peAppliedSummary: state.peAppliedSummary,
+      vetNotes: state.vetNotes,
+      supplementalContext: state.supplementalContext,
+      clinicKnowledgeBase: state.clinicKnowledgeBase,
+      patientName: state.patientName,
+      sessionTitle: state.sessionTitle,
+      sessionDurationSeconds: state.sessionDurationSeconds,
+    };
+    if (!snapshot.transcript.trim()) throw new Error('No transcript available');
 
-    const runId = noteGenerationRunId + 1;
-    noteGenerationRunId = runId;
-    const targetSessionId = state.activeSessionId;
+    const generationKey = snapshot.sessionId || DRAFT_GENERATION_KEY;
+    const runId = (noteGenerationRunsBySession.get(generationKey) || 0) + 1;
+    noteGenerationRunsBySession.set(generationKey, runId);
+    if (snapshot.sessionId) {
+      state.setSessionGenerationJob(snapshot.sessionId, {
+        status: 'running',
+        message: 'Generating clinical notes...',
+      });
+    }
 
-    const isCurrentRunTarget = () => {
+    const isLatestRunForSession = () => noteGenerationRunsBySession.get(generationKey) === runId;
+    const isActiveRunTarget = () => {
       const current = useSessionStore.getState();
       return (
-        runId === noteGenerationRunId &&
-        current.activeSessionId === targetSessionId &&
-        current.transcript.trim() === transcriptToUse.trim()
+        isLatestRunForSession() &&
+        current.activeSessionId === snapshot.sessionId &&
+        current.transcript.trim() === snapshot.transcript.trim()
       );
     };
 
     setIsGeneratingNotes(true);
-    setNotes('');
+    if (isActiveRunTarget()) {
+      setNotes('');
+    }
 
     try {
-      const latest = useSessionStore.getState();
-      const templateToUse = templateOverride || latest.selectedTemplate;
+      const templateToUse = snapshot.selectedTemplate;
       const fallbackTemplate = TEMPLATES[templateToUse] || TEMPLATES['General Consult'];
       const templatePrompt = await getTemplatePrompt(templateToUse, fallbackTemplate);
       const templateKind = inferTemplateKind(templateToUse, templatePrompt);
-      const includeClinicalContext = latest.peEnabled && latest.peIncludeInNotes;
+      const includeClinicalContext = snapshot.peEnabled && snapshot.peIncludeInNotes;
       const includeClinicContext = templateKind !== 'general_consult';
-      const compiledPEReport = includeClinicalContext ? compilePEReport(latest.peData) : '';
+      const compiledPEReport = includeClinicalContext ? compilePEReport(snapshot.peData) : '';
       const peReport = includeClinicalContext
-        ? (compiledPEReport.trim() || latest.peAppliedSummary.trim())
+        ? (compiledPEReport.trim() || snapshot.peAppliedSummary.trim())
         : '';
       const peReportForPrompt = templateKind === 'general_consult' ? '' : peReport;
-      const vetNotesForGeneration = includeClinicalContext ? latest.vetNotes : '';
+      const vetNotesForGeneration = includeClinicalContext ? snapshot.vetNotes : '';
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${templatePrompt}`;
       const aiConfig = options.forceOpenAI ? getOpenAiGenerationConfig() : getAiGenerationConfig();
       const payloadTranscript = buildNotesGenerationInput({
-        transcript: transcriptToUse,
+        transcript: snapshot.transcript,
         peReport: peReportForPrompt,
         vetNotes: vetNotesForGeneration,
-        supplementalContext: latest.supplementalContext,
-        clinicKnowledgeBase: latest.clinicKnowledgeBase,
+        supplementalContext: snapshot.supplementalContext,
+        clinicKnowledgeBase: snapshot.clinicKnowledgeBase,
         includeClinicContext,
       });
 
       const response = await supabase.functions.invoke('generate-notes', {
         body: {
           transcript: payloadTranscript,
-          peData: includeClinicalContext ? latest.peData : null,
+          peData: includeClinicalContext ? snapshot.peData : null,
           templatePrompt: fullPrompt,
           generalConsultTemplatePrompt: templateKind === 'general_consult' ? templatePrompt : null,
           requestType: 'notes',
@@ -87,19 +184,40 @@ export function useNoteGeneration() {
         templateKind === 'general_consult'
           ? upsertSeparatePESection(rawNotesContent, peReport)
           : rawNotesContent;
-      if (!isCurrentRunTarget()) {
-        return false;
+      const generatedAt = Date.now();
+
+      if (isLatestRunForSession()) {
+        await persistGeneratedNoteForSession(snapshot, notesContent);
+        if (snapshot.sessionId) {
+          useSessionStore.getState().setSessionGenerationJob(snapshot.sessionId, {
+            status: 'done',
+            message: 'Notes regenerated.',
+          });
+          window.dispatchEvent(new Event('session-saved'));
+        }
       }
-      setNotes(notesContent);
-      if (includeClinicalContext && compiledPEReport.trim()) {
-        useSessionStore.getState().setPEAppliedSnapshot(compiledPEReport);
+
+      if (isActiveRunTarget()) {
+        setNotes(notesContent);
+        useSessionStore.getState().setNotesGeneratedAt(generatedAt);
+        if (includeClinicalContext && compiledPEReport.trim()) {
+          useSessionStore.getState().setPEAppliedSnapshot(compiledPEReport);
+        }
+        return true;
       }
-      return true;
+
+      return false;
     } catch (err) {
       console.error('Note generation error:', err);
+      if (snapshot.sessionId && isLatestRunForSession()) {
+        useSessionStore.getState().setSessionGenerationJob(snapshot.sessionId, {
+          status: 'error',
+          message: err instanceof Error ? err.message : 'Note generation failed.',
+        });
+      }
       throw err;
     } finally {
-      if (runId === noteGenerationRunId) {
+      if (isActiveRunTarget()) {
         setIsGeneratingNotes(false);
       }
     }

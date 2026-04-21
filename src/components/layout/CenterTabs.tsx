@@ -19,13 +19,18 @@ export default function CenterTabs() {
     transcript,
     interimTranscript,
     notes,
+    activeSessionId,
   } = useSessionStore();
+  const activeGenerationJob = useSessionStore((s) =>
+    s.activeSessionId ? s.sessionGenerationJobs[s.activeSessionId] : null
+  );
   const { isRecording, finalizeConsultation } = useEncounterController();
   const isFinalizing = encounterStatus === 'processing';
+  const isGeneratingCurrentSession = activeGenerationJob?.status === 'running';
   const canFinalize =
     isRecording ||
     finalTranscriptionStatus === 'running' ||
-    Boolean(transcript.trim() || interimTranscript.trim());
+    Boolean(activeSessionId && (transcript.trim() || interimTranscript.trim()));
   const hasGeneratedNotes = Boolean(notes.trim());
   const finalizeLabel = isRecording
     ? 'Finish Consultation'
@@ -59,16 +64,18 @@ export default function CenterTabs() {
           onClick={() => {
             void finalizeConsultation();
           }}
-          disabled={!canFinalize || isFinalizing}
+          disabled={!canFinalize || isFinalizing || isGeneratingCurrentSession}
           className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold border border-forest bg-forest text-primary-foreground hover:bg-forest-dark disabled:opacity-45 disabled:cursor-not-allowed transition-all duration-[120ms]"
           title="Stop recording if needed, finish transcription, then generate notes and tasks"
         >
-          {isFinalizing || finalTranscriptionStatus === 'running' ? (
+          {isFinalizing || finalTranscriptionStatus === 'running' || isGeneratingCurrentSession ? (
             <Loader2 size={13} className="animate-spin" />
           ) : null}
           {isFinalizing
             ? 'Finalizing...'
-            : finalTranscriptionStatus === 'running'
+            : isGeneratingCurrentSession
+              ? 'Regenerating...'
+              : finalTranscriptionStatus === 'running'
               ? 'Finalize after transcript'
               : finalizeLabel}
         </button>

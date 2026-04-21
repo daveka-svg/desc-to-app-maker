@@ -23,6 +23,11 @@ export default function NotesPanel() {
   const saveCurrentSession = useSessionStore((s) => s.saveCurrentSession);
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
+  const notesGeneratedAt = useSessionStore((s) => s.notesGeneratedAt);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const activeGenerationJob = useSessionStore((s) =>
+    s.activeSessionId ? s.sessionGenerationJobs[s.activeSessionId] : null
+  );
   const { generateNote, isGeneratingNotes } = useNoteGeneration();
   const { extractTasks, isExtractingTasks } = useTaskExtraction();
   const [editing, setEditing] = useState(false);
@@ -33,6 +38,14 @@ export default function NotesPanel() {
   const noteRef = useRef<HTMLDivElement>(null);
   const { canUndo, canRedo, undo, redo, pushState } = useUndoRedo();
   const aiConfig = getAiGenerationConfig();
+  const isGeneratingCurrentSession =
+    isGeneratingNotes || activeGenerationJob?.status === 'running';
+  const notesGeneratedLabel = notesGeneratedAt
+    ? new Date(notesGeneratedAt).toLocaleString('en-GB', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    : null;
 
   useEffect(() => {
     if (notes) pushState(notes);
@@ -45,7 +58,9 @@ export default function NotesPanel() {
 
   const handleRegenerate = async () => {
     try {
-      await generateNote();
+      const applied = await generateNote();
+      if (!applied) return;
+      if (activeSessionId !== useSessionStore.getState().activeSessionId) return;
       toast({ title: 'Notes generated', description: 'Clinical notes have been generated from the transcript.' });
       try {
         await extractTasks();
@@ -64,7 +79,9 @@ export default function NotesPanel() {
     setSelectedTemplate(templateName);
     setIsSwitchRegenerating(true);
     try {
-      await generateNote(templateName);
+      const applied = await generateNote(templateName);
+      if (!applied) return;
+      if (activeSessionId !== useSessionStore.getState().activeSessionId) return;
       try {
         await extractTasks();
       } catch (error) {
@@ -211,10 +228,10 @@ export default function NotesPanel() {
           <button
             title="Regenerate with AI"
             onClick={handleRegenerate}
-            disabled={isGeneratingNotes}
+            disabled={isGeneratingCurrentSession}
             className="w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-text-muted bg-transparent border-none hover:bg-sand hover:text-text-primary transition-all duration-100 disabled:opacity-50"
           >
-            {isGeneratingNotes ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            {isGeneratingCurrentSession ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
           </button>
           <div className="w-px h-5 bg-border mx-1" />
           {editing && (
@@ -231,12 +248,12 @@ export default function NotesPanel() {
 
       <div className="flex-1 min-h-0 flex">
         <div className="flex-1 overflow-y-auto p-6">
-          {isGeneratingNotes && (
+          {isGeneratingCurrentSession && (
             <div className="flex items-center gap-2 mb-3 text-xs text-forest font-semibold">
-              <Loader2 size={14} className="animate-spin" /> Generating clinical notes...
+              <Loader2 size={14} className="animate-spin" /> {activeGenerationJob?.message || 'Generating clinical notes...'}
             </div>
           )}
-          {!notes && !isGeneratingNotes ? (
+          {!notes && !isGeneratingCurrentSession ? (
             <div className="max-w-[720px] text-sm text-text-muted py-12 text-center">
               <p className="mb-2">No notes yet.</p>
               <p>Record a consultation and notes will be generated automatically.</p>
@@ -280,6 +297,11 @@ export default function NotesPanel() {
                   </p>
                 ))}
               </div>
+              {notesGeneratedLabel && (
+                <div className="max-w-[720px] mt-3 text-[11px] text-text-muted">
+                  Notes generated: {notesGeneratedLabel}
+                </div>
+              )}
             </>
           )}
         </div>

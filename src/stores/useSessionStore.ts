@@ -7,6 +7,7 @@ export type TabId = 'context' | 'transcript' | 'notes' | 'tasks' | 'chat';
 export type EncounterStatus = 'idle' | 'recording' | 'processing' | 'reviewing';
 export type TranscriptionConnectionState = 'connected' | 'reconnecting' | 'disconnected';
 export type FinalTranscriptionStatus = 'idle' | 'running' | 'done' | 'error';
+export type SessionGenerationJobStatus = 'running' | 'done' | 'error';
 export type ProcessingStepStatus = 'pending' | 'active' | 'done' | 'error';
 export type TaskExtractionStatus = 'idle' | 'extracting' | 'success' | 'empty' | 'error';
 export type ProcessingStepId =
@@ -96,6 +97,13 @@ export interface RecordingArtifact {
   sizeBytes: number;
 }
 
+export interface SessionGenerationJob {
+  status: SessionGenerationJobStatus;
+  message: string;
+  startedAt: number;
+  updatedAt: number;
+}
+
 interface SessionStore {
   // Encounter workflow
   encounterStatus: EncounterStatus;
@@ -137,6 +145,9 @@ interface SessionStore {
   setTranscriptionConnectionState: (state: TranscriptionConnectionState) => void;
   finalTranscriptionStatus: FinalTranscriptionStatus;
   setFinalTranscriptionStatus: (status: FinalTranscriptionStatus) => void;
+  sessionGenerationJobs: Record<string, SessionGenerationJob>;
+  setSessionGenerationJob: (sessionId: string, job: Omit<SessionGenerationJob, 'startedAt' | 'updatedAt'>) => void;
+  clearSessionGenerationJob: (sessionId: string) => void;
   processingSteps: ProcessingStep[];
   setProcessingSteps: (steps: ProcessingStep[]) => void;
   setProcessingStepStatus: (id: ProcessingStepId, status: ProcessingStepStatus) => void;
@@ -145,6 +156,8 @@ interface SessionStore {
   // Notes
   notes: string;
   setNotes: (n: string) => void;
+  notesGeneratedAt: number | null;
+  setNotesGeneratedAt: (value: number | null) => void;
   isGeneratingNotes: boolean;
   setIsGeneratingNotes: (v: boolean) => void;
 
@@ -398,6 +411,28 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setTranscriptionConnectionState: (state) => set({ transcriptionConnectionState: state }),
   finalTranscriptionStatus: 'idle',
   setFinalTranscriptionStatus: (status) => set({ finalTranscriptionStatus: status }),
+  sessionGenerationJobs: {},
+  setSessionGenerationJob: (sessionId, job) =>
+    set((state) => {
+      const existing = state.sessionGenerationJobs[sessionId];
+      const now = Date.now();
+      return {
+        sessionGenerationJobs: {
+          ...state.sessionGenerationJobs,
+          [sessionId]: {
+            ...job,
+            startedAt: existing?.startedAt ?? now,
+            updatedAt: now,
+          },
+        },
+      };
+    }),
+  clearSessionGenerationJob: (sessionId) =>
+    set((state) => {
+      const next = { ...state.sessionGenerationJobs };
+      delete next[sessionId];
+      return { sessionGenerationJobs: next };
+    }),
   processingSteps: createDefaultProcessingSteps(),
   setProcessingSteps: (steps) => set({ processingSteps: steps }),
   setProcessingStepStatus: (id, status) => set((state) => ({
@@ -409,6 +444,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   // Notes
   notes: '',
   setNotes: (n) => set({ notes: n }),
+  notesGeneratedAt: null,
+  setNotesGeneratedAt: (value) => set({ notesGeneratedAt: value }),
   isGeneratingNotes: false,
   setIsGeneratingNotes: (v) => set({ isGeneratingNotes: v }),
 
@@ -634,6 +671,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       peAppliedSummary: '',
       peData: createDefaultPEData(),
       notes: '',
+      notesGeneratedAt: null,
       isGeneratingNotes: false,
       peEnabled: true,
       peIncludeInNotes: true,
@@ -758,6 +796,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       supplementalContext: '',
       vetNotes: session.vetNotes || '',
       notes: session.notes,
+      notesGeneratedAt: session.notes ? session.createdAt : null,
       isGeneratingNotes: false,
       peData: normalizedPEData,
       peEnabled: session.peEnabled,

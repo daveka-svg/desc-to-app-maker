@@ -337,7 +337,7 @@ const callModelWithFallbacks = async (
   maxOutputTokens: number,
 ) => {
   let content = "";
-  let modelUsed = modelCandidates[0] || (provider === "openai" ? "gpt-5.4-pro" : "mercury-2");
+  let modelUsed = modelCandidates[0] || (provider === "openai" ? "gpt-5.2-pro" : "mercury-2");
   let lastError: Error | null = null;
 
   // Try primary provider models
@@ -574,7 +574,7 @@ Keep the language concise and professional. Use standard veterinary abbreviation
     const primaryModel = String(
       llmModel ||
       (provider === "openai"
-        ? Deno.env.get("OPENAI_TEXT_MODEL") || Deno.env.get("OPENAI_MODEL") || "gpt-5.4-pro"
+        ? Deno.env.get("OPENAI_TEXT_MODEL") || Deno.env.get("OPENAI_MODEL") || "gpt-5.2-pro"
         : Deno.env.get("INCEPTIONLABS_MODEL") || "mercury-2")
     ).trim();
     const fallbackRaw = provider === "openai"
