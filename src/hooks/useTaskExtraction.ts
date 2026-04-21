@@ -11,6 +11,8 @@ interface ExtractTasksOptions {
   forceOpenAI?: boolean;
 }
 
+let taskExtractionRunId = 0;
+
 export function useTaskExtraction() {
   const setTasks = useSessionStore((s) => s.setTasks);
   const setTasksNeedReview = useSessionStore((s) => s.setTasksNeedReview);
@@ -21,6 +23,21 @@ export function useTaskExtraction() {
   const extractTasks = useCallback(async (options: ExtractTasksOptions = {}) => {
     const transcript = useSessionStore.getState().transcript;
     if (!transcript.trim()) throw new Error('No transcript available for task extraction');
+
+    const state = useSessionStore.getState();
+    const runId = taskExtractionRunId + 1;
+    taskExtractionRunId = runId;
+    const targetSessionId = state.activeSessionId;
+    const targetTranscript = transcript.trim();
+
+    const isCurrentRunTarget = () => {
+      const current = useSessionStore.getState();
+      return (
+        runId === taskExtractionRunId &&
+        current.activeSessionId === targetSessionId &&
+        current.transcript.trim() === targetTranscript
+      );
+    };
 
     setIsExtractingTasks(true);
     setTasks([]);
@@ -49,12 +66,17 @@ export function useTaskExtraction() {
       const parsed = JSON.parse(jsonStr);
       const tasks: Task[] = normalizeExtractedTasks(parsed, transcript);
 
+      if (!isCurrentRunTarget()) {
+        return false;
+      }
+
       setTasks(tasks);
       setTasksNeedReview(tasks.length > 0);
       setTaskExtractionState(
         tasks.length > 0 ? 'success' : 'empty',
         tasks.length > 0 ? `${tasks.length} task${tasks.length === 1 ? '' : 's'} found.` : 'No tasks found in the transcript.',
       );
+      return true;
     } catch (err) {
       console.error('Task extraction error:', err);
       const message = err instanceof Error ? err.message : 'Task extraction failed';
@@ -63,7 +85,9 @@ export function useTaskExtraction() {
       setTaskExtractionState('error', message);
       throw err;
     } finally {
-      setIsExtractingTasks(false);
+      if (runId === taskExtractionRunId) {
+        setIsExtractingTasks(false);
+      }
     }
   }, [setTasks, setTasksNeedReview, setIsExtractingTasks, setTaskExtractionState]);
 

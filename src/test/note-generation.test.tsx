@@ -281,6 +281,46 @@ describe('useNoteGeneration', () => {
     );
   });
 
+  it('does not overwrite a loaded session when an older generation finishes late', async () => {
+    let resolveInvoke: (value: unknown) => void = () => {};
+    vi.mocked(supabase.functions.invoke).mockReturnValue(
+      new Promise((resolve) => {
+        resolveInvoke = resolve;
+      }) as never,
+    );
+    useSessionStore.setState({
+      activeSessionId: 'session-a',
+      transcript: 'Original session transcript.',
+      notes: 'Original notes.',
+    });
+
+    const { result } = renderHook(() => useNoteGeneration());
+    const generationPromise = act(async () => {
+      await result.current.generateNote();
+    });
+
+    expect(useSessionStore.getState().notes).toBe('');
+
+    useSessionStore.setState({
+      activeSessionId: 'session-b',
+      transcript: 'Loaded previous session transcript.',
+      notes: 'Loaded previous session notes.',
+      isGeneratingNotes: false,
+    });
+
+    resolveInvoke({
+      data: { content: 'SUBJECTIVE:\nLate generated notes from session A.' },
+      error: null,
+    });
+
+    await generationPromise;
+
+    const state = useSessionStore.getState();
+    expect(state.activeSessionId).toBe('session-b');
+    expect(state.notes).toBe('Loaded previous session notes.');
+    expect(state.isGeneratingNotes).toBe(false);
+  });
+
   it('does not duplicate PE section when already present', async () => {
     vi.mocked(supabase.functions.invoke).mockResolvedValue({
       data: {

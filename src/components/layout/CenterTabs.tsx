@@ -18,6 +18,7 @@ export default function CenterTabs() {
     finalTranscriptionStatus,
     transcript,
     interimTranscript,
+    notes,
   } = useSessionStore();
   const { isRecording, finalizeConsultation } = useEncounterController();
   const isFinalizing = encounterStatus === 'processing';
@@ -25,7 +26,12 @@ export default function CenterTabs() {
     isRecording ||
     finalTranscriptionStatus === 'running' ||
     Boolean(transcript.trim() || interimTranscript.trim());
-  const finalizeLabel = isRecording ? 'Finish Consultation' : 'Finalize Consultation';
+  const hasGeneratedNotes = Boolean(notes.trim());
+  const finalizeLabel = isRecording
+    ? 'Finish Consultation'
+    : hasGeneratedNotes
+      ? 'Regenerate'
+      : 'Finalize Consultation';
 
   return (
     <div className="flex items-center gap-0 px-5 bg-card border-b border-border">

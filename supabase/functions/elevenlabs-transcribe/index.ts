@@ -174,6 +174,16 @@ const transcribeWithOpenAI = async (audio: File, keyterms: string[]) => {
   return { text, words: [] as unknown[], provider: "openai" };
 };
 
+const tryOpenAIFallback = async (audio: File, keyterms: string[], reason: string) => {
+  try {
+    console.warn(`Using OpenAI fallback transcription: ${reason}`);
+    return await transcribeWithOpenAI(audio, keyterms);
+  } catch (fallbackError) {
+    const message = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+    throw new Error(`${reason}; OpenAI fallback failed: ${message}`);
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -181,13 +191,6 @@ serve(async (req) => {
 
   try {
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
-    if (!ELEVENLABS_API_KEY) {
-      return new Response(JSON.stringify({ error: "ELEVENLABS_API_KEY not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const formData = await req.formData();
     const audio = formData.get("audio");
     const keyterms = buildKeyterms(formData);
@@ -195,6 +198,13 @@ serve(async (req) => {
     if (!(audio instanceof File)) {
       return new Response(JSON.stringify({ error: "Audio file is required" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!ELEVENLABS_API_KEY) {
+      const fallback = await tryOpenAIFallback(audio, keyterms, "ELEVENLABS_API_KEY not configured");
+      return new Response(JSON.stringify(fallback), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -220,17 +230,29 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       if (response.status === 401 && parseQuotaExceeded(errorText)) {
-        console.warn("ElevenLabs quota exceeded, using OpenAI fallback transcription");
-        const fallback = await transcribeWithOpenAI(audio, keyterms);
+        const fallback = await tryOpenAIFallback(audio, keyterms, "ElevenLabs quota exceeded");
         return new Response(JSON.stringify(fallback), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      return new Response(JSON.stringify({ error: `ElevenLabs STT error [${response.status}]: ${errorText}` }), {
-        status: response.status,
+      try {
+        const fallback = await tryOpenAIFallback(
+          audio,
+          keyterms,
+          `ElevenLabs STT error [${response.status}]: ${errorText}`,
+        );
+        return new Response(JSON.stringify(fallback), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (fallbackError) {
+        return new Response(JSON.stringify({
+          error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+        }), {
+        status: response.status >= 400 && response.status < 600 ? response.status : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        });
+      }
     }
 
     const data = await response.json();

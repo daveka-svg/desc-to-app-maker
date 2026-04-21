@@ -12,6 +12,8 @@ interface GenerateNoteOptions {
   forceOpenAI?: boolean;
 }
 
+let noteGenerationRunId = 0;
+
 export function useNoteGeneration() {
   const notes = useSessionStore((s) => s.notes);
   const setNotes = useSessionStore((s) => s.setNotes);
@@ -22,6 +24,19 @@ export function useNoteGeneration() {
     const state = useSessionStore.getState();
     const transcriptToUse = state.transcript;
     if (!transcriptToUse.trim()) throw new Error('No transcript available');
+
+    const runId = noteGenerationRunId + 1;
+    noteGenerationRunId = runId;
+    const targetSessionId = state.activeSessionId;
+
+    const isCurrentRunTarget = () => {
+      const current = useSessionStore.getState();
+      return (
+        runId === noteGenerationRunId &&
+        current.activeSessionId === targetSessionId &&
+        current.transcript.trim() === transcriptToUse.trim()
+      );
+    };
 
     setIsGeneratingNotes(true);
     setNotes('');
@@ -72,15 +87,21 @@ export function useNoteGeneration() {
         templateKind === 'general_consult'
           ? upsertSeparatePESection(rawNotesContent, peReport)
           : rawNotesContent;
+      if (!isCurrentRunTarget()) {
+        return false;
+      }
       setNotes(notesContent);
       if (includeClinicalContext && compiledPEReport.trim()) {
         useSessionStore.getState().setPEAppliedSnapshot(compiledPEReport);
       }
+      return true;
     } catch (err) {
       console.error('Note generation error:', err);
       throw err;
     } finally {
-      setIsGeneratingNotes(false);
+      if (runId === noteGenerationRunId) {
+        setIsGeneratingNotes(false);
+      }
     }
   }, [setNotes, setIsGeneratingNotes]);
 

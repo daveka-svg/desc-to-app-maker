@@ -89,6 +89,41 @@ const buildSessionTranscriptionKeyterms = () => {
     .slice(0, 25);
 };
 
+const saveTranscriptDraft = async () => {
+  const store = useSessionStore.getState();
+  const sessionId = store.activeSessionId;
+  if (!sessionId || !store.transcript.trim()) return;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from('sessions')
+    .update({
+      patient_name: store.patientName || null,
+      title: store.sessionTitle || null,
+      session_type: store.selectedTemplate,
+      pe_data: store.peEnabled ? (store.peData as any) : null,
+      pe_enabled: store.peEnabled,
+      duration_seconds: store.sessionDurationSeconds,
+      status: 'recording',
+    })
+    .eq('id', sessionId)
+    .eq('user_id', user.id);
+
+  await supabase.from('notes').delete().eq('session_id', sessionId).eq('user_id', user.id);
+  await supabase.from('notes').insert({
+    user_id: user.id,
+    session_id: sessionId,
+    content: store.notes,
+    transcript: store.transcript,
+    supplemental_context: store.supplementalContext || null,
+    vet_notes: store.vetNotes || null,
+  });
+};
+
 export function EncounterControllerProvider({ children }: { children: React.ReactNode }) {
   const {
     isRecording,
@@ -373,6 +408,12 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
       }
 
       store.setFinalTranscriptionStatus(fullAudioTranscript ? 'done' : 'error');
+      try {
+        await saveTranscriptDraft();
+        window.dispatchEvent(new Event('session-saved'));
+      } catch (err) {
+        console.warn('Transcript draft save failed:', err);
+      }
       appendRecordingRef.current = false;
       baseTranscriptRef.current = '';
       baseDurationRef.current = 0;
@@ -419,12 +460,28 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
       return false;
     }
 
+    const targetSessionId = store.activeSessionId;
+    const targetTranscript = finalTranscript;
+    const isStillSameConsultation = () => {
+      const current = useSessionStore.getState();
+      return current.activeSessionId === targetSessionId && current.transcript.trim() === targetTranscript;
+    };
+    const abortFinalization = () => {
+      if (isStillSameConsultation()) {
+        useSessionStore.getState().setEncounterStatus('reviewing');
+      }
+      return false;
+    };
+
     store.setEncounterStatus('processing');
     store.setActiveTab('notes');
 
     markStepActive('generating-consultation-notes');
     try {
-      await generateNote(undefined, { forceOpenAI: true });
+      const noteApplied = await generateNote(undefined, { forceOpenAI: true });
+      if (!noteApplied || !isStillSameConsultation()) {
+        return abortFinalization();
+      }
       markStepDone('generating-consultation-notes');
     } catch (err: any) {
       console.error('Notes generation failed:', err);
@@ -438,7 +495,10 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
 
     markStepActive('extracting-tasks');
     try {
-      await extractTasks({ forceOpenAI: true });
+      const tasksApplied = await extractTasks({ forceOpenAI: true });
+      if (!tasksApplied || !isStillSameConsultation()) {
+        return abortFinalization();
+      }
       markStepDone('extracting-tasks');
     } catch (err) {
       console.error('Task extraction failed:', err);
@@ -447,6 +507,9 @@ export function EncounterControllerProvider({ children }: { children: React.Reac
 
     markStepActive('saving-session');
     try {
+      if (!isStillSameConsultation()) {
+        return abortFinalization();
+      }
       await store.saveCurrentSession();
       window.dispatchEvent(new Event('session-saved'));
       markStepDone('saving-session');

@@ -93,6 +93,7 @@ export default function Sidebar() {
   const clearPEAppliedSnapshot = useSessionStore((s) => s.clearPEAppliedSnapshot);
   const recordingArtifacts = useSessionStore((s) => s.recordingArtifacts);
   const setRecordingArtifacts = useSessionStore((s) => s.setRecordingArtifacts);
+  const resetProcessingSteps = useSessionStore((s) => s.resetProcessingSteps);
 
   const [sessions, setSessions] = useState<DBSession[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -494,6 +495,15 @@ export default function Sidebar() {
 
   const loadDBSession = async (session: DBSession) => {
     setActiveSessionId(session.id);
+    resetProcessingSteps();
+    useSessionStore.setState({
+      encounterStatus: 'reviewing',
+      isGeneratingNotes: false,
+      isExtractingTasks: false,
+      isGeneratingCI: false,
+      isChatStreaming: false,
+      finalTranscriptionStatus: 'done',
+    });
     setSessionTitle(session.title || '');
     setPatientName(session.patient_name || '');
     setSelectedTemplate(session.session_type || 'General Consult');
@@ -591,6 +601,7 @@ export default function Sidebar() {
     }
 
     setEncounterStatus('reviewing');
+    useSessionStore.getState().setFinalTranscriptionStatus('done');
     setActiveTab('notes');
   };
 
