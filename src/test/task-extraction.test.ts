@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeExtractedTasks } from '@/lib/taskExtraction';
+import { getTaskExtractionAiConfig } from '@/lib/appSettings';
 
 describe('task extraction normalization', () => {
+  it('uses the fast OpenAI nano model for task extraction', () => {
+    expect(getTaskExtractionAiConfig()).toEqual(
+      expect.objectContaining({
+        provider: 'openai',
+        model: 'gpt-5.4-nano',
+      }),
+    );
+  });
+
   it('keeps only grounded tasks, normalizes assignees, and preserves deadlines', () => {
     const source = `
       Transcript:

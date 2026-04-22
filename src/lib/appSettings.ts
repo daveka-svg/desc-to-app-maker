@@ -54,3 +54,11 @@ export const getAiGenerationConfig = () => {
 export const getOpenAiGenerationConfig = () =>
   AI_GENERATION_OPTIONS.find((option) => option.value === 'openai-chatgpt') ||
   AI_GENERATION_OPTIONS[0];
+
+export const getTaskExtractionAiConfig = () => ({
+  value: 'openai-task-extraction',
+  label: 'ChatGPT 5.4 Nano',
+  description: 'Fast, low-cost OpenAI model for task extraction.',
+  provider: 'openai' as const,
+  model: 'gpt-5.4-nano',
+});

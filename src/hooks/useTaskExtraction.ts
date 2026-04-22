@@ -5,7 +5,7 @@ import { extractLlmText } from '@/lib/llm';
 import { buildTaskExtractionInput } from '@/lib/clinicContext';
 import { normalizeExtractedTasks } from '@/lib/taskExtraction';
 import { getTaskExtractionPrompt } from '@/lib/promptSettings';
-import { getAiGenerationConfig, getOpenAiGenerationConfig } from '@/lib/appSettings';
+import { getTaskExtractionAiConfig } from '@/lib/appSettings';
 
 interface ExtractTasksOptions {
   forceOpenAI?: boolean;
@@ -20,7 +20,7 @@ export function useTaskExtraction() {
   const setIsExtractingTasks = useSessionStore((s) => s.setIsExtractingTasks);
   const setTaskExtractionState = useSessionStore((s) => s.setTaskExtractionState);
 
-  const extractTasks = useCallback(async (options: ExtractTasksOptions = {}) => {
+  const extractTasks = useCallback(async (_options: ExtractTasksOptions = {}) => {
     const transcript = useSessionStore.getState().transcript;
     if (!transcript.trim()) throw new Error('No transcript available for task extraction');
 
@@ -45,7 +45,7 @@ export function useTaskExtraction() {
     setTaskExtractionState('extracting');
     try {
       const taskExtractionPrompt = getTaskExtractionPrompt();
-      const aiConfig = options.forceOpenAI ? getOpenAiGenerationConfig() : getAiGenerationConfig();
+      const aiConfig = getTaskExtractionAiConfig();
       const { data, error } = await supabase.functions.invoke('generate-notes', {
         body: {
           transcript: `${taskExtractionPrompt}\n\n${buildTaskExtractionInput({
