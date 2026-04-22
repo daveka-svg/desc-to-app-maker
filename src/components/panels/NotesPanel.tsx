@@ -239,7 +239,8 @@ export default function NotesPanel() {
           )}
           <button
             onClick={handleCopy}
-            className="flex items-center gap-[5px] px-3.5 py-1.5 bg-sand border border-border rounded-md text-[13px] font-semibold text-bark cursor-pointer hover:bg-sand-dark"
+            disabled={isGeneratingCurrentSession}
+            className="flex items-center gap-[5px] px-3.5 py-1.5 bg-sand border border-border rounded-md text-[13px] font-semibold text-bark cursor-pointer hover:bg-sand-dark disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy Notes</>}
           </button>
@@ -248,12 +249,15 @@ export default function NotesPanel() {
 
       <div className="flex-1 min-h-0 flex">
         <div className="flex-1 overflow-y-auto p-6">
-          {isGeneratingCurrentSession && (
-            <div className="flex items-center gap-2 mb-3 text-xs text-forest font-semibold">
-              <Loader2 size={14} className="animate-spin" /> {activeGenerationJob?.message || 'Generating clinical notes...'}
+          {isGeneratingCurrentSession ? (
+            <div className="max-w-[720px] py-12 text-center text-sm text-text-muted">
+              <div className="inline-flex items-center gap-2 text-forest font-semibold">
+                <Loader2 size={16} className="animate-spin" />
+                {activeGenerationJob?.message || 'Generating clinical notes...'}
+              </div>
+              <p className="mt-2 text-xs">Previous notes are hidden until the new version is ready.</p>
             </div>
-          )}
-          {!notes && !isGeneratingCurrentSession ? (
+          ) : !notes ? (
             <div className="max-w-[720px] text-sm text-text-muted py-12 text-center">
               <p className="mb-2">No notes yet.</p>
               <p>Record a consultation and notes will be generated automatically.</p>

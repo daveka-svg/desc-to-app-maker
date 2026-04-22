@@ -95,6 +95,7 @@ export default function Sidebar() {
   const recordingArtifacts = useSessionStore((s) => s.recordingArtifacts);
   const setRecordingArtifacts = useSessionStore((s) => s.setRecordingArtifacts);
   const resetProcessingSteps = useSessionStore((s) => s.resetProcessingSteps);
+  const sessionGenerationJobs = useSessionStore((s) => s.sessionGenerationJobs);
 
   const [sessions, setSessions] = useState<DBSession[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -720,69 +721,83 @@ export default function Sidebar() {
                 <div className="px-4 pt-3 pb-1 text-[11px] font-semibold text-text-muted uppercase">
                   {date}
                 </div>
-                {items.map((session) => (
-                  <div
-                    key={session.id}
-                    className={`group px-3 py-1.5 ${
-                      session.id === activeSessionId ? 'bg-sand-dark' : 'hover:bg-sand'
-                    }`}
-                  >
+                {items.map((session) => {
+                  const isGeneratingSession = sessionGenerationJobs[session.id]?.status === 'running';
+                  return (
                     <div
-                      className="flex items-center gap-2.5 cursor-pointer"
-                      onClick={() => loadDBSession(session)}
+                      key={session.id}
+                      className={`group px-3 py-1.5 ${
+                        session.id === activeSessionId ? 'bg-sand-dark' : 'hover:bg-sand'
+                      }`}
                     >
                       <div
-                        className={`w-2 h-2 rounded-full shrink-0 ${
-                          session.id === activeSessionId ? 'bg-etv-olive' : 'bg-text-muted'
-                        }`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[12px] font-semibold text-text-primary truncate">
-                          {getSessionLabel(session)}
-                        </div>
-                        <div className="text-[11px] text-text-muted">
-                          {getSessionMeta(session)}
+                        className="flex items-center gap-2.5 cursor-pointer"
+                        onClick={() => loadDBSession(session)}
+                      >
+                        {isGeneratingSession ? (
+                          <Loader2 size={11} className="shrink-0 text-forest animate-spin" />
+                        ) : (
+                          <div
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              session.id === activeSessionId ? 'bg-etv-olive' : 'bg-text-muted'
+                            }`}
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="text-[12px] font-semibold text-text-primary truncate">
+                              {getSessionLabel(session)}
+                            </div>
+                            {isGeneratingSession && (
+                              <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-forest">
+                                Generating
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-text-muted">
+                            {getSessionMeta(session)}
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-1 mt-1.5 pl-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          title="Rename session"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            renameSession(session);
+                          }}
+                          className="p-1 rounded hover:bg-card"
+                        >
+                          <Pencil size={12} className="text-text-muted" />
+                        </button>
+                        <button
+                          title={session.archived_at ? 'Restore' : 'Archive'}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleArchiveSession(session);
+                          }}
+                          className="p-1 rounded hover:bg-card"
+                        >
+                          {session.archived_at ? (
+                            <ArchiveRestore size={12} className="text-text-muted" />
+                          ) : (
+                            <Archive size={12} className="text-text-muted" />
+                          )}
+                        </button>
+                        <button
+                          title="Delete permanently"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            deleteSession(session);
+                          }}
+                          className="p-1 rounded hover:bg-card"
+                        >
+                          <Trash2 size={12} className="text-error" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 mt-1.5 pl-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        title="Rename session"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          renameSession(session);
-                        }}
-                        className="p-1 rounded hover:bg-card"
-                      >
-                        <Pencil size={12} className="text-text-muted" />
-                      </button>
-                      <button
-                        title={session.archived_at ? 'Restore' : 'Archive'}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          toggleArchiveSession(session);
-                        }}
-                        className="p-1 rounded hover:bg-card"
-                      >
-                        {session.archived_at ? (
-                          <ArchiveRestore size={12} className="text-text-muted" />
-                        ) : (
-                          <Archive size={12} className="text-text-muted" />
-                        )}
-                      </button>
-                      <button
-                        title="Delete permanently"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          deleteSession(session);
-                        }}
-                        className="p-1 rounded hover:bg-card"
-                      >
-                        <Trash2 size={12} className="text-error" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ))
           )}
