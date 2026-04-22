@@ -30,6 +30,18 @@ interface NoteGenerationSnapshot {
 
 const DRAFT_GENERATION_KEY = '__draft__';
 const noteGenerationRunsBySession = new Map<string, number>();
+const READY_STATUS_MS = 120000;
+
+const clearReadyStatusLater = (sessionId: string) => {
+  if (typeof window === 'undefined') return;
+  const readyJobUpdatedAt = useSessionStore.getState().sessionGenerationJobs[sessionId]?.updatedAt;
+  window.setTimeout(() => {
+    const currentJob = useSessionStore.getState().sessionGenerationJobs[sessionId];
+    if (currentJob?.status === 'done' && currentJob.updatedAt === readyJobUpdatedAt) {
+      useSessionStore.getState().clearSessionGenerationJob(sessionId);
+    }
+  }, READY_STATUS_MS);
+};
 
 const formatDurationLabel = (seconds: number): string => {
   if (!seconds || seconds <= 0) return '0m';
@@ -191,8 +203,9 @@ export function useNoteGeneration() {
         if (snapshot.sessionId) {
           useSessionStore.getState().setSessionGenerationJob(snapshot.sessionId, {
             status: 'done',
-            message: 'Notes regenerated.',
+            message: 'Ready',
           });
+          clearReadyStatusLater(snapshot.sessionId);
           window.dispatchEvent(new Event('session-saved'));
         }
       }

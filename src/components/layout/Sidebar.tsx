@@ -3,6 +3,7 @@ import {
   Archive,
   ArchiveRestore,
   Book,
+  Check,
   ClipboardList,
   Loader2,
   LogOut,
@@ -731,9 +732,11 @@ export default function Sidebar() {
                   {date}
                 </div>
                 {items.map((session) => {
+                  const generationJob = sessionGenerationJobs[session.id];
                   const isGeneratingSession =
-                    sessionGenerationJobs[session.id]?.status === 'running' ||
+                    generationJob?.status === 'running' ||
                     (session.id === activeSessionId && isGeneratingNotes);
+                  const isReadySession = generationJob?.status === 'done';
                   return (
                     <div
                       key={session.id}
@@ -747,6 +750,8 @@ export default function Sidebar() {
                       >
                         {isGeneratingSession ? (
                           <Loader2 size={11} className="shrink-0 text-forest animate-spin" />
+                        ) : isReadySession ? (
+                          <Check size={11} className="shrink-0 text-forest" />
                         ) : (
                           <div
                             className={`w-2 h-2 rounded-full shrink-0 ${
@@ -762,6 +767,11 @@ export default function Sidebar() {
                             {isGeneratingSession && (
                               <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-forest">
                                 Generating
+                              </span>
+                            )}
+                            {!isGeneratingSession && isReadySession && (
+                              <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-forest">
+                                Ready
                               </span>
                             )}
                           </div>

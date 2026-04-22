@@ -255,7 +255,6 @@ export default function NotesPanel() {
                 <Loader2 size={16} className="animate-spin" />
                 {activeGenerationJob?.message || 'Generating clinical notes...'}
               </div>
-              <p className="mt-2 text-xs">Previous notes are hidden until the new version is ready.</p>
             </div>
           ) : !notes ? (
             <div className="max-w-[720px] text-sm text-text-muted py-12 text-center">

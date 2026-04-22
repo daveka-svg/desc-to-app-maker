@@ -68,15 +68,13 @@ export default function CenterTabs() {
           className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold border border-forest bg-forest text-primary-foreground hover:bg-forest-dark disabled:opacity-45 disabled:cursor-not-allowed transition-all duration-[120ms]"
           title="Stop recording if needed, finish transcription, then generate notes and tasks"
         >
-          {isFinalizing || finalTranscriptionStatus === 'running' || isGeneratingCurrentSession ? (
+          {isFinalizing || isGeneratingCurrentSession ? (
             <Loader2 size={13} className="animate-spin" />
           ) : null}
           {isFinalizing
             ? 'Finalizing...'
             : isGeneratingCurrentSession
               ? 'Regenerating...'
-              : finalTranscriptionStatus === 'running'
-              ? 'Finalize after transcript'
               : finalizeLabel}
         </button>
       </div>

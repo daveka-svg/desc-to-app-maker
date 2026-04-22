@@ -375,13 +375,18 @@ export default function ContextPanel() {
             )}
             {canAppendRecording && !isRecording && (
               <div className="text-[11px] text-text-muted text-center">
-                New recording will be appended to this session and notes will regenerate from combined context.
+                Add another audio recording to this session.
               </div>
             )}
             {finalTranscriptionStatus === 'running' && (
               <div className="inline-flex items-center gap-1.5 text-[11px] text-forest font-semibold">
                 <Loader2 size={12} className="animate-spin" />
-                Full transcript is processing in the background. You can keep editing context.
+                Audio saved. Transcript is processing.
+              </div>
+            )}
+            {finalTranscriptionStatus === 'done' && !isRecording && (
+              <div className="text-[11px] text-forest font-semibold text-center">
+                Audio saved. Transcript ready.
               </div>
             )}
             {finalTranscriptionStatus === 'error' && !isRecording && (
