@@ -96,6 +96,7 @@ export default function Sidebar() {
   const setRecordingArtifacts = useSessionStore((s) => s.setRecordingArtifacts);
   const resetProcessingSteps = useSessionStore((s) => s.resetProcessingSteps);
   const sessionGenerationJobs = useSessionStore((s) => s.sessionGenerationJobs);
+  const isGeneratingNotes = useSessionStore((s) => s.isGeneratingNotes);
 
   const [sessions, setSessions] = useState<DBSession[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -496,11 +497,14 @@ export default function Sidebar() {
   };
 
   const loadDBSession = async (session: DBSession) => {
+    const generationJob = useSessionStore.getState().sessionGenerationJobs[session.id];
+    const isSessionGenerating = generationJob?.status === 'running';
+
     setActiveSessionId(session.id);
     resetProcessingSteps();
     useSessionStore.setState({
       encounterStatus: 'reviewing',
-      isGeneratingNotes: false,
+      isGeneratingNotes: isSessionGenerating,
       isExtractingTasks: false,
       isGeneratingCI: false,
       isChatStreaming: false,
@@ -542,12 +546,17 @@ export default function Sidebar() {
 
     const noteData = noteRows?.[0] as any;
     if (noteData) {
-      setNotes(noteData.content || '');
-      setNotesGeneratedAt(
-        noteData.updated_at || noteData.created_at
-          ? new Date(noteData.updated_at || noteData.created_at).getTime()
-          : null
-      );
+      if (isSessionGenerating) {
+        setNotes('');
+        setNotesGeneratedAt(null);
+      } else {
+        setNotes(noteData.content || '');
+        setNotesGeneratedAt(
+          noteData.updated_at || noteData.created_at
+            ? new Date(noteData.updated_at || noteData.created_at).getTime()
+            : null
+        );
+      }
       setTranscript(noteData.transcript || '');
       setSupplementalContext(noteData.supplemental_context || '');
       setVetNotes(noteData.vet_notes || '');
@@ -722,7 +731,9 @@ export default function Sidebar() {
                   {date}
                 </div>
                 {items.map((session) => {
-                  const isGeneratingSession = sessionGenerationJobs[session.id]?.status === 'running';
+                  const isGeneratingSession =
+                    sessionGenerationJobs[session.id]?.status === 'running' ||
+                    (session.id === activeSessionId && isGeneratingNotes);
                   return (
                     <div
                       key={session.id}
